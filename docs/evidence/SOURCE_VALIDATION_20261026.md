@@ -45,6 +45,6 @@ All hashes below were recalculated on 2026-10-26. No ISO was modified during thi
 - Windows SIM validation, candidate boot/Setup, clean installation, OOBE, installed desktop behavior, and security/update-restoration checks remain outstanding.
 - Candidate and official-source boot attempts reported the same EFI error in one Hyper-V environment; the root cause remains unresolved. This comparison does not prove that either image works or that the candidate alone is defective.
 - Baka Browser execution, VMware game testing, and physical Intel/AMD testing were not performed. Physical hardware acceptance remains blocked.
-- GitHub Actions execution status is tracked on the repository's Actions page; local test results above do not stand in for a remote workflow result.
+- GitHub Actions [passed on commit `5dd01c8`](https://github.com/OldcarryG/Baka-windows/actions/runs/40335657073): source-only preflight and isolated configuration, theme, profile, game-detection, monitoring, release-guard, and UI checks all succeeded. The [initial run](https://github.com/OldcarryG/Baka-windows/actions/runs/40334909765) failed because a clean checkout lacked ignored `Logs`/`Output` folders; the setup fix is included in the passing commit.
 
 The candidate remains structurally validated but **not fully acceptance-tested**.

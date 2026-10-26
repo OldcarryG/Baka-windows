@@ -39,6 +39,7 @@ The original and prior candidate were rehashed after the build and remain unchan
 - Validated the staged source snapshot from a clean archive with no ignored media/build folders: the 77-pass/3-skip source preflight and all seven isolated test scripts passed.
 - Added a Windows GitHub Actions source-validation workflow, a repository `.gitignore`, and portable source-test and contribution guidance. ISO images, source media, servicing packages, the unsigned browser installer, VM files, and raw host logs are excluded from commits.
 - Recalculated the current R2 candidate, earlier candidate, original ISO, and Microsoft source hashes. No ISO or VM disk was modified during this source remediation.
+- The source-validation workflow passed on the pushed source commit after the clean-checkout directory fix; the initial run exposed the missing-directory assumption and remains visible in Actions history.
 
 ## Performance impact and limits
 
