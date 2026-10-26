@@ -150,6 +150,8 @@ if($browser.Count -eq 1){
     }
 }
 $report=[pscustomobject]@{RanAt=(Get-Date).ToString('o');Passed=(@($checks|Where-Object {$_.Passed -eq $false}).Count -eq 0);SkippedCount=@($checks|Where-Object {$_.Skipped}).Count;Checks=@($checks)}
+$logsDirectory=Join-Path $root 'Logs'
+if(-not(Test-Path -LiteralPath $logsDirectory -PathType Container)){New-Item -ItemType Directory -Path $logsDirectory -Force|Out-Null}
 $reportPath=Join-Path $root ("Logs\ProjectPreflight-{0:yyyyMMdd-HHmmss}.json" -f (Get-Date))
 $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $reportPath -Encoding UTF8
 $checks | Format-Table Name,Passed,Skipped,Detail -AutoSize

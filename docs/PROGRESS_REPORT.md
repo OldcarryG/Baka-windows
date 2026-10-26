@@ -35,6 +35,8 @@ The original and prior candidate were rehashed after the build and remain unchan
 - Fixed a settings bug where changing the System widget refresh interval was saved to disk but the running timer kept its original interval. The polling scheduler now applies the saved value when widget visibility or settings are refreshed.
 - Fixed a top-bar monitor-selection bug where the display setting was only read during initial window creation. The bar now repositions from the saved monitor setting when settings are applied, including after a restart.
 - Added isolated UI smoke assertions for both corrected settings paths. Added a strict-by-default project-preflight option for source-only CI checkouts: `-SkipExternalArtifactChecks` explicitly reports skipped media and installer byte/signature checks and continues validating the source manifests and PowerShell code.
+- Fixed clean-checkout test setup exposed by the first GitHub Actions run: preflight and release-guard tests now create their ignored `Logs`/`Output` directories when absent, as they are in a fresh clone.
+- Validated the staged source snapshot from a clean archive with no ignored media/build folders: the 77-pass/3-skip source preflight and all seven isolated test scripts passed.
 - Added a Windows GitHub Actions source-validation workflow, a repository `.gitignore`, and portable source-test and contribution guidance. ISO images, source media, servicing packages, the unsigned browser installer, VM files, and raw host logs are excluded from commits.
 - Recalculated the current R2 candidate, earlier candidate, original ISO, and Microsoft source hashes. No ISO or VM disk was modified during this source remediation.
 
@@ -51,6 +53,7 @@ The serviced Microsoft update contains an upstream fix for mouse-input stutter i
 3. **Build pipeline stage errors:** Pipeline failure records now preserve detailed stage errors, aiding diagnosis instead of reporting only a generic failure.
 4. **System widget refresh setting:** A saved polling interval no longer leaves the active timer at its startup value.
 5. **Top-bar display setting:** Applying a display selection now moves the bar immediately to the selected monitor instead of waiting for a restart.
+6. **Clean-checkout validation:** Source preflight and release-guard tests no longer assume ignored `Logs/` or `Output/` directories already exist.
 
 ## Checks completed
 
@@ -58,6 +61,7 @@ The serviced Microsoft update contains an upstream fix for mouse-input stutter i
 | --- | --- | --- |
 | Full project parser/configuration preflight | Passed, 83/83 | Local source media, signed servicing packages, and pinned browser payload were present and checked. |
 | Repository-safe project preflight | Passed, 77 passed / 3 explicitly skipped | Skips are limited to external ISO bytes, servicing package bytes/signatures, and the excluded browser installer bytes/signature. |
+| Clean source-only checkout | Passed | The repository-safe preflight and all seven isolated test scripts passed with no ignored media/build folders present. |
 | Windows 11 build host preflight | Passed, 8/8 | Raw machine-specific build evidence is retained locally and not published. |
 | Source transfer and integrity | Passed, 60 files | Transferred build inputs were hash-checked; raw host records remain local. |
 | Microsoft source, Setup signature, servicing, and image integrity | Passed | Verified during the prior Windows 11 build; no rebuild occurred during source remediation. |

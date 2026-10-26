@@ -9,6 +9,11 @@ $existingBuildRoot=Join-Path $root ('Work\PipelineGuardFixture-'+$fixtureId)
 $existingIso=Join-Path $root ('Output\PipelineGuardFixture-'+$fixtureId+'.iso')
 $unusedOutput=Join-Path $root ('Output\PipelineGuardUnused-'+$fixtureId+'.iso')
 $nonexistentBuildRoot=Join-Path $root ('Work\PipelineGuardMissing-'+$fixtureId)
+$outputDirectory=Join-Path $root 'Output'
+$logsDirectory=Join-Path $root 'Logs'
+$createdOutputDirectory= -not (Test-Path -LiteralPath $outputDirectory -PathType Container)
+if($createdOutputDirectory){New-Item -ItemType Directory -Path $outputDirectory -Force|Out-Null}
+if(-not(Test-Path -LiteralPath $logsDirectory -PathType Container)){New-Item -ItemType Directory -Path $logsDirectory -Force|Out-Null}
 New-Item -ItemType Directory -Path $existingBuildRoot -Force|Out-Null
 Set-Content -LiteralPath $existingIso -Value 'Temporary release-pipeline guard fixture; not an ISO.' -Encoding ASCII
 $checks=@(
@@ -33,6 +38,7 @@ try{
 }finally{
     if(Test-Path -LiteralPath $existingIso -PathType Leaf){Remove-Item -LiteralPath $existingIso -Force}
     if((Test-Path -LiteralPath $existingBuildRoot -PathType Container) -and -not (Get-ChildItem -LiteralPath $existingBuildRoot -Force)){Remove-Item -LiteralPath $existingBuildRoot -Force}
+    if($createdOutputDirectory -and (Test-Path -LiteralPath $outputDirectory -PathType Container) -and -not (Get-ChildItem -LiteralPath $outputDirectory -Force)){Remove-Item -LiteralPath $outputDirectory -Force}
 }
 Write-Output "RESULT: $passed/2 release-pipeline preservation guards passed."
 $report=[pscustomobject]@{schemaVersion=1;test='Release pipeline preservation guards';result=if($passed -eq 2){'Passed'}else{'Failed'};completedAt=(Get-Date).ToString('o');passed=$passed;total=2;cases=@($results)}

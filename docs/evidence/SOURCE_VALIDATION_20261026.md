@@ -17,6 +17,7 @@
 | --- | --- | --- |
 | Full local project preflight | **Passed, 83/83** | Local pinned Windows media, servicing packages, and browser installer were present and checked. The unsigned browser installer was not executed. |
 | Repository-safe project preflight | **Passed, 77 passed / 3 explicitly skipped** | Skips are limited to external Windows ISO bytes, servicing package bytes/signatures, and the excluded Baka Browser installer bytes/signature. Manifest and source checks still ran. |
+| Clean source-only checkout | **Passed** | The repository-safe preflight and all seven isolated test scripts passed from an archive containing only staged Git files, with no `Source`, `Downloads`, `Output`, `Work`, or `Logs` directory at checkout. |
 | BAKA Liquid WPF preview smoke | **Passed, 13 stages** | Runs on the development host using Windows' opaque backdrop fallback. Not installed Windows 11 Acrylic validation. |
 | Theme contrast | **Passed, 20/20** | Required monochrome presets and optional Violet preset. |
 | Desktop settings persistence and recovery | **Passed, 4/4** | Isolated temporary files. |
@@ -44,6 +45,6 @@ All hashes below were recalculated on 2026-10-26. No ISO was modified during thi
 - Windows SIM validation, candidate boot/Setup, clean installation, OOBE, installed desktop behavior, and security/update-restoration checks remain outstanding.
 - Candidate and official-source boot attempts reported the same EFI error in one Hyper-V environment; the root cause remains unresolved. This comparison does not prove that either image works or that the candidate alone is defective.
 - Baka Browser execution, VMware game testing, and physical Intel/AMD testing were not performed. Physical hardware acceptance remains blocked.
-- GitHub Actions has been configured but has not yet run on the remote repository.
+- GitHub Actions execution status is tracked on the repository's Actions page; local test results above do not stand in for a remote workflow result.
 
 The candidate remains structurally validated but **not fully acceptance-tested**.

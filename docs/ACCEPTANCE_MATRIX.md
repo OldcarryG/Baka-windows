@@ -25,6 +25,7 @@ All four hashes were recalculated on 2026-10-26 and match the recorded values. R
 | Requirement | Status | Evidence / limits |
 | --- | --- | --- |
 | Project configuration and PowerShell parser | **Passed** | Full local preflight passed 83/83. Repository-safe mode passed 77 checks and explicitly skipped 3 external-artifact checks. See `docs/evidence/SOURCE_VALIDATION_20261026.md`. |
+| Clean source-only checkout | **Passed** | Repository-safe preflight and all seven isolated test scripts passed without ignored media or build folders present. |
 | Official source and Windows build identity | **Passed** | Guest source verification and final ISO validation; Windows 11 Pro x64 en-US, build 26300.9711; valid Microsoft Setup signature. |
 | Approved image servicing and integrity | **Passed** | DISM servicing logs and `BuildContext-20261024.json`; KB5127648 package identity verified, image integrity/commit completed. |
 | Current Windows release and supported ADK version | **Passed** | 2026-10-26 release-history and offline ADK version checks are recorded in the local project. Windows SIM answer-file validation remains unperformed. |
