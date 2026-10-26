@@ -47,7 +47,7 @@ All four hashes were recalculated on 2026-10-26 and match the recorded values. R
 | Requirement | Status | Evidence / limitation |
 | --- | --- | --- |
 | Windows SIM catalog-backed answer-file validation | **Not run** | Console capture timed out; Windows SIM was not opened and no catalog-backed validation is claimed. |
-| Candidate ISO boot in a VM | **Failed in one Hyper-V environment; root cause unresolved** | Event 18603 reports the same EFI boot-image error for R2 and the official Microsoft source. The compared 64-file boot-path sets match; this does not establish full ISO validity. See `docs/evidence/SOURCE_VALIDATION_20261026.md`. |
+| Candidate ISO boot in a VM | **Failed in current VM attempts; root cause unresolved** | Hyper-V produced Event 18603 EFI loader failures for R2 and the official Microsoft source. In VMware 26H1, both R2 and the official source log `SECUREBOOT: Image APPROVED` followed by `Status upon boot failure: Time out` at the SATA CD-ROM EFI handoff. Neither reached Windows Setup. The matching source result does not establish a candidate-only defect. VMware vTPM setup is also pending for Windows 11 installation. See `docs/VMWARE_AB_COMPARISON.md` and the screenshots in `docs/evidence/screenshots/`. |
 | Clean UEFI install, interactive disk selection, confirmation, OOBE | **Not run** | Setup could not be inspected or operated. The new blank test disk is attached and the earlier disk is detached. No partition or erase action was sent. |
 | Local and Microsoft account setup paths | **Not run** | Requires interactive OOBE on the candidate. |
 | Installed BAKA Liquid desktop, dock, bar, Quick Panel, widgets, editor | **Not run** | Source preview is not installed-image runtime evidence. |
@@ -57,7 +57,7 @@ All four hashes were recalculated on 2026-10-26 and match the recorded values. R
 | UI scaling, keyboard/focus accessibility, multiple monitors, sleep/wake, long-run stability | **Not run** | Requires installed runtime and appropriate VM/display coverage. |
 | Companion CPU, memory, wakeups, startup time, game overhead | **Not measured** | No installed process measurements. No resource budget or FPS benefit is claimed. |
 | Baka Browser install and launch | **Not run** | The unsigned installer was staged and hash-matched but not executed. The acceptance VM has not reached a verified installed desktop. Earlier authorization is limited to that isolated VM. |
-| VMware CS2, Team Fortress 2, or another free game | **Not run** | VMware/VMware Player is not available on this host, and no game installation or gameplay result exists. Anti-cheat compatibility is unclaimed. VALORANT is excluded per user request. |
+| VMware CS2, Team Fortress 2, or another free game | **Not run** | VMware Workstation 26H1 is installed and the two matched guest shells are prepared, but Windows Setup has not been reached and no game installation or gameplay result exists. Anti-cheat compatibility is unclaimed. VALORANT is excluded per user request. |
 | Physical Intel/AMD FPS, 1% lows, frame pacing, input latency, USB polling, DPC/ISR, peripheral stability | **Blocked** | Suitable physical test hardware is unavailable. No physical results are claimed. |
 | Release acceptance | **Incomplete** | The candidate is structurally validated, not fully acceptance-tested. |
 

@@ -4,7 +4,7 @@ Updated: 2026-10-26
 
 ## Release state
 
-The BAKA Liquid UI-R2 candidate was built in the authorized Windows 11 technician VM and passed structural ISO validation. It is a **structurally validated candidate**, not a fully acceptance-tested release: guest boot/Setup could not be observed through the VM console, and installed-desktop behavior, Windows SIM, game testing, and physical performance testing remain outstanding.
+The BAKA Liquid UI-R2 candidate was built in the authorized Windows 11 technician VM and passed structural ISO validation. It is a **structurally validated candidate**, not a fully acceptance-tested release: in VMware 26H1, the candidate and official source both receive Secure Boot approval and then time out at the EFI CD-ROM handoff. Windows Setup has not opened. Installed-desktop behavior, Windows SIM, game testing, and physical performance testing remain outstanding.
 
 | Artifact | Size | SHA-256 | Status |
 | --- | ---: | --- | --- |
@@ -49,7 +49,7 @@ Raw evidence is retained in the local `Logs/` directory. The sanitized test summ
 | Check | Result | Evidence and limits |
 | --- | --- | --- |
 | Full project configuration and parser preflight | **Passed, 83/83** | Includes external source, package, and browser installer hash/signature checks. |
-| Repository-safe source preflight | **Passed, 77 passed / 3 explicitly skipped** | Skips only checks requiring excluded external ISO, servicing packages, and browser installer bytes. |
+| Repository-safe source preflight | **Passed, 78 passed / 3 explicitly skipped** | Latest host rerun passed; skips only checks requiring excluded external ISO, servicing packages, and browser installer bytes. |
 | Build VM preflight | **Passed, 8/8** | `BuildVM-UI-R2-20261024/BuildHost-20261024-155554.json`; Windows 11, x64, admin, and required tools. |
 | Input transfer | **Passed, 60 files** | The transferred build inputs were hash-checked; the machine-specific transfer manifest is retained locally. |
 | Preserved and new artifact hashes | **Passed** | R2 candidate recalculated on host on 2026-10-26; earlier candidate, original ISO, and pinned Microsoft source hashes match their recorded values. |
@@ -69,11 +69,11 @@ Raw evidence is retained in the local `Logs/` directory. The sanitized test summ
 ## Acceptance not completed
 
 - Windows SIM catalog-backed answer-file validation was not performed. XML/source checks are not SIM validation. The technician VM heartbeat was healthy, but its console capture timed out and Windows SIM was not opened.
-- Candidate and official-source boot attempts both failed in one Hyper-V environment: Event 18603 shows EFI/BOOT/BOOTX64.EFI status 0x00010003 with extended status 0x00000013 for R2, Microsoft source, then R2 twice. Read-only comparison found zero differences across 64 EFI/boot/Windows PE boot files per image. Root cause remains unresolved; this does not establish a candidate-only defect or validate boot on other systems. Ten console screenshot captures timed out, including two in the latest retry; no guest input was sent. See `docs/evidence/SOURCE_VALIDATION_20261026.md`.
+- Candidate and official-source boot attempts both failed in the earlier Hyper-V environment: Event 18603 shows EFI/BOOT/BOOTX64.EFI status 0x00010003 with extended status 0x00000013 for R2, Microsoft source, then R2 twice. Read-only comparison found zero differences across 64 EFI/boot/Windows PE boot files per image. In VMware, both images receive Secure Boot approval and then time out at the EFI CD-ROM handoff. SATA port 0, IDE CD-ROM, and a timed Enter-key attempt did not clear the black boot screen. Windows Setup has not opened; the matching stock result leaves the VM boot-path root cause unresolved. See `docs/evidence/SOURCE_VALIDATION_20261026.md` and `docs/VMWARE_AB_COMPARISON.md`.
 - Clean UEFI install, disk-selection confirmation, local/Microsoft account OOBE paths, and first-boot workflow were not run. A fresh empty 80 GiB test disk is attached; the prior system disk remains detached. No partition or erase action has been performed.
 - The acceptance VM is Off after the latest failed boot attempt. The R2 DVD remains first, Secure Boot and TPM remain enabled, and the fresh 80 GiB test disk remains attached under an automatic Hyper-V checkpoint. Guest heartbeat reported No Contact while running. VMConnect opens, but its display capture channel times out. The prior system disk remains detached.
 - Installed dock, bar, Quick Panel, widgets, profile restoration, Explorer fallback, Windows security, update suppression/restoration, sleep/wake, accessibility, scaling, and crash recovery remain untested.
-- Baka Browser execution, VMware CS2/Team Fortress 2 installation or gameplay, and anti-cheat behavior were not tested. VMware/VMware Player is not available on this host. VALORANT remains excluded by user instruction.
+- Baka Browser execution, VMware CS2/Team Fortress 2 installation or gameplay, and anti-cheat behavior were not tested. VMware Workstation 26H1 is installed, but the guest has not reached Windows Setup. VALORANT remains excluded by user instruction.
 - Physical Intel/AMD performance, FPS, 1% lows, frame pacing, input latency, USB polling, DPC/ISR, peripheral stability, and runtime resource use are unavailable without suitable physical hardware.
 
 The candidate is structurally validated but **not fully acceptance-tested**. Do not claim measured FPS or latency improvements.

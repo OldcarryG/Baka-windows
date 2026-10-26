@@ -1,7 +1,7 @@
 # VMware Windows A/B comparison — status and protocol
 
 **Updated:** 2026-10-26  
-**Status:** Preparation documented; VMware is not installed and no comparison VMs or results exist yet.
+**Status:** Workstation 26H1 is installed and two matched VM shells are prepared. Both the BAKA candidate and official source ISO receive Secure Boot approval, then time out at the EFI CD-ROM handoff. Windows Setup and guest acceptance remain unverified; vTPM setup is also pending.
 
 ## Objective
 
@@ -17,24 +17,26 @@ Compare an official Windows 11 Pro installation with the BAKA Liquid UI-R2 candi
 | Memory | 31.8 GiB installed |
 | Free system-drive space | About 405 GiB at the time of this check |
 | Host hypervisor | Hyper-V is active |
-| VMware Workstation | Not installed; no `vmrun` or Workstation executable found |
+| VMware Workstation | 26H1 build 25388281; Broadcom installer signature valid; `vmrun` and `vmcli` available; guest log reports `Monitor Mode: ULM` with Hyper-V detected |
 | BAKA image | UI-R2 ISO, SHA-256 `55E6883CC303AE5AD8D22EDD3C8A7E9344C13498F6623A79F4D5D1D5DF877CD8`, structurally validated but not accepted |
 | Stock install source | Official Windows 11 Pro x64 ISO, build 26300.9457 |
 
-Broadcom lists VMware Workstation Pro 26H1 as the current desktop-hypervisor release. The official download page requires a Broadcom Support Portal sign-in; the user has said they will sign in. No credentials are requested or recorded here. [Release information](https://blogs.vmware.com/cloud-foundation/2026/05/14/announcing-vmware-workstation-and-fusion-26h1/) · [Download and license instructions](https://knowledge.broadcom.com/external/article/368667/download-and-license-information-for-vmw.html)
+Broadcom lists VMware Workstation Pro 26H1 as the current desktop-hypervisor release. The downloaded installer is `VMware-Workstation-Full-26H1-25388281.exe`, signed by Broadcom Inc.; Authenticode status was `Valid`, and SHA-256 is `A0EF9087607D9CAD20B08139E73E41242E044AD5BD8CEE141D3BAD314586737F`. [Release information](https://blogs.vmware.com/cloud-foundation/2026/05/14/announcing-vmware-workstation-and-fusion-26h1/) · [Download and license instructions](https://knowledge.broadcom.com/external/article/368667/download-and-license-information-for-vmw.html)
 
 The BAKA candidate is build 26300.9711 while the pinned stock source is 26300.9457. For a fair comparison, the stock guest must be serviced to 26300.9711 with the same approved update before comparing behavior. Record VMware Tools version, guest edition/build, virtual hardware, firmware, display resolution, and update state for both VMs.
 
 ## Proposed lab configuration
 
-- Two Generation 2 UEFI Windows 11 Pro guests: `BAKA-Stock-Reference` and `BAKA-Liquid-R2`.
+- Two UEFI Windows 11 Pro guests: `BAKA-Stock-Reference` and `BAKA-Liquid-R2`.
 - Secure Boot and virtual TPM enabled when supported by the installed VMware release.
-- Matched virtual hardware: 4 vCPUs, 12 GiB RAM, 180 GiB thin-provisioned disk, identical 1920×1080 display settings, and the same VMware Tools version.
+- Matched virtual hardware: 4 vCPUs, 12 GiB RAM, 160 GiB growable virtual disks, identical 1920×1080 display settings, and the same VMware Tools version.
 - Enable the same VMware 3D-acceleration setting in both guests. Verify the guest graphics adapter and DirectX capability before attempting a game.
 - Run performance and game captures one guest at a time. A side-by-side desktop screenshot may be captured separately with both guests idle.
 - Keep the existing Hyper-V VMs and all source/candidate ISOs untouched. Do not disable host security or Hyper-V settings to improve a score.
 
-The proposed RAM and disk allocations are subject to checking host free space immediately before VM creation. Preserve at least 80 GiB free on the host; reduce the VM disk cap or defer game installation if needed. If both VMs cannot run comfortably at once for a screenshot, capture each desktop independently and label the images with the guest name and timestamp rather than implying simultaneous execution.
+Both guest folders were created under the ignored `Work/VMware-AB-20261026/` directory with matched CPU/RAM/disk settings and the official source ISO or BAKA candidate attached. In both VMware logs, Secure Boot reports `SECUREBOOT: Image APPROVED`, followed by `About to do EFI boot` and `Status upon boot failure: Time out`. The candidate's timeout occurred with its CD-ROM on SATA port 1, SATA port 0, and IDE. A timed Enter-key event did not alter the logged timeout. The candidate VM was also checked with the vendor-recommended Windows 10 x64 guest type; the loader still timed out. The stock VM, using the matched Windows 11 x64 guest type, produced the same timeout on SATA. Neither guest reached Windows Setup. This matching source result does not establish a candidate-only problem. Screenshots are in `docs/evidence/screenshots/`. The Workstation logs report `Monitor Mode: ULM` and Hyper-V detected. Neither guest has a vTPM. Broadcom documents vTPM setup through Workstation VM encryption and the Hardware settings UI; its employee response says `vmcli` does not support VM encryption or vTPM creation. [Windows 11 guest requirements](https://knowledge.broadcom.com/external/article/315650) · [VMCLI support response](https://community.broadcom.com/vmware-cloud-foundation/discussion/vmcli-add-encryption-for-enabling-tpm)
+
+At VM creation time, the host had about 405 GiB free. Preserve at least 80 GiB free; reduce the disk cap or defer game installation if needed. Both guests are configured with 12 GiB, so run game tests sequentially. If both cannot run comfortably for a screenshot, capture each desktop separately and label each image rather than implying simultaneous execution.
 
 Hyper-V is active on this host. Broadcom documents that Workstation uses Windows Hypervisor Platform when Hyper-V/VBS is enabled and that this can affect VM performance; Workstation 25H2 and later can identify the VM monitor mode. Record the actual mode from the Workstation log/UI and keep the host's Hyper-V, VBS, and memory-integrity settings unchanged during this comparison. [Broadcom monitor-mode guidance](https://knowledge.broadcom.com/external/article/417896/after-the-host-os-upgrade-to-version-win.html)
 
@@ -57,12 +59,14 @@ VMware graphics are virtualized, and Hyper-V is active on the host. These runs c
 | Work item | Status |
 | --- | --- |
 | Host and image audit | **Complete** |
-| VMware installation | **Blocked on official Broadcom portal download access** |
-| Stock and BAKA VMware guests | **Not started** |
+| VMware Workstation installation | **Complete; Broadcom Authenticode signature verified** |
+| Stock and BAKA VMware guest shells | **Created and matched; each has 4 vCPU, 12 GiB RAM, and a 160 GiB growable disk** |
+| UEFI/Secure Boot boot check | **Failed to reach Setup in both guests; matching EFI timeout after loader approval** |
+| vTPM configuration | **Pending Workstation encryption + TPM device setup** |
 | Guest metric collector | **Prepared; host-only syntax/output smoke check passed** |
-| Authentic desktop screenshots | **Not captured** |
+| Authentic installed-desktop screenshots | **Not captured; only UEFI boot-path and stock timeout screenshots exist** |
 | Idle resource and startup measurements | **Not measured** |
 | CS2 and TF2 install/launch/gameplay | **Not run** |
 | Performance comparison and conclusion | **Not measured; no gain claimed** |
 
-The earlier Hyper-V boot failure remains unresolved. A VMware boot attempt is not evidence until the guest visibly reaches Windows Setup and the installed desktop is observed.
+The earlier Hyper-V boot failure remains unresolved. The VMware firmware evidence does not count as a Windows Setup or installed-desktop pass.

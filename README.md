@@ -2,9 +2,29 @@
 
 PowerShell-driven Windows 11 Pro x64 deployment project with Explorer as the shell, reversible gaming profiles, and the BAKA Liquid WPF desktop companion.
 
+[![Source validation](https://github.com/OldcarryG/Baka-windows/actions/workflows/source-validation.yml/badge.svg?branch=main)](https://github.com/OldcarryG/Baka-windows/actions/workflows/source-validation.yml)
+
+## Progress
+
+**Acceptance checklist: 16 of 30 checks passed (53%).** This counts the tracked verification rows in `docs/ACCEPTANCE_MATRIX.md`, excluding its final release-summary row. The image is **not release accepted**.
+
+`████████████████░░░░░░░░░░░░░░` 53%
+
+Source/build validation and the BAKA Liquid source checks are complete. VMware Workstation 26H1 is installed and the matched stock and BAKA guest shells are prepared. In both VMware guests, Secure Boot approved the installer loader, then EFI reported “Time out” before Windows Setup. The matching stock result points to an unresolved shared VM boot-path issue; it does not prove a BAKA-only defect. Installed desktop, game, resource-use, and comparative performance results are still pending; physical gaming results remain unavailable.
+
+### VMware boot evidence
+
+The first screenshot shows the BAKA candidate's VMware UEFI boot manager with its ISO listed. The second shows the candidate back at the firmware manager after its EFI timeout; the third captures the stock ISO's “Time out” screen. These are boot-path evidence only; none is a screenshot of an installed desktop.
+
+![BAKA VMware UEFI boot manager; Windows Setup has not been reached yet.](docs/evidence/screenshots/20261026-baka-vmware-uefi-boot-manager.png)
+
+![BAKA candidate reaches the VMware EFI boot manager but not Windows Setup.](docs/evidence/screenshots/20261026-baka-vmware-efi-timeout.png)
+
+![Official stock Windows ISO shows the same VMware EFI timeout.](docs/evidence/screenshots/20261026-stock-source-vmware-efi-timeout.png)
+
 ## Release status
 
-A separate BAKA Liquid UI-R2 candidate has been built in the authorized Windows 11 build VM and passed structural ISO validation. It is **not fully acceptance-tested**: VM boot/Setup display is unverified because console capture timed out; Windows SIM, install/OOBE, installed desktop behavior, runtime security/update restoration, and game tests remain outstanding.
+A separate BAKA Liquid UI-R2 candidate has been built in the authorized Windows 11 build VM and passed structural ISO validation. It is **not fully acceptance-tested**: both the candidate and official source time out during VMware EFI boot after Secure Boot approves the loader. Windows Setup has not opened. Windows SIM, install/OOBE, installed desktop behavior, runtime security/update restoration, and game tests remain outstanding.
 
 - Candidate: `Output/BAKA-Windows-Gaming-Edition-26H2-x64-BakaLiquid-UI-R2-20261024.iso`
 - SHA-256: `55E6883CC303AE5AD8D22EDD3C8A7E9344C13498F6623A79F4D5D1D5DF877CD8`
@@ -48,8 +68,8 @@ See `docs/GITHUB_WORKFLOW.md` for the branch, review, GitHub Actions, and releas
 
 The build pipeline accepts explicit input and output paths and refuses to overwrite an existing workspace or ISO. The R2 build used the authorized Windows 11 technician VM and current ADK toolchain; any later rebuild must use a new output path and preserve the recorded artifacts.
 
-The current candidate still requires a verified VM boot, Windows SIM validation, a clean UEFI installation and OOBE, installed runtime/security/update-restoration tests, and resource measurements. CS2/TF2 gameplay and physical gaming performance remain unverified. VALORANT is excluded. No BAKA FPS, frametime, or input-latency gain is claimed.
+The current candidate still requires a verified Windows Setup boot, Windows SIM validation, a clean UEFI installation and OOBE, installed runtime/security/update-restoration tests, and resource measurements. CS2/TF2 gameplay and physical gaming performance remain unverified. VALORANT is excluded. No BAKA FPS, frametime, or input-latency gain is claimed.
 
 See `docs/BUILD_STATUS.md`, `docs/ACCEPTANCE_MATRIX.md`, and `docs/PROGRESS_REPORT.md` before using an ISO.
 
-The requested VMware stock-vs-BAKA comparison is tracked in `docs/VMWARE_AB_COMPARISON.md`. A guest metric collector is prepared and smoke-checked on the host, but VMware is not installed yet; no comparison screenshots, game runs, or guest resource measurements have been produced.
+The VMware stock-vs-BAKA comparison is tracked in `docs/VMWARE_AB_COMPARISON.md`. VMware is installed and the two matched guest shells are prepared. A guest metric collector is ready, but Windows Setup has not been reached; no installed-desktop screenshots, game runs, or guest resource measurements have been produced.

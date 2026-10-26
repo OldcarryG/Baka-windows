@@ -4,7 +4,7 @@ Updated: 2026-10-26
 
 ## Current result
 
-A distinct BAKA Liquid UI-R2 candidate has been built in the user-authorized Windows 11 technician VM and passed structural ISO validation. The original ISO and the earlier 2026-10-16 candidate remain unchanged. This is **not a fully acceptance-tested release**: the VM guest boot/Setup screen could not be observed, and installation/OOBE, Windows SIM, installed desktop behavior, security and update-restoration checks, game testing, and physical performance measurements remain outstanding.
+A distinct BAKA Liquid UI-R2 candidate has been built in the user-authorized Windows 11 technician VM and passed structural ISO validation. The original ISO and the earlier 2026-10-16 candidate remain unchanged. This is **not a fully acceptance-tested release**: both the BAKA candidate and official stock ISO reach VMware UEFI, but Secure Boot handoff ends in “Time out” before Windows Setup. SATA port 0, IDE CD-ROM, and one timed Enter-key attempt did not resolve the black boot screen. Installation/OOBE, Windows SIM, installed desktop behavior, security and update-restoration checks, game testing, and physical performance measurements remain outstanding.
 
 Primary review artifact:
 
@@ -49,11 +49,20 @@ The serviced Microsoft update contains an upstream fix for mouse-input stutter i
 
 ## VMware A/B comparison — new request
 
-- Audited the current host: Windows 10 Pro build 19045, Intel Core i5-14400F (10 cores / 16 threads), RTX 5060, 31.8 GiB RAM, and about 405 GiB free system-drive space. Hyper-V is active; VMware Workstation is not installed.
+- Audited the current host: Windows 10 Pro build 19045, Intel Core i5-14400F (10 cores / 16 threads), RTX 5060, 31.8 GiB RAM, and about 405 GiB free system-drive space. Hyper-V is active.
 - Documented a matched stock-vs-BAKA VMware protocol in `docs/VMWARE_AB_COMPARISON.md`, including same-build servicing, UEFI/Secure Boot/vTPM, VM resources, repeatable idle and game measurements, and authentic screenshot evidence.
 - Added `Scripts/Diagnostics/Collect-ABGuestMetrics.ps1` to record guest CPU, memory, disk throughput, and detected BAKA/game process usage as timestamped CSV and JSON. Its syntax and output flow passed a short host-only smoke check; this is not a guest measurement and yields no performance conclusion.
-- Broadcom's official 26H1 download route requires portal sign-in. The user has said they will sign in; no installer is available locally yet. The stock guest, BAKA guest, screenshots, resource measurements, CS2/TF2 runs, and performance delta are therefore not started. No performance improvement is claimed.
 - The source ISO is build 26300.9457 and the BAKA candidate is 26300.9711. The stock guest must receive the same approved update before a fair comparison.
+
+## VMware lab setup — 2026-10-26
+
+- Verified VMware Workstation Pro 26H1 build 25388281. The installer has a valid Broadcom Inc. Authenticode signature; SHA-256 is `A0EF9087607D9CAD20B08139E73E41242E044AD5BD8CEE141D3BAD314586737F`.
+- Created matched `BAKA-Stock-Reference` and `BAKA-Liquid-R2` Workstation VM shells in ignored `Work/VMware-AB-20261026/`. Each has 4 vCPUs, 12 GiB RAM, a 160 GiB growable disk, UEFI firmware, Secure Boot, 3D acceleration, NAT networking, and its stock or BAKA ISO attached. The source and candidate ISOs remain unchanged.
+- The BAKA candidate's VMware UEFI boot log reports `SECUREBOOT: Image APPROVED`, and the firmware lists the candidate ISO. Windows Setup has not opened. The VMware attempt therefore does not resolve the earlier Hyper-V boot failure.
+- Workstation requires VM encryption before adding a vTPM. Broadcom's instructions use Workstation's encryption and TPM settings UI; its employee response says `vmcli` cannot create encryption or a vTPM. The Windows computer-use capture channel failed twice (`FrameArrived timed out: timed out waiting on channel`; `window capture timed out: timed out waiting on channel`), so UI automation stopped. No TPM bypass or unsupported VMX TPM flag was used. [Broadcom Windows 11 guest instructions](https://knowledge.broadcom.com/external/article/315650) · [Broadcom vmcli response](https://community.broadcom.com/vmware-cloud-foundation/discussion/vmcli-add-encryption-for-enabling-tpm)
+- Captured genuine boot-manager evidence at `docs/evidence/screenshots/20261026-baka-vmware-uefi-boot-manager.png`. No installed Windows desktop, game, or VM performance result exists yet. Physical hardware testing remains unavailable.
+- Tested the official source ISO in the matched stock guest: it also logs `SECUREBOOT: Image APPROVED` and then `Status upon boot failure: Time out` at the EFI CD-ROM handoff. Saved the actual firmware screenshot at `docs/evidence/screenshots/20261026-stock-source-vmware-efi-timeout.png`. This common result does not establish a BAKA-only boot defect. BAKA trials moving the ISO from SATA port 1 to port 0 and then IDE had the same timeout. A timed Enter-key event and the vendor-recommended `windows10-64` guest type also did not resolve it. Workstation reports `Monitor Mode: ULM` with Hyper-V detected. No Windows Setup or installed desktop has been reached.
+- Further VMware testing depends on enabling Workstation encryption and adding a vTPM device to each VM, then booting the attached ISO. The A/B plan, VM shells, and metrics collector are ready; no BAKA performance gain is claimed.
 
 ## Bugs fixed
 
@@ -69,7 +78,7 @@ The serviced Microsoft update contains an upstream fix for mouse-input stutter i
 | Check | Result | Evidence / limits |
 | --- | --- | --- |
 | Full project parser/configuration preflight | Passed, 83/83 | Local source media, signed servicing packages, and pinned browser payload were present and checked. |
-| Repository-safe project preflight | Passed, 77 passed / 3 explicitly skipped | Skips are limited to external ISO bytes, servicing package bytes/signatures, and the excluded browser installer bytes/signature. |
+| Repository-safe project preflight | Passed, 78 passed / 3 explicitly skipped | Latest host rerun; skips are limited to external ISO bytes, servicing package bytes/signatures, and the excluded browser installer bytes/signature. |
 | Clean source-only checkout | Passed | The repository-safe preflight and all seven isolated test scripts passed with no ignored media/build folders present. |
 | Windows 11 build host preflight | Passed, 8/8 | Raw machine-specific build evidence is retained locally and not published. |
 | Source transfer and integrity | Passed, 60 files | Transferred build inputs were hash-checked; raw host records remain local. |
