@@ -51,6 +51,7 @@ The serviced Microsoft update contains an upstream fix for mouse-input stutter i
 
 - Audited the current host: Windows 10 Pro build 19045, Intel Core i5-14400F (10 cores / 16 threads), RTX 5060, 31.8 GiB RAM, and about 405 GiB free system-drive space. Hyper-V is active; VMware Workstation is not installed.
 - Documented a matched stock-vs-BAKA VMware protocol in `docs/VMWARE_AB_COMPARISON.md`, including same-build servicing, UEFI/Secure Boot/vTPM, VM resources, repeatable idle and game measurements, and authentic screenshot evidence.
+- Added `Scripts/Diagnostics/Collect-ABGuestMetrics.ps1` to record guest CPU, memory, disk throughput, and detected BAKA/game process usage as timestamped CSV and JSON. Its syntax and output flow passed a short host-only smoke check; this is not a guest measurement and yields no performance conclusion.
 - Broadcom's official 26H1 download route requires portal sign-in. The user has said they will sign in; no installer is available locally yet. The stock guest, BAKA guest, screenshots, resource measurements, CS2/TF2 runs, and performance delta are therefore not started. No performance improvement is claimed.
 - The source ISO is build 26300.9457 and the BAKA candidate is 26300.9711. The stock guest must receive the same approved update before a fair comparison.
 

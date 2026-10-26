@@ -34,7 +34,9 @@ The BAKA candidate is build 26300.9711 while the pinned stock source is 26300.94
 - Run performance and game captures one guest at a time. A side-by-side desktop screenshot may be captured separately with both guests idle.
 - Keep the existing Hyper-V VMs and all source/candidate ISOs untouched. Do not disable host security or Hyper-V settings to improve a score.
 
-The proposed RAM and disk allocations are subject to checking host free space immediately before VM creation. If both VMs cannot run comfortably at once for a screenshot, capture each desktop independently and label the images with the guest name and timestamp rather than implying simultaneous execution.
+The proposed RAM and disk allocations are subject to checking host free space immediately before VM creation. Preserve at least 80 GiB free on the host; reduce the VM disk cap or defer game installation if needed. If both VMs cannot run comfortably at once for a screenshot, capture each desktop independently and label the images with the guest name and timestamp rather than implying simultaneous execution.
+
+Hyper-V is active on this host. Broadcom documents that Workstation uses Windows Hypervisor Platform when Hyper-V/VBS is enabled and that this can affect VM performance; Workstation 25H2 and later can identify the VM monitor mode. Record the actual mode from the Workstation log/UI and keep the host's Hyper-V, VBS, and memory-integrity settings unchanged during this comparison. [Broadcom monitor-mode guidance](https://knowledge.broadcom.com/external/article/417896/after-the-host-os-upgrade-to-version-win.html)
 
 ## Measurement protocol
 
@@ -46,6 +48,8 @@ The proposed RAM and disk allocations are subject to checking host free space im
 6. Capture genuine screenshots of each desktop, the Workstation side-by-side view, guest resource use, and game results. Include the VM name, build, resolution, timestamp, and test state. Never substitute generated mockups for screenshots of actual guest behavior.
 7. Publish raw CSV files and a short summary with run count, median, spread, and limitations. A result is inconclusive if the runs vary beyond the observed change.
 
+`Scripts/Diagnostics/Collect-ABGuestMetrics.ps1` is prepared to collect guest CPU, available/committed memory, disk throughput, and detected BAKA/game process usage into timestamped CSV and JSON files. Its PowerShell syntax and output path were smoke-checked on the host only; that smoke check is not a Windows guest measurement or performance result. Run it inside each guest after setup, using the same sample count and interval for both. Missing optional performance counters are recorded as unavailable; missing required CPU or available-memory counters stop collection.
+
 VMware graphics are virtualized, and Hyper-V is active on the host. These runs can compare the two guests under this lab setup; they cannot establish how either OS performs when installed natively on the RTX 5060 or on other gaming hardware.
 
 ## Progress
@@ -55,6 +59,7 @@ VMware graphics are virtualized, and Hyper-V is active on the host. These runs c
 | Host and image audit | **Complete** |
 | VMware installation | **Blocked on official Broadcom portal download access** |
 | Stock and BAKA VMware guests | **Not started** |
+| Guest metric collector | **Prepared; host-only syntax/output smoke check passed** |
 | Authentic desktop screenshots | **Not captured** |
 | Idle resource and startup measurements | **Not measured** |
 | CS2 and TF2 install/launch/gameplay | **Not run** |

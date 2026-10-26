@@ -52,4 +52,4 @@ The current candidate still requires a verified VM boot, Windows SIM validation,
 
 See `docs/BUILD_STATUS.md`, `docs/ACCEPTANCE_MATRIX.md`, and `docs/PROGRESS_REPORT.md` before using an ISO.
 
-The requested VMware stock-vs-BAKA comparison is being tracked separately in `docs/VMWARE_AB_COMPARISON.md`. VMware is not installed yet; no comparison screenshots, game runs, or resource measurements have been produced.
+The requested VMware stock-vs-BAKA comparison is tracked in `docs/VMWARE_AB_COMPARISON.md`. A guest metric collector is prepared and smoke-checked on the host, but VMware is not installed yet; no comparison screenshots, game runs, or guest resource measurements have been produced.
