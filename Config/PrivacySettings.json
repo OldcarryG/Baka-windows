@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "diagnosticDataLevel": 1,
+  "note": "Windows 11 Pro retains required diagnostic data. This configuration does not claim zero telemetry.",
+  "devicePolicies": [
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "AllowTelemetry", "type": "DWord", "value": 1, "purpose": "Required diagnostic data only" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "DoNotShowFeedbackNotifications", "type": "DWord", "value": 1, "purpose": "Suppress optional feedback prompts" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AdvertisingInfo", "name": "DisabledByGroupPolicy", "type": "DWord", "value": 1, "purpose": "Disable the advertising ID" }
+  ],
+  "userPolicies": [
+    { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableTailoredExperiencesWithDiagnosticData", "type": "DWord", "value": 1, "purpose": "Do not use diagnostic data for tailored experiences" }
+  ],
+  "notApplied": [
+    { "name": "DisableWindowsConsumerFeatures", "reason": "Microsoft documents this policy for Enterprise/Education, not Pro." }
+  ]
+}

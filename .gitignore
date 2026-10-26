@@ -1,0 +1,54 @@
+# Large or machine-specific build inputs and outputs
+/Source/
+/Output/
+/Downloads/
+/Drivers/
+/Work/
+/Logs/
+
+# Windows installation and VM artifacts
+*.iso
+*.wim
+*.esd
+*.vhd
+*.vhdx
+*.avhdx
+*.vmcx
+*.vmrs
+*.vmsd
+*.vmsn
+*.vmxf
+*.vmdk
+*.vmem
+
+# Installers, servicing packages, and build caches
+*.exe
+*.msi
+*.msix
+*.msu
+*.cab
+*.tmp
+*.temp
+*.cache
+*.log
+*.etl
+*.dmp
+
+# Local credentials and signing material
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+*.pem
+*.cer
+*.crt
+secrets.json
+credentials.json
+
+# User-specific runtime data
+desktop-settings.json
+desktop-settings.json.bak
+desktop-settings.json.invalid-*
+notes.txt

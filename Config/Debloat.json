@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "requireImageInventoryReview": true,
+  "preserve": [
+    "Microsoft Store",
+    "Microsoft Edge WebView2 Runtime",
+    "Windows Defender",
+    "Windows Firewall",
+    "Windows Recovery",
+    "Bluetooth capability when hardware is present",
+    "Printing and scanning capabilities unless explicitly excluded"
+  ],
+  "candidateRemovals": [
+    { "category": "Xbox app and Game Bar", "packageNames": ["Microsoft.GamingApp", "Microsoft.XboxGamingOverlay"], "approved": true },
+    { "category": "OneDrive", "packageNames": [], "approved": false },
+    { "category": "Weather, News, and promotional consumer apps", "packageNames": ["Microsoft.BingNews", "Microsoft.BingWeather", "Microsoft.MicrosoftOfficeHub", "Microsoft.MicrosoftSolitaireCollection"], "approved": true },
+    { "category": "Personal Teams and Clipchamp", "packageNames": ["MSTeams", "Clipchamp.Clipchamp"], "approved": true },
+    { "category": "Cortana or obsolete assistant components", "packageNames": [], "approved": false },
+    { "category": "Unused language packs, fonts, and legacy media components", "packageNames": [], "approved": false },
+    { "category": "Printing or scanning capabilities", "packageNames": [], "approved": false }
+  ],
+  "blockedPackagePatterns": [
+    "*WindowsStore*",
+    "*WebView2*",
+    "*MicrosoftWindows.Client.WebExperience*",
+    "*WindowsDefender*",
+    "*WindowsRecovery*"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "product": "Windows 11 Pro",
+  "releaseCandidate": "26H2",
+  "architecture": "x64",
+  "sourceIsoRelativePath": "Source/OfficialWindowsMedia/Windows11_Client_x64_en-us_26300_9457.iso",
+  "sourceSha256": "BD4307DF32BC8AF33B39CCECB1174AEB345386630F89A2B86C7A4E36B55EA650",
+  "requireSourceSha256": true,
+  "expectedEditionId": "Professional",
+  "expectedImageName": "Windows 11 Pro",
+  "expectedLanguage": "en-US",
+  "minimumFreeSpaceGiB": 100,
+  "sourceBuild": "10.0.26300.9457",
+  "latestKnownServicing": {
+    "asOf": "2026-10-15",
+    "build": "10.0.26300.9711",
+    "kb": "KB5127648",
+    "supportUrl": "https://support.microsoft.com/help/5127648"
+  },
+  "toolkit": {
+    "adkVersion": "10.1.26100.9457",
+    "winPeAddonRequired": true
+  }
+}

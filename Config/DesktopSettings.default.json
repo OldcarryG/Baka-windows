@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "appearance": {
+    "theme": "BAKA Liquid",
+    "accentColor": "#D1D5DC",
+    "glassIntensity": 42,
+    "animationIntensity": "Full",
+    "reducedMotion": false
+  },
+  "dock": {
+    "alignment": "Center",
+    "iconSize": 52,
+    "spacing": 9,
+    "autoHide": false,
+    "magnification": true,
+    "monitor": "Primary"
+  },
+  "topBar": {
+    "enabled": false,
+    "showProfile": true,
+    "showDate": true,
+    "monitor": "Primary"
+  },
+  "widgets": {
+    "enabled": true,
+    "refreshSeconds": 3,
+    "items": [
+      { "id": "clock", "enabled": true, "left": 32, "top": 48, "width": 260, "height": 120 },
+      { "id": "calendar", "enabled": true, "left": 32, "top": 182, "width": 260, "height": 250 },
+      { "id": "system", "enabled": true, "left": 308, "top": 48, "width": 300, "height": 190 },
+      { "id": "notes", "enabled": false, "left": 308, "top": 252, "width": 300, "height": 190 }
+    ]
+  },
+  "pinnedApps": [
+    { "id": "explorer", "name": "Explorer", "kind": "Executable", "target": "%WINDIR%\\explorer.exe", "arguments": "", "processName": "explorer", "glyph": "\uE8B7" },
+    { "id": "settings", "name": "Settings", "kind": "Uri", "target": "ms-settings:", "arguments": "", "processName": "SystemSettings", "glyph": "\uE713" },
+    { "id": "taskmgr", "name": "Task Manager", "kind": "Executable", "target": "%WINDIR%\\System32\\Taskmgr.exe", "arguments": "", "processName": "Taskmgr", "glyph": "\uE9D9" }
+  ]
+}

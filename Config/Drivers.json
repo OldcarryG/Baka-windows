@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "policy": "Install only hardware-matched packages from verified vendor sources.",
+  "integrateIntoBootImage": [],
+  "postInstallCatalog": [
+    { "family": "Intel Chipset and Management Engine", "vendor": "Intel", "hardwareMatch": "Intel", "signerPattern": "Intel", "enabled": false, "sourceUrl": null, "package": null, "sha256": null, "arguments": null },
+    { "family": "AMD Chipset", "vendor": "AMD", "hardwareMatch": "AMD CPU", "signerPattern": "Advanced Micro Devices|AMD", "enabled": false, "sourceUrl": null, "package": null, "sha256": null, "arguments": null },
+    { "family": "NVIDIA Graphics", "vendor": "NVIDIA", "hardwareMatch": "NVIDIA GPU", "signerPattern": "NVIDIA", "enabled": false, "sourceUrl": null, "package": null, "sha256": null, "arguments": null },
+    { "family": "AMD Radeon Graphics", "vendor": "AMD", "hardwareMatch": "AMD Radeon GPU", "signerPattern": "Advanced Micro Devices|AMD", "enabled": false, "sourceUrl": null, "package": null, "sha256": null, "arguments": null },
+    { "family": "Ethernet and Wi-Fi", "vendor": null, "hardwareMatch": "network", "signerPattern": null, "enabled": false, "sourceUrl": null, "package": null, "sha256": null, "arguments": null },
+    { "family": "Bluetooth", "vendor": null, "hardwareMatch": "Bluetooth", "signerPattern": null, "enabled": false, "sourceUrl": null, "package": null, "sha256": null, "arguments": null },
+    { "family": "Audio", "vendor": null, "hardwareMatch": "audio", "signerPattern": null, "enabled": false, "sourceUrl": null, "package": null, "sha256": null, "arguments": null },
+    { "family": "Storage / RAID", "vendor": null, "hardwareMatch": "storage", "signerPattern": null, "enabled": false, "sourceUrl": null, "package": null, "sha256": null, "arguments": null }
+  ]
+}

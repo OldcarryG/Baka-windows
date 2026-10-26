@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "installOnlySelected": true,
+  "installStage": "first-user-logon",
+  "networkRetryCount": 2,
+  "applications": [
+    {
+      "id": "baka-browser",
+      "displayName": "Baka Browser",
+      "selected": true,
+      "version": "1.2.0",
+      "sourceUrl": "https://github.com/OldcarryG/Baka-browser/releases/download/v1.2.0/BakaBrowser-win-Setup.exe",
+      "relativePath": "Downloads/BakaBrowser-win-Setup-1.2.0.exe",
+      "sha256": "E381B835A0607EE2006A9A89588161DA2125518398AEBDB8FFE0CCFB1C342488",
+      "authenticode": "NotSigned (confirmed for the pinned release asset)",
+      "installMode": "interactive-per-user",
+      "requires": ["Microsoft Edge WebView2 Runtime"],
+      "defaultBrowser": true,
+      "notes": "User-selected browser. Keep WebView2 available. Do not remove Microsoft Edge/WebView2 components."
+    },
+    { "id": "steam", "displayName": "Steam", "selected": false, "sourceUrl": null, "sha256": null },
+    { "id": "discord", "displayName": "Discord", "selected": false, "sourceUrl": null, "sha256": null },
+    { "id": "nvidia-app", "displayName": "NVIDIA App", "selected": false, "sourceUrl": null, "sha256": null, "hardwareMatch": "NVIDIA GPU" },
+    { "id": "amd-adrenalin", "displayName": "AMD Software: Adrenalin Edition", "selected": false, "sourceUrl": null, "sha256": null, "hardwareMatch": "AMD Radeon GPU" }
+  ]
+}

@@ -1,0 +1,39 @@
+name: BAKA source validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-source-checks:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Run project preflight without unpublished build inputs
+        shell: pwsh
+        run: ./Tests/Test-ProjectConfiguration.ps1 -SkipExternalArtifactChecks
+
+      - name: Run isolated configuration, theme, profile, game, monitoring, release-guard, and UI checks
+        shell: pwsh
+        run: |
+          $tests = @(
+            './Tests/Test-DesktopConfiguration.ps1',
+            './Tests/Test-DockContrast.ps1',
+            './Tests/Test-GameDetection.ps1',
+            './Tests/Test-GamingProfiles.ps1',
+            './Tests/Test-SystemMonitoring.ps1',
+            './Tests/Test-ReleasePipelineGuards.ps1',
+            './Tests/Test-BakaCompanionPreview.ps1'
+          )
+          foreach ($test in $tests) {
+            Write-Host "Running $test"
+            & $test
+            if (-not $?) { exit 1 }
+          }

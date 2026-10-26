@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "defaultProfile": "Desktop",
+  "gameDetection": {
+    "processes": [
+      { "processName": "cs2", "displayName": "CS2" },
+      { "processName": "tf_win64", "displayName": "TF2" }
+    ]
+  },
+  "profiles": {
+    "Desktop": {
+      "powerPlan": "Balanced",
+      "explorerShell": true,
+      "optionalAnimations": true,
+      "widgets": true,
+      "experimentalTweaks": []
+    },
+    "CompetitiveGaming": {
+      "powerPlan": "Balanced",
+      "explorerShell": true,
+      "optionalAnimations": false,
+      "widgets": false,
+      "automaticGameDetection": true,
+      "experimentalTweaks": [],
+      "note": "Windows scheduler defaults and security protections remain enabled. Promote power changes only after repeatable hardware tests."
+    },
+    "Benchmark": {
+      "powerPlan": "Balanced",
+      "recordConditions": true,
+      "restoreBaselineOnExit": true,
+      "experimentalTweaks": [],
+      "note": "Add experiments individually; no global affinity, service-priority, MSI, storage, or polling-rate changes are enabled."
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "themes": [
+    { "name": "BAKA Obsidian", "canvas": "#08090B", "surface": "#111318", "surfaceAlt": "#1B1D23", "text": "#F4F5F7", "muted": "#A7ABB4", "border": "#727780", "accent": "#C6C9D0", "glassIntensity": 18, "backdrop": "Mica", "animations": "Subtle" },
+    { "name": "BAKA Liquid", "canvas": "#07080A", "surface": "#14171C", "surfaceAlt": "#20242B", "text": "#F7F8FA", "muted": "#C0C4CB", "border": "#8B919A", "accent": "#D1D5DC", "glassIntensity": 42, "backdrop": "Acrylic", "animations": "Full" },
+    { "name": "BAKA Violet", "canvas": "#0A090F", "surface": "#14121B", "surfaceAlt": "#211E2B", "text": "#F6F4FA", "muted": "#C1BBCF", "border": "#7E7689", "accent": "#C4A7F5", "glassIntensity": 28, "backdrop": "Acrylic", "animations": "Subtle" },
+    { "name": "BAKA Minimal", "canvas": "#050505", "surface": "#0D0D0D", "surfaceAlt": "#161616", "text": "#FFFFFF", "muted": "#BDBDBD", "border": "#727780", "accent": "#D7D7D7", "glassIntensity": 0, "backdrop": "Opaque", "animations": "Off" },
+    { "name": "BAKA Gaming", "canvas": "#000000", "surface": "#0A0A0A", "surfaceAlt": "#181818", "text": "#FFFFFF", "muted": "#C6C8CC", "border": "#858A92", "accent": "#D5D8DE", "glassIntensity": 6, "backdrop": "Mica", "animations": "Off" }
+  ]
+}

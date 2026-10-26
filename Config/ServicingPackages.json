@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "releaseUpdate": {
+    "targetKb": "KB5127648",
+    "targetBuild": "10.0.26300.9711",
+    "packageBuild": "10.0.26100.9711",
+    "sourceUrl": "https://support.microsoft.com/help/5127648",
+    "catalogUrl": "https://www.catalog.update.microsoft.com/Search.aspx?q=KB5127648",
+    "packageDirectory": "Downloads/Servicing/KB5127648",
+    "requiredFiles": [
+      {
+        "kb": "KB5043080",
+        "role": "checkpoint",
+        "osBuild": "10.0.26100.1742",
+        "catalogUrl": "https://www.catalog.update.microsoft.com/Search.aspx?q=KB5043080",
+        "relativePath": "Downloads/Servicing/KB5127648/windows11.0-kb5043080-x64.msu",
+        "catalogUpdateId": "8cea1349-3ff8-4482-af64-9db80cb71ffb",
+        "downloadUrl": "https://catalog.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/d8b7f92b-bd35-4b4c-96e5-46ce984b31e0/public/windows11.0-kb5043080-x64_953449672073f8fb99badb4cc6d5d7849b9c83e8.msu",
+        "sizeBytes": 533761740,
+        "sha256": "819632610A101AF11C72907FB13FF05B5FB4222C0E263EE9A03BCC1D1D5F26A4",
+        "signature": "Valid, Microsoft Corporation",
+        "approved": true
+      },
+      {
+        "kb": "KB5127648",
+        "role": "target",
+        "catalogUrl": "https://www.catalog.update.microsoft.com/Search.aspx?q=KB5127648",
+        "relativePath": "Downloads/Servicing/KB5127648/windows11.0-kb5127648-x64.msu",
+        "catalogUpdateId": "3aa52c0d-45db-47a4-be28-4b0042c5ac78",
+        "downloadUrl": "https://catalog.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/4225b261-8248-43e5-a808-34f3faafe3f6/public/windows11.0-kb5127648-x64_2b88d2d308adc938fcd4d2876a68ee0b2a3c4c09.msu",
+        "sizeBytes": 4775050195,
+        "sha256": "8A1067C763121953876E2E0DCBF5E2C5832545A44EF6BABA362938287E05FCFB",
+        "signature": "Valid, Microsoft Corporation",
+        "approved": true
+      }
+    ],
+    "status": "Official x64 packages downloaded from Microsoft Update Catalog CDN on 2026-10-15; exact catalog IDs, sizes, valid Microsoft signatures, and SHA-256 hashes recorded. Apply both together to the pinned 26H2 image and verify target build 26300.9711."
+  },
+  "packages": [],
+  "drivers": [],
+  "policy": "Every package must have an approved official source, exact architecture/version, and SHA-256 before servicing."
+}
