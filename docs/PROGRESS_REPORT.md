@@ -47,6 +47,13 @@ The BAKA Liquid work changes the desktop's appearance and interaction. Hiding op
 
 The serviced Microsoft update contains an upstream fix for mouse-input stutter in some games. That is a Microsoft Windows fix and is not a measurement of BAKA's performance.
 
+## VMware A/B comparison — new request
+
+- Audited the current host: Windows 10 Pro build 19045, Intel Core i5-14400F (10 cores / 16 threads), RTX 5060, 31.8 GiB RAM, and about 405 GiB free system-drive space. Hyper-V is active; VMware Workstation is not installed.
+- Documented a matched stock-vs-BAKA VMware protocol in `docs/VMWARE_AB_COMPARISON.md`, including same-build servicing, UEFI/Secure Boot/vTPM, VM resources, repeatable idle and game measurements, and authentic screenshot evidence.
+- Broadcom's official 26H1 download route requires portal sign-in. The user has said they will sign in; no installer is available locally yet. The stock guest, BAKA guest, screenshots, resource measurements, CS2/TF2 runs, and performance delta are therefore not started. No performance improvement is claimed.
+- The source ISO is build 26300.9457 and the BAKA candidate is 26300.9711. The stock guest must receive the same approved update before a fair comparison.
+
 ## Bugs fixed
 
 1. **ISO creation/remoting:** The first OSCDIMG attempt wrote an unmountable image because PowerShell remoting interpreted native tool output as a terminating error. The build script now redirects stdout and stderr into separate logs, checks the process exit code, and records success only after a successful exit. The failed image was isolated in build diagnostics; it did not replace the original or earlier candidate. The corrected run produced the structurally validated candidate.

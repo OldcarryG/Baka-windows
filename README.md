@@ -51,3 +51,5 @@ The build pipeline accepts explicit input and output paths and refuses to overwr
 The current candidate still requires a verified VM boot, Windows SIM validation, a clean UEFI installation and OOBE, installed runtime/security/update-restoration tests, and resource measurements. CS2/TF2 gameplay and physical gaming performance remain unverified. VALORANT is excluded. No BAKA FPS, frametime, or input-latency gain is claimed.
 
 See `docs/BUILD_STATUS.md`, `docs/ACCEPTANCE_MATRIX.md`, and `docs/PROGRESS_REPORT.md` before using an ISO.
+
+The requested VMware stock-vs-BAKA comparison is being tracked separately in `docs/VMWARE_AB_COMPARISON.md`. VMware is not installed yet; no comparison screenshots, game runs, or resource measurements have been produced.
