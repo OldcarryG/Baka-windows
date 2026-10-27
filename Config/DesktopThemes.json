@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "themes": [
+    { "name": "BAKA Pop Glass", "canvas": "#0B0A16", "surface": "#1B1830", "surfaceAlt": "#2A2549", "text": "#FFFFFF", "muted": "#D4CEEE", "border": "#FFF1DE", "accent": "#FF7EB6", "accent2": "#7CE7FF", "ring": "#FFF1DE", "shadow": "#07050F", "style": "PopGlass", "glassIntensity": 40, "backdrop": "Acrylic", "animations": "Full" },
     { "name": "BAKA Obsidian", "canvas": "#060A11", "surface": "#0E1521", "surfaceAlt": "#162235", "text": "#F3F8FF", "muted": "#91A6BD", "border": "#6684A3", "accent": "#7CE7FF", "glassIntensity": 18, "backdrop": "Mica", "animations": "Subtle" },
     { "name": "BAKA Liquid", "canvas": "#050914", "surface": "#0D1728", "surfaceAlt": "#172841", "text": "#F7FBFF", "muted": "#A7B9D0", "border": "#6E96B9", "accent": "#7CE7FF", "glassIntensity": 34, "backdrop": "Acrylic", "animations": "Full" },
     { "name": "BAKA Violet", "canvas": "#0A0817", "surface": "#17122A", "surfaceAlt": "#261D42", "text": "#FAF7FF", "muted": "#BEB2D6", "border": "#8975B2", "accent": "#C59BFF", "glassIntensity": 28, "backdrop": "Acrylic", "animations": "Subtle" },

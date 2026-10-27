@@ -6,6 +6,18 @@ Updated: 2026-10-27
 
 R3 changes the first-run experience from a small utility overlay into a BAKA-owned gaming desktop layer. BAKA Arena is the visible home surface: a hero, profile cards, safe-tweak ledger, live telemetry, control center, and animation system are shown together. The dock exposes Arena, pinned apps, Control, and Customize. The R2 companion remains the implementation base, but R3's dashboard is the product entry point. Research and third-party license decisions are recorded in `docs/DESIGN_RESEARCH_20261027.md`.
 
+## R5 Pop Glass (default)
+
+Inspired by SekaiPop's "one block everywhere" rule and Apple's liquid glass. Theme `BAKA Pop Glass` (`style: PopGlass`) adds `ring`, `shadow`, and `accent2` tokens.
+
+- **Keycap block:** rounded pill template on every button, 1.5 px cream ring, `DropShadowEffect` with blur 0 and direction 270 (hard shadow straight down). Press animates the shadow depth to 1 and sinks the key; release springs back with an elastic ease.
+- **Liquid glass:** stronger top specular band in the glass brush, an inner top-lit rim border, and a pointer-following radial highlight. Opaque fallback, high contrast, and remote sessions keep the existing rules.
+- **Motion:** pop-in (elastic scale from 0.62), swallow-out (shrink + fade), phone-rise for the Quick Panel, phone-rotate for Settings, and a two-hop dock launch bounce. Only event-driven animations are used; Gaming and Benchmark suppress motion and keycap effects.
+- **Quick Panel phone:** 40 px device corners, notch with status dot, app-style 88×82 tiles for Windows quick actions, scrollable on short screens.
+- Arena now appears once on first run and only returns after a game if it was open before.
+
+The preview smoke asserts the default theme, keycap ring/hard shadow, press/release, liquid light and rim, launch bounce, and the pop, phone-rise, and phone-rotate entrances (23/23 stages).
+
 ## R4 Liquid Shell direction
 
 R4 turns the dock into the everyday taskbar while Explorer stays the shell:

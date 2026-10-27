@@ -3,7 +3,7 @@
 function Get-BakaDefaultDesktopConfiguration {
     [pscustomobject]@{
         SchemaVersion=1
-        Appearance=[pscustomobject]@{ Theme='BAKA Liquid'; AccentColor='#7CE7FF'; GlassIntensity=34; AnimationIntensity='Full'; ReducedMotion=$false }
+        Appearance=[pscustomobject]@{ Theme='BAKA Pop Glass'; AccentColor='#FF7EB6'; GlassIntensity=40; AnimationIntensity='Full'; ReducedMotion=$false }
         Dock=[pscustomobject]@{ Alignment='Center'; IconSize=52; Spacing=9; AutoHide=$false; Magnification=$true; Monitor='Primary' }
         TopBar=[pscustomobject]@{ Enabled=$true; ShowProfile=$true; ShowDate=$true; Monitor='Primary' }
         Widgets=[pscustomobject]@{
@@ -75,7 +75,7 @@ function Test-BakaDesktopConfiguration {
     param([Parameter(Mandatory)]$Configuration)
     $errors=[System.Collections.Generic.List[string]]::new()
     if ([int]$Configuration.SchemaVersion -ne 1) { $errors.Add('SchemaVersion must be 1.') }
-    $themes=@('BAKA Obsidian','BAKA Liquid','BAKA Violet','BAKA Minimal','BAKA Gaming')
+    $themes=@('BAKA Pop Glass','BAKA Obsidian','BAKA Liquid','BAKA Violet','BAKA Minimal','BAKA Gaming')
     if ([string]$Configuration.Appearance.Theme -notin $themes) { $errors.Add('Appearance.Theme is not a supported BAKA preset.') }
     if (-not (Test-BakaHexColor ([string]$Configuration.Appearance.AccentColor))) { $errors.Add('Appearance.AccentColor must be a six-digit #RRGGBB color.') }
     if ([int]$Configuration.Appearance.GlassIntensity -lt 0 -or [int]$Configuration.Appearance.GlassIntensity -gt 45) { $errors.Add('Appearance.GlassIntensity must be between 0 and 45.') }

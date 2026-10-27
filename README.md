@@ -12,6 +12,20 @@ PowerShell-driven Windows 11 Pro x64 deployment project with Explorer as the she
 
 Source/build validation and the BAKA Liquid source checks are complete. BAKA R3 Arena is now a substantial source redesign with a first-run dashboard, gaming control center, live telemetry, safe reversible profile tweaks, and animated dock. The current R2 ISO is preserved and is not the R3 build; it must not be described as containing this redesign. VMware installation of a rebuilt R3 image, game, resource-use, and comparative performance results remain pending; physical gaming results remain unavailable.
 
+### 2026-10-27 R5 Pop Glass UI (source)
+
+A new default look, **BAKA Pop Glass**, mixes SekaiPop's block language with Apple-style liquid glass:
+
+- Every button, tile, and dock icon is a rounded keycap with a cream ring and a hard shadow straight down; it sinks when pressed and springs back.
+- Glass surfaces have a bright specular rim on the top edge, a clearer body, and a soft light that follows the pointer.
+- Things pop in on a spring and shrink away when closed. The Quick Panel is a phone (notch, app-style tiles) that bounces up from the bottom; Settings opens like that phone turning sideways. Dock icons hop when an app launches.
+- The dock is icons only, like macOS. Arena shows once on first run and no longer reappears over your apps.
+- All motion is event-driven (nothing animates while idle) and turns off in Gaming and Benchmark profiles.
+
+![BAKA Pop Glass design capture (development host opaque fallback; real Acrylic glass appears on Windows 11).](docs/evidence/screenshots/20261027-baka-popglass-design-capture.png)
+
+The capture renders only BAKA surfaces over the BAKA wallpaper. The Windows 10 development host cannot show Desktop Acrylic, so surfaces appear opaque here; translucency needs installed Windows 11 verification.
+
 ### 2026-10-27 R4 Liquid Shell (source; not yet in an ISO)
 
 - **Boots straight to the desktop.** Setup creates a passwordless local `BAKA` administrator and signs it in automatically; no sign-in page, Microsoft-account, or privacy screens. Set a password in Windows to bring the sign-in screen back. Disk selection stays interactive and TPM/Secure Boot are not bypassed.
