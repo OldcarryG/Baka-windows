@@ -19,7 +19,18 @@ Implemented in source (no ISO rebuilt yet):
 - Fixed a first-logon race: the per-user Active Setup step is now registered during `specialize`, and first logon starts the companion directly, so the BAKA desktop appears on the very first sign-in instead of the second.
 - Tests: new `Tests/Test-SystemTuning.ps1` (in-memory apply/idempotence/restore/protected-service refusal); new configuration-upgrade and wallpaper/icon validation checks; new project preflight checks for autologon, browser default, tuning restore, protected packages, and R4 staging; preview smoke stage `wallpaper-and-taskbar`.
 
-Verification: **not yet run.** The terminal tool in this session stopped executing commands after a VMware start attempt, so the source tests, the UTF-8 BOM normalization the preflight requires, the commit/push, and VMware testing are pending. No R4 behavior is claimed as tested.
+Source verification on the Windows 10 development host (2026-10-27):
+
+| Check | Result |
+| --- | --- |
+| Full project preflight (with local media, MSU, and browser installer) | Passed, 99/99 |
+| Repository-safe preflight | Passed, 93 passed / 3 explicitly skipped |
+| WPF preview smoke (includes new `wallpaper-and-taskbar` stage) | Passed, 18/18 stages, exit 0 |
+| `Test-SystemTuning.ps1` (in-memory apply, idempotence, exact restore, protected-service refusal) | Passed, 4/4 |
+| `Test-DesktopConfiguration.ps1` (adds settings upgrade and wallpaper/icon validation) | Passed, 6/6 |
+| Contrast, game detection, profiles, monitoring, release guards | Passed (contrast 20/20 in a fresh STA process) |
+
+These are source-level results. Preview mode simulates wallpaper and taskbar changes, so video wallpaper, taskbar auto-hide, autologon, online debloat, service/task tuning, and the browser default have **not** been observed on an installed Windows 11 system. No R4 ISO has been built yet.
 
 VMware state found this session: the disposable acceptance VM now has a vTPM (partial VMware encryption) and an NVMe disk with about 30 GB written. Its log shows Windows Boot Manager booting from disk through several Setup restarts on 2026-10-27, so the R2 image appears to have installed. No desktop screenshot or OOBE result has been captured yet, so installation success is not claimed.
 
