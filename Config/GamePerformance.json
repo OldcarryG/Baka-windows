@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "note": "System-wide settings that apply to every game, all the time, without game detection. Each value is a documented Windows setting, backed up before it is written and restored by 'Restore BAKA System Tuning'. No FPS, frame-time, or latency gain is claimed until measured on physical hardware.",
+  "devicePolicies": [
+    { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", "name": "HwSchMode", "type": "DWord", "value": 2, "purpose": "Hardware-accelerated GPU scheduling on supported GPUs and drivers (takes effect after restart)" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR", "name": "AllowGameDVR", "type": "DWord", "value": 0, "purpose": "No background game recording for any game" },
+    { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "SystemResponsiveness", "type": "DWord", "value": 10, "purpose": "Reserve less CPU for background multimedia tasks (Windows default 20)" },
+    { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "GPU Priority", "type": "DWord", "value": 8, "purpose": "MMCSS Games task GPU priority" },
+    { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "Priority", "type": "DWord", "value": 6, "purpose": "MMCSS Games task priority" },
+    { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "Scheduling Category", "type": "String", "value": "High", "purpose": "MMCSS Games task scheduling category" },
+    { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "SFIO Priority", "type": "String", "value": "High", "purpose": "MMCSS Games task storage I/O priority" }
+  ],
+  "userPolicies": [
+    { "path": "HKCU:\\Software\\Microsoft\\GameBar", "name": "AutoGameModeEnabled", "type": "DWord", "value": 1, "purpose": "Windows Game Mode on for every game" },
+    { "path": "HKCU:\\Software\\Microsoft\\GameBar", "name": "AllowAutoGameMode", "type": "DWord", "value": 1, "purpose": "Windows Game Mode on for every game" },
+    { "path": "HKCU:\\System\\GameConfigStore", "name": "GameDVR_Enabled", "type": "DWord", "value": 0, "purpose": "No background capture while any game runs" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "name": "AppCaptureEnabled", "type": "DWord", "value": 0, "purpose": "No background capture while any game runs" },
+    { "path": "HKCU:\\Software\\Microsoft\\DirectX\\UserGpuPreferences", "name": "DirectXUserGlobalSettings", "type": "String", "value": "SwapEffectUpgradeEnable=1;", "purpose": "Windows 'Optimizations for windowed games' (flip-model presentation for DX10/11 windowed and borderless games)" },
+    { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseSpeed", "type": "String", "value": "0", "purpose": "Turn off 'Enhance pointer precision' so aim follows raw mouse movement" },
+    { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseThreshold1", "type": "String", "value": "0", "purpose": "Turn off pointer acceleration threshold 1" },
+    { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseThreshold2", "type": "String", "value": "0", "purpose": "Turn off pointer acceleration threshold 2" }
+  ]
+}

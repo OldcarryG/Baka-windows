@@ -12,7 +12,10 @@ if (Test-Path -LiteralPath $privacyPath -PathType Leaf) {
     $privacy = Get-Content -LiteralPath $privacyPath -Raw | ConvertFrom-Json
     try {
         Import-Module (Join-Path $root 'Modules\SystemTuning.psm1') -Force
-        $result = Invoke-BakaSystemTuning -Mode Apply -Configuration ([pscustomobject]@{ services=@(); scheduledTasks=@(); protectedServices=@() }) -RegistryValues @($privacy.userPolicies) -StatePath (Join-Path $userRoot 'UserTuningBackup.json') -Confirm:$false
+        $userValues = @($privacy.userPolicies)
+        $gamePerformancePath = Join-Path $root 'GamePerformance.json'
+        if (Test-Path -LiteralPath $gamePerformancePath -PathType Leaf) { $userValues += @((Get-Content -LiteralPath $gamePerformancePath -Raw | ConvertFrom-Json).userPolicies) }
+        $result = Invoke-BakaSystemTuning -Mode Apply -Configuration ([pscustomobject]@{ services=@(); scheduledTasks=@(); protectedServices=@() }) -RegistryValues $userValues -StatePath (Join-Path $userRoot 'UserTuningBackup.json') -Confirm:$false
         Write-FirstLogonLog ('user-privacy-applied changed={0}' -f @($result.Changed).Count)
     } catch {
         Write-FirstLogonLog ('user-privacy-module-failed error="{0}"; applying without backup' -f $_.Exception.Message)

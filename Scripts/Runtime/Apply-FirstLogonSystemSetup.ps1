@@ -16,6 +16,8 @@ try{
     $tuning=Get-Content -LiteralPath (Join-Path $root 'SystemTuning.json') -Raw|ConvertFrom-Json
     $registryValues=[System.Collections.Generic.List[object]]::new()
     foreach($setting in @($privacy.devicePolicies)){$registryValues.Add($setting)}
+    $gamePerformancePath=Join-Path $root 'GamePerformance.json'
+    if(Test-Path -LiteralPath $gamePerformancePath -PathType Leaf){foreach($setting in @((Get-Content -LiteralPath $gamePerformancePath -Raw|ConvertFrom-Json).devicePolicies)){$registryValues.Add($setting)}}
     $associations=Join-Path $root 'DefaultAssociations.xml'
     if(Test-Path -LiteralPath $associations -PathType Leaf){$registryValues.Add([pscustomobject]@{path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\System';name='DefaultAssociationsConfiguration';type='String';value=$associations})}
     $tuningResult=Invoke-BakaSystemTuning -Mode Apply -Configuration $tuning -RegistryValues $registryValues.ToArray() -StatePath (Join-Path $root 'SystemTuningBackup.json') -Confirm:$false

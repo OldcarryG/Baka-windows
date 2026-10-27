@@ -47,7 +47,7 @@ Copy-Item -LiteralPath (Join-Path $root 'Config\Drivers.json') -Destination (Joi
 Copy-Item -LiteralPath (Join-Path $root 'Config\PerformanceProfiles.json') -Destination (Join-Path $targetRoot 'PerformanceProfiles.json') -Force
 Copy-Item -LiteralPath (Join-Path $root 'Config\DesktopSettings.default.json') -Destination (Join-Path $targetRoot 'DesktopSettings.default.json') -Force
 Copy-Item -LiteralPath (Join-Path $root 'Config\DesktopThemes.json') -Destination (Join-Path $targetRoot 'DesktopThemes.json') -Force
-foreach ($runtimeConfig in @('SystemTuning.json','Debloat.json','AccountSetup.json','DefaultAssociations.xml')) {
+foreach ($runtimeConfig in @('SystemTuning.json','GamePerformance.json','Debloat.json','AccountSetup.json','DefaultAssociations.xml')) {
     Copy-Item -LiteralPath (Join-Path $root "Config\$runtimeConfig") -Destination (Join-Path $targetRoot $runtimeConfig) -Force
 }
 foreach ($app in @($applications.applications | Where-Object selected)) {

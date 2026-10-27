@@ -126,6 +126,7 @@ $script:fileExplorerStatus=$null
 $script:dockButtons=@{}
 $script:iconCache=@{}
 $script:runningAppSignature=''
+$script:stickyGame=$null
 $script:videoWallpaper=$null
 $script:wallpaperDirty=$false
 $script:taskbarStatePath=Join-Path $settingsDirectory 'taskbar-state.json'
@@ -535,9 +536,33 @@ function Set-BakaDockPosition {
 }
 function Get-BakaDetectedGame {
     if($script:previewMode){return $null}
-    $names=[System.Collections.Generic.List[string]]::new()
-    foreach($definition in $script:gameDefinitions){if(Get-Process -Name ([string]$definition.processName) -ErrorAction SilentlyContinue|Select-Object -First 1){$names.Add([string]$definition.processName)}}
-    Resolve-BakaDetectedGame -RunningProcessNames $names.ToArray() -Definitions $script:gameDefinitions
+    $detection=$script:profileSettings.gameDetection
+    $foreground=[BakaLiquidNative]::GetForegroundWindow()
+    $fullscreenPid=0
+    if($foreground -ne [IntPtr]::Zero -and $detection.fullscreenDetection){
+        try{
+            $rect=New-Object BakaLiquidNative+RECT
+            if([BakaLiquidNative]::GetWindowRect($foreground,[ref]$rect)){
+                $info=New-Object BakaLiquidNative+MONITORINFO;$info.cbSize=[Runtime.InteropServices.Marshal]::SizeOf($info)
+                $monitor=[BakaLiquidNative]::MonitorFromWindow($foreground,2)
+                if([BakaLiquidNative]::GetMonitorInfo($monitor,[ref]$info) -and $rect.Left -le $info.rcMonitor.Left -and $rect.Top -le $info.rcMonitor.Top -and $rect.Right -ge $info.rcMonitor.Right -and $rect.Bottom -ge $info.rcMonitor.Bottom){
+                    $fullscreenPid=[int](Get-Process|Where-Object {$_.MainWindowHandle -eq $foreground}|Select-Object -First 1 -ExpandProperty Id)
+                }
+            }
+        }catch{}
+    }
+    $processes=foreach($process in @(Get-Process -ErrorAction SilentlyContinue|Where-Object {$_.Id -ne $PID -and ($_.MainWindowHandle -ne [IntPtr]::Zero -or @($script:gameDefinitions|Where-Object processName -eq $_.ProcessName).Count)})){
+        $path=$null;try{$path=$process.Path}catch{}
+        [pscustomobject]@{ProcessName=$process.ProcessName;Path=$path;IsForegroundFullscreen=($fullscreenPid -ne 0 -and $process.Id -eq $fullscreenPid)}
+    }
+    $game=Resolve-BakaAnyGame -Processes @($processes) -Detection $detection
+    # A game found only because it was fullscreen stays "running" while its process lives, so Alt+Tab
+    # to the desktop does not flip the profile back and forth.
+    if($game -and $game.Reason -eq 'Fullscreen'){$script:stickyGame=$game}
+    elseif(-not $game -and $script:stickyGame){
+        if(@($processes|Where-Object {$_.ProcessName -eq $script:stickyGame.ProcessName}).Count){$game=$script:stickyGame}else{$script:stickyGame=$null}
+    }
+    return $game
 }
 function Get-BakaProcessForApp($App){
     if([string]::IsNullOrWhiteSpace([string]$App.processName)){return $null}

@@ -299,4 +299,45 @@ function Resolve-BakaDetectedGame {
     return $null
 }
 
-Export-ModuleMember -Function Set-BakaGamingProfile,Restore-BakaProfileBaseline,Initialize-BakaGamingProfiles,Resolve-BakaDetectedGame
+function Resolve-BakaAnyGame {
+    # Detects any game, not only the named titles:
+    #   1. a named definition (exact process name),
+    #   2. an executable inside a known game library (Steam, Epic, GOG, EA, Ubisoft, Xbox, Riot, Battle.net, Amazon, itch),
+    #   3. the foreground app covering its whole monitor (fullscreen or borderless) that is not a known non-game.
+    # Launchers, crash handlers, installers, and anti-cheat helpers are ignored. Excluded processes are never matched.
+    [CmdletBinding()]
+    param(
+        [AllowEmptyCollection()][object[]]$Processes = @(),
+        [Parameter(Mandatory)]$Detection
+    )
+    $definitions = @($Detection.processes)
+    $excluded = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($name in @($Detection.excludedProcesses)) { if ($name) { [void]$excluded.Add([string]$name) } }
+    $nonGames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($name in @($Detection.nonGameProcesses)) { if ($name) { [void]$nonGames.Add([string]$name) } }
+    $helperPattern = [string]$Detection.helperPattern
+    $candidates = @($Processes | Where-Object { $_ -and $_.ProcessName -and -not $excluded.Contains([string]$_.ProcessName) })
+    $named = Resolve-BakaDetectedGame -RunningProcessNames @($candidates | ForEach-Object { [string]$_.ProcessName }) -Definitions $definitions
+    if ($named) { return [pscustomobject]@{ ProcessName=$named.ProcessName; DisplayName=$named.DisplayName; Reason='Named' } }
+    if ($Detection.mode -ne 'AllGames') { return $null }
+    foreach ($process in $candidates) {
+        $name = [string]$process.ProcessName
+        $path = [string]$process.Path
+        if (-not $path -or $nonGames.Contains($name) -or ($helperPattern -and $name -match $helperPattern)) { continue }
+        foreach ($pattern in @($Detection.libraryPathPatterns)) {
+            if ($pattern -and $path.IndexOf([string]$pattern,[StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                return [pscustomobject]@{ ProcessName=$name; DisplayName=$name; Reason='GameLibrary' }
+            }
+        }
+    }
+    if ($Detection.fullscreenDetection) {
+        foreach ($process in @($candidates | Where-Object { $_.IsForegroundFullscreen })) {
+            $name = [string]$process.ProcessName
+            if ($nonGames.Contains($name) -or ($helperPattern -and $name -match $helperPattern)) { continue }
+            return [pscustomobject]@{ ProcessName=$name; DisplayName=$name; Reason='Fullscreen' }
+        }
+    }
+    return $null
+}
+
+Export-ModuleMember -Function Set-BakaGamingProfile,Restore-BakaProfileBaseline,Initialize-BakaGamingProfiles,Resolve-BakaDetectedGame,Resolve-BakaAnyGame

@@ -2,10 +2,38 @@
   "schemaVersion": 1,
   "defaultProfile": "Desktop",
   "gameDetection": {
+    "mode": "AllGames",
+    "note": "Any game switches BAKA to Competitive Gaming: named titles, executables inside a game library, or a fullscreen/borderless foreground app. CS2 and TF2 are named because they are the VMware test titles.",
     "processes": [
       { "processName": "cs2", "displayName": "CS2" },
       { "processName": "tf_win64", "displayName": "TF2" }
-    ]
+    ],
+    "libraryPathPatterns": [
+      "\\steamapps\\common\\",
+      "\\Epic Games\\",
+      "\\GOG Galaxy\\Games\\",
+      "\\GOG Games\\",
+      "\\EA Games\\",
+      "\\Electronic Arts\\",
+      "\\Ubisoft Game Launcher\\games\\",
+      "\\Riot Games\\",
+      "\\XboxGames\\",
+      "\\ModifiableWindowsApps\\",
+      "\\Battle.net\\Games\\",
+      "\\Blizzard Entertainment\\",
+      "\\Amazon Games\\Library\\",
+      "\\itch\\apps\\",
+      "\\Games\\"
+    ],
+    "helperPattern": "(?i)(crash|redist|setup|install|uninst|launcher|helper|updater|bootstrap|anticheat|easyanticheat|beservice|battleye|reporter|webview|cefprocess|overlay)",
+    "nonGameProcesses": [
+      "explorer", "steam", "steamwebhelper", "EpicGamesLauncher", "GalaxyClient", "EADesktop", "upc", "UbisoftConnect", "Battle.net", "RiotClientServices", "RiotClientUx",
+      "baka", "msedge", "chrome", "firefox", "brave", "opera", "vivaldi", "vlc", "mpc-hc64", "mpc-be64", "wmplayer", "Video.UI", "Microsoft.Media.Player", "PotPlayerMini64",
+      "POWERPNT", "WINWORD", "EXCEL", "Teams", "Discord", "obs64", "mstsc", "vmware", "vmware-vmx", "vmconnect", "ApplicationFrameHost", "ShellExperienceHost", "StartMenuExperienceHost",
+      "SearchHost", "LockApp", "TextInputHost", "powershell", "pwsh", "WindowsTerminal", "Taskmgr", "SystemSettings", "Kiro", "Code"
+    ],
+    "excludedProcesses": ["VALORANT-Win64-Shipping", "VALORANT"],
+    "fullscreenDetection": true
   },
   "profiles": {
     "Desktop": {

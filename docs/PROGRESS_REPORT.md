@@ -30,6 +30,8 @@ Source verification on the Windows 10 development host (2026-10-27):
 | `Test-DesktopConfiguration.ps1` (adds settings upgrade and wallpaper/icon validation) | Passed, 6/6 |
 | Contrast, game detection, profiles, monitoring, release guards | Passed (contrast 20/20 in a fresh STA process) |
 
+Follow-up the same day (user request: performance for all games, not only the two test titles): added `Config/GamePerformance.json` (Game Mode, hardware GPU scheduling, Game DVR off, windowed-game flip-model optimization, MMCSS Games task, pointer precision off; all backed up and restorable) and `Resolve-BakaAnyGame` (named titles, game-library executables, fullscreen foreground apps; launchers/helpers/browsers/video players rejected; VALORANT stays excluded per the earlier instruction). Re-run: preflight 102/102, game detection passed (Steam, Epic, fullscreen, helper and video-player rejection), system tuning 4/4, desktop configuration 6/6, profiles 6/6, preview smoke 18/18.
+
 These are source-level results. Preview mode simulates wallpaper and taskbar changes, so video wallpaper, taskbar auto-hide, autologon, online debloat, service/task tuning, and the browser default have **not** been observed on an installed Windows 11 system. No R4 ISO has been built yet.
 
 VMware state found this session: the disposable acceptance VM now has a vTPM (partial VMware encryption) and an NVMe disk with about 30 GB written. Its log shows Windows Boot Manager booting from disk through several Setup restarts on 2026-10-27, so the R2 image appears to have installed. No desktop screenshot or OOBE result has been captured yet, so installation success is not claimed.
