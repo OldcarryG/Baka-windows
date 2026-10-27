@@ -19,7 +19,7 @@
 | Full local project preflight | **Passed, 85/85** | Local pinned Windows media, servicing packages, and browser installer were present and checked. The unsigned browser installer was not executed. |
 | Repository-safe project preflight | **Passed, 79 passed / 3 explicitly skipped** | Skips are limited to external Windows ISO bytes, servicing package bytes/signatures, and the excluded Baka Browser installer bytes/signature. Manifest and source checks still ran. |
 | Clean source-only checkout | **Passed** | The repository-safe preflight and all seven isolated test scripts passed from an archive containing only staged Git files, with no `Source`, `Downloads`, `Output`, `Work`, or `Logs` directory at checkout. |
-| BAKA Liquid WPF preview smoke | **Passed, 13 stages** | Runs on the development host using Windows' opaque backdrop fallback. Not installed Windows 11 Acrylic validation. |
+| BAKA Liquid WPF preview smoke | **Passed, 15 stages** | Runs on the development host using Windows' opaque backdrop fallback, including the BAKA Files workspace check. Not installed Windows 11 Acrylic validation. |
 | VMware candidate boot/Setup observation | **Passed with limitation** | A new disposable VMware VM reached genuine Windows 11 Setup; Setup stopped on missing TPM 2.0. See `docs/evidence/VMWARE_ACCEPTANCE_20261027.md`. |
 | Theme contrast | **Passed, 20/20** | Required monochrome presets and optional Violet preset. |
 | Desktop settings persistence and recovery | **Passed, 4/4** | Isolated temporary files. |

@@ -34,16 +34,16 @@ All four hashes were recalculated on 2026-10-26 and match the recorded values. R
 | Structural ISO validation | **Passed** | R2 `ISO-Validation.json` in the build evidence folder; mountable, one Windows 11 Pro image, valid Setup signature, BAKA runtime payload present, pinned browser hash matches. This does not prove boot or installation. |
 | Candidate, original, and source preservation | **Passed** | Host SHA-256 recalculation matches all pinned values; prior candidate and original remain unchanged. |
 | BAKA theme contrast | **Passed, 20/20** | Required presets and optional Violet pass contrast thresholds. Sanitized summary in `docs/evidence/SOURCE_VALIDATION_20261026.md`. |
-| WPF companion source preview | **Passed with limits** | 13/13 stages on the Windows 10 development host's opaque fallback. Includes widget refresh interval and top-bar monitor-placement regression checks. This does not verify installed Windows 11 Acrylic rendering. |
+| WPF companion source preview | **Passed with limits** | 15/15 stages on the Windows 10 development host's opaque fallback, including BAKA Files construction/readability/close, widget refresh interval, and top-bar monitor-placement regression checks. This does not verify installed Windows 11 Acrylic rendering. |
 | Settings persistence/recovery | **Passed, 4/4 source checks** | Isolated temporary files only. |
 | Profile rollback/restoration and duplicate-instance guard | **Passed, 6/6 source checks** | Simulated registry; no host profile registry writes. Does not establish installed guest behavior. |
 | CS2/TF2 process detection and VALORANT exclusion | **Passed at unit level** | Process-name checks only. No game installation, launch, gameplay, or anti-cheat test. |
 | System metrics data path | **Passed at source level** | Returned values or explicit unavailable states. Sensor accuracy and companion overhead were not measured. |
 | Release output overwrite guards | **Passed, 2/2** | Existing workspaces and ISO destinations remained protected. |
 | OSCDIMG remoting failure handling | **Bug fixed and regression checked** | Output is redirected to separate logs, exit status is checked, and build record is only written on success. Regression included in the 85/85 project preflight. |
-| Companion reliability remediation | **Passed at source level** | Icon glyph rendering, manual-profile polling suspension, Quick Panel null guard, settings-import containment, profile UI rollback attempt, and strict-mode cleanup initialization are covered by source guards and the 13/13 preview smoke. |
-| Companion host preview CPU target | **Passed for this sample only** | 15 samples at two-second intervals averaged 0.494% CPU (0.824% maximum); development-host preview only. |
-| Companion host preview memory target | **Failed for this sample** | Average working set 212.76 MiB; maximum 215.38 MiB against the 150 MiB target. This is not an installed Windows 11 measurement. |
+| Companion reliability remediation | **Passed at source level** | Icon glyph rendering, manual-profile polling suspension, Quick Panel null guard, settings-import containment, profile UI rollback attempt, strict-mode cleanup initialization, and BAKA Files workspace smoke are covered by source guards and the 15/15 preview smoke. |
+| Companion host preview CPU target | **Passed for this sample only** | Latest R3 sample: 10 samples at two-second intervals after a three-second warm-up averaged 0.583% CPU (0.729% maximum); development-host preview only. |
+| Companion host preview memory target | **Failed for this sample** | Latest R3 sample averaged 218.47 MiB working set and peaked at 221.10 MiB against the 150 MiB target. This is not an installed Windows 11 measurement. |
 
 ## Not run or blocked
 
@@ -53,7 +53,7 @@ All four hashes were recalculated on 2026-10-26 and match the recorded values. R
 | Candidate ISO boot in a VM | **Passed in disposable VMware VM; earlier AB attempts failed** | The new 4-vCPU/12-GiB UEFI/Secure Boot VM reached a genuine Windows 11 Setup screen; evidence is `docs/evidence/VMWARE_ACCEPTANCE_20261027.md`. Earlier preserved AB attempts still show a shared candidate/source timeout. |
 | Clean UEFI install, interactive disk selection, confirmation, OOBE | **Blocked** | VMware Setup stopped at the TPM 2.0 requirement because the disposable VM had no vTPM. No partition or erase action was sent. |
 | Local and Microsoft account setup paths | **Not run** | Requires interactive OOBE on the candidate. |
-| Installed BAKA Liquid desktop, dock, bar, Quick Panel, widgets, editor | **Blocked** | Installation could not proceed past the VMware TPM requirement; source preview is not installed-image runtime evidence. |
+| Installed BAKA Liquid desktop, dock, BAKA Files, bar, Quick Panel, widgets, editor | **Blocked** | Installation could not proceed past the VMware TPM requirement; the R2 ISO predates the R3 Arena/Files source and source preview is not installed-image runtime evidence. |
 | Profile switching, restoration, Explorer fallback, crash recovery | **Not run in installed guest** | Reversible logic has isolated source tests; actual installed behavior remains unverified. |
 | Defender, Firewall, SmartScreen, UAC, exploit protection, recovery | **Not run in installed guest** | Build config retained these components; runtime state has not been inspected. |
 | Windows Update suppression and administrator restoration | **Not run in installed guest** | Static implementation is present; policy and restore flow still need runtime proof. |

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "note": "Applied once as SYSTEM after OOBE. Every prior value is saved to ProgramData\\BAKA\\SystemTuningBackup.json and can be restored with the 'Restore BAKA System Tuning' desktop shortcut. Security, servicing, Store, Xbox sign-in, audio, networking, and input services are never touched.",
+  "services": [
+    { "name": "DiagTrack", "startType": "Disabled", "purpose": "Connected User Experiences and Telemetry upload service" },
+    { "name": "dmwappushservice", "startType": "Disabled", "purpose": "WAP push routing used by telemetry" },
+    { "name": "MapsBroker", "startType": "Disabled", "purpose": "Downloaded Maps Manager background updates" },
+    { "name": "RetailDemo", "startType": "Disabled", "purpose": "Store retail demo mode" },
+    { "name": "Fax", "startType": "Disabled", "purpose": "Legacy fax service" },
+    { "name": "WpcMonSvc", "startType": "Disabled", "purpose": "Family Safety monitoring (re-enable for parental controls)" },
+    { "name": "lfsvc", "startType": "Manual", "purpose": "Geolocation only on demand" },
+    { "name": "WerSvc", "startType": "Manual", "purpose": "Error reporting only on demand" }
+  ],
+  "scheduledTasks": [
+    { "path": "\\Microsoft\\Windows\\Application Experience\\", "name": "Microsoft Compatibility Appraiser", "purpose": "Telemetry compatibility scan" },
+    { "path": "\\Microsoft\\Windows\\Application Experience\\", "name": "Microsoft Compatibility Appraiser Exp", "purpose": "Telemetry compatibility scan" },
+    { "path": "\\Microsoft\\Windows\\Application Experience\\", "name": "ProgramDataUpdater", "purpose": "Program telemetry" },
+    { "path": "\\Microsoft\\Windows\\Application Experience\\", "name": "StartupAppTask", "purpose": "Startup app telemetry scan" },
+    { "path": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\", "name": "Consolidator", "purpose": "CEIP upload" },
+    { "path": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\", "name": "UsbCeip", "purpose": "USB CEIP upload" },
+    { "path": "\\Microsoft\\Windows\\Autochk\\", "name": "Proxy", "purpose": "SQM data collection" },
+    { "path": "\\Microsoft\\Windows\\DiskDiagnostic\\", "name": "Microsoft-Windows-DiskDiagnosticDataCollector", "purpose": "Disk diagnostic upload" },
+    { "path": "\\Microsoft\\Windows\\Feedback\\Siuf\\", "name": "DmClient", "purpose": "Feedback prompts" },
+    { "path": "\\Microsoft\\Windows\\Feedback\\Siuf\\", "name": "DmClientOnScenarioDownload", "purpose": "Feedback prompts" },
+    { "path": "\\Microsoft\\Windows\\Windows Error Reporting\\", "name": "QueueReporting", "purpose": "Queued error report upload" },
+    { "path": "\\Microsoft\\Windows\\Maps\\", "name": "MapsUpdateTask", "purpose": "Offline maps update" },
+    { "path": "\\Microsoft\\Windows\\Maps\\", "name": "MapsToastTask", "purpose": "Maps notifications" }
+  ],
+  "protectedServices": [
+    "WinDefend", "WdNisSvc", "SecurityHealthService", "mpssvc", "BFE", "wuauserv", "UsoSvc", "BITS", "TrustedInstaller",
+    "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "GamingServices", "GamingServicesNet", "Audiosrv", "AudioEndpointBuilder",
+    "Dhcp", "Dnscache", "NlaSvc", "netprofm", "WlanSvc", "bthserv", "Spooler", "ClipSVC", "AppXSvc", "InstallService", "EventLog", "Schedule", "WSearch"
+  ]
+}

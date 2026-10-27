@@ -10,13 +10,32 @@ PowerShell-driven Windows 11 Pro x64 deployment project with Explorer as the she
 
 `████████████████░░░░░░░░░░░░░░` 54%
 
-Source/build validation and the BAKA Liquid source checks are complete. VMware Workstation 26H1 is installed. The preserved matched stock/BAKA shells still show a shared EFI timeout, while a new disposable BAKA VM reached real Windows 11 Setup and stopped on the missing TPM 2.0 requirement. Installed desktop, game, resource-use, and comparative performance results are still pending; physical gaming results remain unavailable.
+Source/build validation and the BAKA Liquid source checks are complete. BAKA R3 Arena is now a substantial source redesign with a first-run dashboard, gaming control center, live telemetry, safe reversible profile tweaks, and animated dock. The current R2 ISO is preserved and is not the R3 build; it must not be described as containing this redesign. VMware installation of a rebuilt R3 image, game, resource-use, and comparative performance results remain pending; physical gaming results remain unavailable.
+
+### 2026-10-27 R4 Liquid Shell (source; not yet in an ISO)
+
+- **Boots straight to the desktop.** Setup creates a passwordless local `BAKA` administrator and signs it in automatically; no sign-in page, Microsoft-account, or privacy screens. Set a password in Windows to bring the sign-in screen back. Disk selection stays interactive and TPM/Secure Boot are not bypassed.
+- **Less bloat.** 19 exact consumer packages are removed (adds Bing Search, new Outlook, To Do, Power Automate, Get Help, Feedback Hub, Dev Home, Phone Link, Cross Device, Quick Assist, Xbox speech overlay) offline and again online at first logon. Xbox sign-in, Store, Security, codecs, and inbox tools are protected.
+- **Privacy, no ads.** Telemetry upload services and tasks are disabled; Copilot, Recall, Start web search, activity history, tips, suggestions, and promoted apps are off. Everything is backed up and undone by the "Restore BAKA System Tuning" shortcut.
+- **Baka Browser is the default.** It installs silently at first logon, registers with Windows, and becomes the http/https/HTML handler through the Windows default-associations policy.
+- **Taskbar replacement.** The dock adds Start, open windows with real icons, and auto-hides the Windows taskbar while BAKA runs.
+- **Full customization.** Any image, looping video, or solid color as wallpaper; custom dock icons; existing themes, accent, glass, motion, widgets, and pinned apps.
+
+Verification status for R4 is recorded in `docs/PROGRESS_REPORT.md`.
+
+### 2026-10-27 R3 Arena redesign
+
+The source now opens with **BAKA Arena**, a purpose-built gaming dashboard instead of only a floating utility panel. It includes Desktop, Competitive, and Benchmark profile cards, a safe-tweak ledger, live CPU/memory/GPU/disk telemetry, a large clock/Quick Panel zone, control-center and customization actions, a cyan/violet gaming visual system, a dark-glass wallpaper default, an Arena dock home button, and visible interaction animation. **BAKA Files** is now the normal file-browsing target behind the dock's Files entry, with real folder/drive navigation and file opening. Competitive Gaming now applies four reversible user-level changes: Windows Game Mode, background-app suppression, Game DVR capture suppression, and the existing optional composition reductions. Balanced power, native scheduling, Windows Security, recovery, servicing, the Explorer recovery shell, CS2/TF2 detection, and VALORANT exclusion remain preserved.
+
+Research decisions and licenses are recorded in `docs/DESIGN_RESEARCH_20261027.md`.
+
+Source preview evidence for the file workspace is `docs/evidence/screenshots/20261027-baka-files-source-preview.png`. The screenshot is source-preview evidence, not installed-image acceptance; the preserved R2 ISO predates this R3 Files workspace.
 
 ### 2026-10-27 source remediation
 
 The companion reliability pass is complete at source level: action buttons now render their supplied Windows icon glyphs, manual profiles stop automatic game-process polling, profile UI failures attempt a backend/UI rollback, unopened Quick Panel state is guarded, settings import errors are reported, and shutdown cleanup state is initialized before event handlers run. The preview smoke remains **Passed, 13/13 stages**; isolated source preflight is **Passed, 79 checks with 3 explicitly skipped external-artifact checks**.
 
-A documented host preview sample averaged **0.494% CPU** (0.824% maximum) and **212.76 MiB working set** (215.38 MiB maximum) across 15 samples at two-second intervals. CPU was within the initial target; working set exceeded the 150 MiB target. This is a Windows 10 development-host preview measurement, not an installed Windows 11 result. No FPS, latency, or physical gaming benefit is claimed.
+The latest R3 host preview sample averaged **0.583% CPU** (0.729% maximum) and **218.47 MiB working set** (221.10 MiB maximum) across 10 samples at two-second intervals after a three-second warm-up. CPU was within the initial target; working set exceeded the 150 MiB target. This is a Windows 10 development-host preview measurement, not an installed Windows 11 result. No FPS, latency, or physical gaming benefit is claimed.
 
 ### VMware boot evidence
 

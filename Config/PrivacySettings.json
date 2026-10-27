@@ -1,16 +1,59 @@
 {
   "schemaVersion": 1,
   "diagnosticDataLevel": 1,
-  "note": "Windows 11 Pro retains required diagnostic data. This configuration does not claim zero telemetry.",
+  "note": "Windows 11 Pro retains required diagnostic data (AllowTelemetry 0 is honored only on Enterprise/Education/Server). BAKA disables the telemetry upload service and tasks in SystemTuning.json, turns off ads, suggestions, Copilot, Recall, web search in Start, and activity history. This configuration does not claim zero telemetry. All values are backed up and restorable.",
   "devicePolicies": [
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "AllowTelemetry", "type": "DWord", "value": 1, "purpose": "Required diagnostic data only" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "DoNotShowFeedbackNotifications", "type": "DWord", "value": 1, "purpose": "Suppress optional feedback prompts" },
-    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AdvertisingInfo", "name": "DisabledByGroupPolicy", "type": "DWord", "value": 1, "purpose": "Disable the advertising ID" }
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "AllowDeviceNameInTelemetry", "type": "DWord", "value": 0, "purpose": "Do not send the device name with diagnostic data" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "DisableOneSettingsDownloads", "type": "DWord", "value": 1, "purpose": "Do not download diagnostic configuration experiments" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AdvertisingInfo", "name": "DisabledByGroupPolicy", "type": "DWord", "value": 1, "purpose": "Disable the advertising ID" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot", "name": "TurnOffWindowsCopilot", "type": "DWord", "value": 1, "purpose": "Turn off Windows Copilot" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI", "name": "DisableAIDataAnalysis", "type": "DWord", "value": 1, "purpose": "Turn off Recall snapshots" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI", "name": "AllowRecallEnablement", "type": "DWord", "value": 0, "purpose": "Keep Recall unavailable" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System", "name": "EnableActivityFeed", "type": "DWord", "value": 0, "purpose": "Turn off activity history" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System", "name": "PublishUserActivities", "type": "DWord", "value": 0, "purpose": "Do not publish user activities" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System", "name": "UploadUserActivities", "type": "DWord", "value": 0, "purpose": "Do not upload user activities" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search", "name": "AllowCortana", "type": "DWord", "value": 0, "purpose": "Disable Cortana" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search", "name": "DisableWebSearch", "type": "DWord", "value": 1, "purpose": "No web results in Windows Search" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search", "name": "ConnectedSearchUseWeb", "type": "DWord", "value": 0, "purpose": "No web results in Windows Search" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Dsh", "name": "AllowNewsAndInterests", "type": "DWord", "value": 0, "purpose": "Turn off the Widgets news feed" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableSoftLanding", "type": "DWord", "value": 1, "purpose": "No Windows tips" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableConsumerAccountStateContent", "type": "DWord", "value": 1, "purpose": "No Microsoft account promotional content" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization", "name": "DODownloadMode", "type": "DWord", "value": 0, "purpose": "Do not upload updates to other PCs over the internet" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting", "name": "DontSendAdditionalData", "type": "DWord", "value": 1, "purpose": "Do not attach extra data to error reports" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\OOBE", "name": "DisablePrivacyExperience", "type": "DWord", "value": 1, "purpose": "Skip the privacy settings prompt for new accounts" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\InputPersonalization", "name": "AllowInputPersonalization", "type": "DWord", "value": 0, "purpose": "No online speech and typing personalization" }
   ],
   "userPolicies": [
-    { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableTailoredExperiencesWithDiagnosticData", "type": "DWord", "value": 1, "purpose": "Do not use diagnostic data for tailored experiences" }
+    { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableTailoredExperiencesWithDiagnosticData", "type": "DWord", "value": 1, "purpose": "Do not use diagnostic data for tailored experiences" },
+    { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableWindowsSpotlightFeatures", "type": "DWord", "value": 1, "purpose": "No Spotlight promotions" },
+    { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\WindowsCopilot", "name": "TurnOffWindowsCopilot", "type": "DWord", "value": 1, "purpose": "Turn off Windows Copilot for this user" },
+    { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\Explorer", "name": "DisableSearchBoxSuggestions", "type": "DWord", "value": 1, "purpose": "No web suggestions in Start search" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo", "name": "Enabled", "type": "DWord", "value": 0, "purpose": "Advertising ID off" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Privacy", "name": "TailoredExperiencesWithDiagnosticDataEnabled", "type": "DWord", "value": 0, "purpose": "No tailored experiences" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "ContentDeliveryAllowed", "type": "DWord", "value": 0, "purpose": "No promoted content" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SilentInstalledAppsEnabled", "type": "DWord", "value": 0, "purpose": "No silently installed suggested apps" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "OemPreInstalledAppsEnabled", "type": "DWord", "value": 0, "purpose": "No OEM promoted apps" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "PreInstalledAppsEnabled", "type": "DWord", "value": 0, "purpose": "No pre-installed promoted apps" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SystemPaneSuggestionsEnabled", "type": "DWord", "value": 0, "purpose": "No suggestions in Start" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SoftLandingEnabled", "type": "DWord", "value": 0, "purpose": "No tips" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "RotatingLockScreenOverlayEnabled", "type": "DWord", "value": 0, "purpose": "No lock-screen promotions" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338388Enabled", "type": "DWord", "value": 0, "purpose": "No Start suggestions" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338389Enabled", "type": "DWord", "value": 0, "purpose": "No tips and tricks" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338393Enabled", "type": "DWord", "value": 0, "purpose": "No suggested content in Settings" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-353694Enabled", "type": "DWord", "value": 0, "purpose": "No suggested content in Settings" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-353696Enabled", "type": "DWord", "value": 0, "purpose": "No suggested content in Settings" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-310093Enabled", "type": "DWord", "value": 0, "purpose": "No Windows welcome experience" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_IrisRecommendations", "type": "DWord", "value": 0, "purpose": "No recommendations in Start" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowSyncProviderNotifications", "type": "DWord", "value": 0, "purpose": "No OneDrive ads in File Explorer" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\UserProfileEngagement", "name": "ScoobeSystemSettingEnabled", "type": "DWord", "value": 0, "purpose": "No 'finish setting up' nag screens" },
+    { "path": "HKCU:\\Software\\Microsoft\\Siuf\\Rules", "name": "NumberOfSIUFInPeriod", "type": "DWord", "value": 0, "purpose": "No feedback requests" },
+    { "path": "HKCU:\\Control Panel\\International\\User Profile", "name": "HttpAcceptLanguageOptOut", "type": "DWord", "value": 1, "purpose": "Websites cannot read the language list" },
+    { "path": "HKCU:\\Software\\Microsoft\\GameBar", "name": "UseNexusForGameBarEnabled", "type": "DWord", "value": 0, "purpose": "Controller Xbox button does not open the removed Game Bar" }
   ],
   "notApplied": [
-    { "name": "DisableWindowsConsumerFeatures", "reason": "Microsoft documents this policy for Enterprise/Education, not Pro." }
+    { "name": "DisableWindowsConsumerFeatures", "reason": "Microsoft documents this policy for Enterprise/Education, not Pro." },
+    { "name": "AllowTelemetry=0", "reason": "Treated as Required (1) on Pro; BAKA disables the DiagTrack upload service instead." }
   ]
 }

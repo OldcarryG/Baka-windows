@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Applied by the Windows "Set a default associations configuration file" policy at sign-in.
+     Windows skips any entry whose ProgId is not registered for the signed-in user, so Edge stays the
+     fallback until Baka Browser is installed. Remove it with "Restore BAKA System Tuning". -->
+<DefaultAssociations>
+  <Association Identifier=".htm" ProgId="BakaBrowserHTML" ApplicationName="Baka Browser" />
+  <Association Identifier=".html" ProgId="BakaBrowserHTML" ApplicationName="Baka Browser" />
+  <Association Identifier="http" ProgId="BakaBrowserHTML" ApplicationName="Baka Browser" />
+  <Association Identifier="https" ProgId="BakaBrowserHTML" ApplicationName="Baka Browser" />
+</DefaultAssociations>

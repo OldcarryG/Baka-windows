@@ -21,20 +21,20 @@ $targetApps = Join-Path $targetRoot 'Apps'
 $targetAssets = Join-Path $targetRoot 'Assets'
 foreach ($dir in @($targetScripts,$targetModules,$targetApps,$targetAssets)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
 $wallpapers = @(
-    @{ Source = (Join-Path $root 'Assets\Wallpapers\BAKA-Liquid-Ribbon.png'); Name = 'BAKA-Liquid-Ribbon.png' },
-    @{ Source = (Join-Path $root 'Assets\Wallpapers\BAKA-BlackGlass-4K.png'); Name = 'BAKA-BlackGlass-4K.png' }
+    @{ Source = (Join-Path $root 'Assets\Wallpapers\BAKA-BlackGlass-4K.png'); Name = 'BAKA-BlackGlass-4K.png' },
+    @{ Source = (Join-Path $root 'Assets\Wallpapers\BAKA-Liquid-Ribbon.png'); Name = 'BAKA-Liquid-Ribbon.png' }
 )
 foreach ($wallpaper in $wallpapers) {
     if (-not (Test-Path -LiteralPath $wallpaper.Source -PathType Leaf)) { throw "Required BAKA wallpaper is missing: $($wallpaper.Source)" }
     Copy-Item -LiteralPath $wallpaper.Source -Destination (Join-Path $targetAssets $wallpaper.Name) -Force
 }
-$runtimeFiles = @('Install-SelectedApps.ps1','Install-SelectedDrivers.ps1','Restore-WindowsUpdate.ps1','Set-GamingProfile.ps1','BakaCompanion.ps1','FirstLogon.ps1','SetupComplete.ps1','Register-FirstLogonTask.ps1','Apply-FirstLogonSystemSetup.ps1','Measure-Benchmark.ps1')
+$runtimeFiles = @('Install-SelectedApps.ps1','Install-SelectedDrivers.ps1','Restore-WindowsUpdate.ps1','Set-GamingProfile.ps1','BakaCompanion.ps1','FirstLogon.ps1','SetupComplete.ps1','Register-FirstLogonTask.ps1','Apply-FirstLogonSystemSetup.ps1','Restore-SystemTuning.ps1','Measure-Benchmark.ps1')
 foreach ($file in $runtimeFiles) {
     $source = Join-Path $PSScriptRoot "Runtime\$file"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime script missing: $source" }
     Copy-Item -LiteralPath $source -Destination (Join-Path $targetScripts $file) -Force
 }
-foreach ($modulePath in @('UpdateControl\UpdateControl.psm1','GamingProfiles\GamingProfiles.psm1','Recovery\Recovery.psm1','HardwareDetection\HardwareDetection.psm1','DesktopConfiguration.psm1','CompanionInstance.psm1','SystemMonitoring.psm1')) {
+foreach ($modulePath in @('UpdateControl\UpdateControl.psm1','GamingProfiles\GamingProfiles.psm1','Recovery\Recovery.psm1','HardwareDetection\HardwareDetection.psm1','DesktopConfiguration.psm1','DesktopShell.psm1','SystemTuning.psm1','CompanionInstance.psm1','SystemMonitoring.psm1')) {
     $source = Join-Path $root "Modules\$modulePath"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime module missing: $source" }
     $destination = Join-Path $targetModules (Split-Path -Leaf $modulePath)
@@ -47,6 +47,9 @@ Copy-Item -LiteralPath (Join-Path $root 'Config\Drivers.json') -Destination (Joi
 Copy-Item -LiteralPath (Join-Path $root 'Config\PerformanceProfiles.json') -Destination (Join-Path $targetRoot 'PerformanceProfiles.json') -Force
 Copy-Item -LiteralPath (Join-Path $root 'Config\DesktopSettings.default.json') -Destination (Join-Path $targetRoot 'DesktopSettings.default.json') -Force
 Copy-Item -LiteralPath (Join-Path $root 'Config\DesktopThemes.json') -Destination (Join-Path $targetRoot 'DesktopThemes.json') -Force
+foreach ($runtimeConfig in @('SystemTuning.json','Debloat.json','AccountSetup.json','DefaultAssociations.xml')) {
+    Copy-Item -LiteralPath (Join-Path $root "Config\$runtimeConfig") -Destination (Join-Path $targetRoot $runtimeConfig) -Force
+}
 foreach ($app in @($applications.applications | Where-Object selected)) {
     if (-not $app.relativePath -or -not $app.sha256) { throw "Selected app '$($app.id)' must have an on-disk package and SHA-256." }
     $package = Join-Path $root ($app.relativePath -replace '/', '\')

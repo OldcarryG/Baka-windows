@@ -3,11 +3,11 @@
 function Get-BakaDefaultDesktopConfiguration {
     [pscustomobject]@{
         SchemaVersion=1
-        Appearance=[pscustomobject]@{ Theme='BAKA Liquid'; AccentColor='#D1D5DC'; GlassIntensity=42; AnimationIntensity='Full'; ReducedMotion=$false }
+        Appearance=[pscustomobject]@{ Theme='BAKA Liquid'; AccentColor='#7CE7FF'; GlassIntensity=34; AnimationIntensity='Full'; ReducedMotion=$false }
         Dock=[pscustomobject]@{ Alignment='Center'; IconSize=52; Spacing=9; AutoHide=$false; Magnification=$true; Monitor='Primary' }
-        TopBar=[pscustomobject]@{ Enabled=$false; ShowProfile=$true; ShowDate=$true; Monitor='Primary' }
+        TopBar=[pscustomobject]@{ Enabled=$true; ShowProfile=$true; ShowDate=$true; Monitor='Primary' }
         Widgets=[pscustomobject]@{
-            Enabled=$true; RefreshSeconds=3
+            Enabled=$false; RefreshSeconds=3
             Items=@(
                 [pscustomobject]@{ Id='clock'; Enabled=$true; Left=32; Top=48; Width=260; Height=120 },
                 [pscustomobject]@{ Id='calendar'; Enabled=$true; Left=32; Top=182; Width=260; Height=250 },
@@ -15,12 +15,54 @@ function Get-BakaDefaultDesktopConfiguration {
                 [pscustomobject]@{ Id='notes'; Enabled=$false; Left=308; Top=252; Width=300; Height=190 }
             )
         }
+        Wallpaper=(Get-BakaDefaultWallpaperSettings)
+        Taskbar=(Get-BakaDefaultTaskbarSettings)
         PinnedApps=@(
-            [pscustomobject]@{ Id='explorer'; Name='Explorer'; Kind='Executable'; Target='%WINDIR%\explorer.exe'; Arguments=''; ProcessName='explorer'; Glyph=[string][char]0xE8B7 },
-            [pscustomobject]@{ Id='settings'; Name='Settings'; Kind='Uri'; Target='ms-settings:'; Arguments=''; ProcessName='SystemSettings'; Glyph=[string][char]0xE713 },
-            [pscustomobject]@{ Id='taskmgr'; Name='Task Manager'; Kind='Executable'; Target='%WINDIR%\System32\Taskmgr.exe'; Arguments=''; ProcessName='Taskmgr'; Glyph=[string][char]0xE9D9 }
+            [pscustomobject]@{ Id='baka-browser'; Name='Baka Browser'; Kind='Executable'; Target='%LOCALAPPDATA%\BakaBrowser\current\baka.exe'; Arguments=''; ProcessName='baka'; Glyph=[string][char]0xE774; IconPath='' },
+            [pscustomobject]@{ Id='explorer'; Name='Files'; Kind='Executable'; Target='%WINDIR%\explorer.exe'; Arguments=''; ProcessName='explorer'; Glyph=[string][char]0xE8B7; IconPath='' },
+            [pscustomobject]@{ Id='settings'; Name='Settings'; Kind='Uri'; Target='ms-settings:'; Arguments=''; ProcessName='SystemSettings'; Glyph=[string][char]0xE713; IconPath='' },
+            [pscustomobject]@{ Id='taskmgr'; Name='Task Manager'; Kind='Executable'; Target='%WINDIR%\System32\Taskmgr.exe'; Arguments=''; ProcessName='Taskmgr'; Glyph=[string][char]0xE9D9; IconPath='' }
         )
     }
+}
+
+function Get-BakaDefaultWallpaperSettings {
+    # Default keeps the shipped BAKA image. Users may choose any image, video, or solid color.
+    [pscustomobject]@{ Mode='Default'; Path=''; Fit='Fill'; Color='#05060A'; Muted=$true; PauseInGames=$true }
+}
+
+function Get-BakaDefaultTaskbarSettings {
+    # The BAKA dock becomes the primary launcher; the native taskbar stays reachable at the screen edge.
+    [pscustomobject]@{ AutoHideWindowsTaskbar=$true; ShowRunningApps=$true; ShowStartButton=$true }
+}
+
+function Get-BakaConfigMember {
+    param($Object,[Parameter(Mandatory)][string]$Name)
+    if($null -eq $Object){return $null}
+    $property=$Object.PSObject.Properties[$Name]
+    if($property){return $property.Value}
+    return $null
+}
+
+function Complete-BakaDesktopConfiguration {
+    # Adds sections introduced after schema 1 shipped (wallpaper, taskbar, custom dock icons) so older
+    # saved settings keep loading. Existing user values are never overwritten.
+    [CmdletBinding()]
+    param([Parameter(Mandatory)]$Configuration)
+    foreach($section in @(@{Name='Wallpaper';Defaults=(Get-BakaDefaultWallpaperSettings)},@{Name='Taskbar';Defaults=(Get-BakaDefaultTaskbarSettings)})){
+        $current=Get-BakaConfigMember $Configuration $section.Name
+        if($null -eq $current){
+            $Configuration | Add-Member -NotePropertyName $section.Name -NotePropertyValue $section.Defaults -Force
+            continue
+        }
+        foreach($property in $section.Defaults.PSObject.Properties){
+            if(-not $current.PSObject.Properties[$property.Name]){$current | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force}
+        }
+    }
+    foreach($app in @(Get-BakaConfigMember $Configuration 'PinnedApps')){
+        if($app -and -not $app.PSObject.Properties['IconPath']){$app | Add-Member -NotePropertyName IconPath -NotePropertyValue '' -Force}
+    }
+    return $Configuration
 }
 
 function Test-BakaHexColor {
@@ -54,6 +96,26 @@ function Test-BakaDesktopConfiguration {
         if ([string]$app.Kind -notin @('Executable','Uri')) { $errors.Add("Pinned application '$($app.Name)' has an unsupported kind.") }
         if ([string]::IsNullOrWhiteSpace([string]$app.Target)) { $errors.Add("Pinned application '$($app.Name)' has no target.") }
         if ([string]$app.Kind -eq 'Uri' -and [string]$app.Target -notmatch '^[a-z][a-z0-9+.-]*:' ) { $errors.Add("Pinned application '$($app.Name)' has an invalid URI target.") }
+        $iconPath=[string](Get-BakaConfigMember $app 'IconPath')
+        if ($iconPath -and [IO.Path]::GetExtension($iconPath).ToLowerInvariant() -notin @('.png','.jpg','.jpeg','.bmp','.ico','.gif')) { $errors.Add("Pinned application '$($app.Name)' icon must be a .png, .jpg, .bmp, .ico, or .gif file.") }
+    }
+    $wallpaper=Get-BakaConfigMember $Configuration 'Wallpaper'
+    if ($null -ne $wallpaper) {
+        $mode=[string](Get-BakaConfigMember $wallpaper 'Mode')
+        $path=[string](Get-BakaConfigMember $wallpaper 'Path')
+        if ($mode -notin @('Default','Image','Video','Color')) { $errors.Add('Wallpaper.Mode must be Default, Image, Video, or Color.') }
+        if ([string](Get-BakaConfigMember $wallpaper 'Fit') -notin @('Fill','Fit','Stretch','Center','Span')) { $errors.Add('Wallpaper.Fit must be Fill, Fit, Stretch, Center, or Span.') }
+        if (-not (Test-BakaHexColor ([string](Get-BakaConfigMember $wallpaper 'Color')))) { $errors.Add('Wallpaper.Color must be a six-digit #RRGGBB color.') }
+        $extension=if($path){[IO.Path]::GetExtension($path).ToLowerInvariant()}else{''}
+        if ($mode -eq 'Image' -and $extension -notin @('.jpg','.jpeg','.jfif','.png','.bmp','.gif','.webp')) { $errors.Add('Wallpaper.Path must name a .jpg, .png, .bmp, .gif, or .webp image when Mode is Image.') }
+        if ($mode -eq 'Video' -and $extension -notin @('.mp4','.m4v','.mov','.wmv','.avi','.mkv','.webm')) { $errors.Add('Wallpaper.Path must name a .mp4, .m4v, .mov, .wmv, .avi, .mkv, or .webm video when Mode is Video.') }
+    }
+    $taskbar=Get-BakaConfigMember $Configuration 'Taskbar'
+    if ($null -ne $taskbar) {
+        foreach ($name in @('AutoHideWindowsTaskbar','ShowRunningApps','ShowStartButton')) {
+            $value=Get-BakaConfigMember $taskbar $name
+            if ($null -ne $value -and $value -isnot [bool]) { $errors.Add("Taskbar.$name must be true or false.") }
+        }
     }
     if ($errors.Count) { return [pscustomobject]@{ Valid=$false; Errors=@($errors.ToArray()) } }
     [pscustomobject]@{ Valid=$true; Errors=@() }
@@ -93,6 +155,7 @@ function Read-BakaDesktopConfiguration {
         } else { $candidate=$defaults }
         $validation=Test-BakaDesktopConfiguration -Configuration $candidate
         if (-not $validation.Valid) { $candidate=$defaults }
+        $candidate=Complete-BakaDesktopConfiguration -Configuration $candidate
         Write-BakaConfigurationFile -Path $Path -Configuration $candidate
         return $candidate
     }
@@ -103,6 +166,7 @@ function Read-BakaDesktopConfiguration {
             $candidate=Get-Content -LiteralPath $candidatePath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
             $validation=Test-BakaDesktopConfiguration -Configuration $candidate
             if (-not $validation.Valid) { throw ($validation.Errors -join ' ') }
+            $candidate=Complete-BakaDesktopConfiguration -Configuration $candidate
             if ($candidatePath -ne $Path) { Write-BakaConfigurationFile -Path $Path -Configuration $candidate }
             return $candidate
         } catch { $parseErrors.Add(('{0}: {1}' -f $candidatePath,$_.Exception.Message)) }
@@ -137,8 +201,9 @@ function Import-BakaDesktopConfiguration {
     $candidate=Get-Content -LiteralPath $Path -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
     $validation=Test-BakaDesktopConfiguration -Configuration $candidate
     if (-not $validation.Valid) { throw ('Imported settings are invalid: {0}' -f ($validation.Errors -join ' ')) }
+    $candidate=Complete-BakaDesktopConfiguration -Configuration $candidate
     Save-BakaDesktopConfiguration -Path $DestinationPath -Configuration $candidate
     return $candidate
 }
 
-Export-ModuleMember -Function Get-BakaDefaultDesktopConfiguration,Test-BakaHexColor,Test-BakaDesktopConfiguration,Read-BakaDesktopConfiguration,Save-BakaDesktopConfiguration,Export-BakaDesktopConfiguration,Import-BakaDesktopConfiguration
+Export-ModuleMember -Function Get-BakaDefaultDesktopConfiguration,Get-BakaDefaultWallpaperSettings,Get-BakaDefaultTaskbarSettings,Complete-BakaDesktopConfiguration,Test-BakaHexColor,Test-BakaDesktopConfiguration,Read-BakaDesktopConfiguration,Save-BakaDesktopConfiguration,Export-BakaDesktopConfiguration,Import-BakaDesktopConfiguration

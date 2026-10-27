@@ -6,9 +6,26 @@ Updated: 2026-10-27
 
 A distinct BAKA Liquid UI-R2 candidate has been built in the user-authorized Windows 11 technician VM and passed structural ISO validation. The original ISO and the earlier 2026-10-16 candidate remain unchanged. This is **not a fully acceptance-tested release**: a new disposable VMware VM reached a genuine Windows 11 Setup screen, then stopped because the VM lacked TPM 2.0; the preserved AB candidate/source comparison still ends in a shared EFI timeout. Installation/OOBE, Windows SIM, installed desktop behavior, security and update-restoration checks, game testing, and physical performance measurements remain outstanding.
 
+## R4 Liquid Shell source — 2026-10-27
+
+Implemented in source (no ISO rebuilt yet):
+
+- Answer file: passwordless local `BAKA` administrator with automatic sign-in, OOBE account/privacy/Microsoft-account screens hidden, computer name `BAKA-PC`, en-US locale. No `windowsPE` pass, so disk selection stays interactive. First-logon setup keeps auto sign-in permanent and disables sign-in after sleep. `Config/AccountSetup.json` documents the physical-access trade-off.
+- Debloat: 19 exact packages, protected-pattern list extended (Xbox identity/TCUI, Security, App Installer, codecs, Store purchase). The approved list is also removed online for all users at first logon.
+- `Modules/SystemTuning.psm1` + `Config/SystemTuning.json`: reversible service start types (DiagTrack, dmwappushservice, MapsBroker, RetailDemo, Fax, WpcMonSvc disabled; lfsvc, WerSvc manual), 13 telemetry/feedback scheduled tasks disabled, protected-service refusal list, and backup/restore. `Restore BAKA System Tuning` shortcut restores system and per-user values.
+- `Config/PrivacySettings.json`: 21 device and 25 user values (Copilot, Recall, activity history, web search, Widgets feed, tips, suggestions, promoted apps, Spotlight, advertising ID, Delivery Optimization P2P, feedback).
+- Baka Browser: silent Velopack install at first logon, Default Programs registration (`BakaBrowserHTML`), and `Config/DefaultAssociations.xml` applied through the Windows default-associations policy. It is also the first pinned dock app.
+- Companion R4: Start button, open-window strip, reversible native-taskbar auto-hide, image/video/color wallpaper with video behind the desktop icons and pause-in-games, custom dock icons, settings upgrade for older files.
+- Fixed a first-logon race: the per-user Active Setup step is now registered during `specialize`, and first logon starts the companion directly, so the BAKA desktop appears on the very first sign-in instead of the second.
+- Tests: new `Tests/Test-SystemTuning.ps1` (in-memory apply/idempotence/restore/protected-service refusal); new configuration-upgrade and wallpaper/icon validation checks; new project preflight checks for autologon, browser default, tuning restore, protected packages, and R4 staging; preview smoke stage `wallpaper-and-taskbar`.
+
+Verification: **not yet run.** The terminal tool in this session stopped executing commands after a VMware start attempt, so the source tests, the UTF-8 BOM normalization the preflight requires, the commit/push, and VMware testing are pending. No R4 behavior is claimed as tested.
+
+VMware state found this session: the disposable acceptance VM now has a vTPM (partial VMware encryption) and an NVMe disk with about 30 GB written. Its log shows Windows Boot Manager booting from disk through several Setup restarts on 2026-10-27, so the R2 image appears to have installed. No desktop screenshot or OOBE result has been captured yet, so installation success is not claimed.
+
 ## Source reliability remediation — 2026-10-27
 
-The live BAKA Liquid companion received a focused reliability and responsiveness pass. Action buttons now render their supplied Windows icon glyphs; manual profiles stop automatic process detection; a not-yet-created Quick Panel is safe during profile polling; malformed settings imports are contained and reported; profile UI changes attempt rollback to the previous backend/UI state; and the smoke timer is initialized before cleanup handlers run. The existing BAKA source smoke passed 13/13 stages after these changes.
+The live BAKA Liquid companion received the R3 Arena/Files redesign plus a reliability pass. Action buttons now render their supplied Windows icon glyphs; manual profiles stop automatic process detection; a not-yet-created Quick Panel is safe during profile polling; malformed settings imports are contained and reported; profile UI changes attempt rollback to the previous backend/UI state; BAKA Files reads a real workspace; and the smoke timer is initialized before cleanup handlers run. The BAKA source smoke passed 15/15 stages after these changes.
 
 The build-host preflight diagnostic was also hardened to fall back from a missing `ProgramFiles(x86)` environment variable and to report absent WSIM paths instead of throwing a null-path error. On this host it now correctly reports Windows 10 Pro 19045 with no OSCDIMG, WinPE add-on, or WSIM, so ISO rebuilding remains blocked until the preserved Windows 11 technician VM is available.
 
@@ -101,7 +118,7 @@ The serviced Microsoft update contains an upstream fix for mouse-input stutter i
 | ISO creation and structural validation | Passed | Prior build exited successfully and the resulting candidate mounted for structural validation. |
 | Preserved and new artifact hashes | Passed | All four image/source hashes were recalculated on 2026-10-26 and matched their records. |
 | Theme contrast | Passed, 20/20 | Required presets and optional Violet. |
-| WPF source-preview smoke | Passed, 13/13 stages | Latest rerun includes regression checks for live widget refresh interval and top-bar monitor placement. It used the Windows 10 opaque fallback; this is not installed Windows 11 glass validation. |
+| WPF source-preview smoke | Passed, 15/15 stages | Latest rerun includes BAKA Files readability/close plus live widget refresh interval and top-bar monitor placement. It used the Windows 10 opaque fallback; this is not installed Windows 11 glass validation. |
 | Desktop settings persistence/recovery | Passed, 4/4 | Isolated temporary settings. |
 | Profile recovery/rollback/instance lock | Passed, 6/6 | Simulated registry; no host profile registry writes. |
 | System metrics data path | Passed at source level | Returned values or explicit unavailable states; no companion overhead measurement. |

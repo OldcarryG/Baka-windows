@@ -40,6 +40,30 @@ try {
     Assert-True ($imported.Appearance.AccentColor -eq '#8765C2') 'Validated export/import did not preserve settings.'
     $passed.Add('Settings export and import preserve valid user preferences.')
 
+    $legacyPath=Join-Path $testRoot 'legacy.json'
+    $legacy=Get-Content -LiteralPath $defaultPath -Raw|ConvertFrom-Json
+    $legacy.PSObject.Properties.Remove('wallpaper');$legacy.PSObject.Properties.Remove('taskbar')
+    foreach($app in @($legacy.pinnedApps)){$app.PSObject.Properties.Remove('iconPath')}
+    [IO.File]::WriteAllText($legacyPath,($legacy|ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($true))
+    $upgraded=Read-BakaDesktopConfiguration -Path $legacyPath -DefaultPath $defaultPath
+    Assert-True ($upgraded.Wallpaper.Mode -eq 'Default' -and $upgraded.Taskbar.AutoHideWindowsTaskbar -eq $true -and @($upgraded.PinnedApps|Where-Object {$null -eq $_.PSObject.Properties['IconPath']}).Count -eq 0) 'Settings saved before wallpaper/taskbar support were not upgraded with defaults.'
+    $passed.Add('Settings saved by earlier releases gain wallpaper, taskbar, and icon defaults without losing values.')
+
+    $custom=Complete-BakaDesktopConfiguration (Get-BakaDefaultDesktopConfiguration)
+    $custom.Wallpaper.Mode='Video';$custom.Wallpaper.Path='D:\Media\loop.mp4'
+    Assert-True ((Test-BakaDesktopConfiguration $custom).Valid) 'A video wallpaper was rejected.'
+    $custom.Wallpaper.Mode='Image';$custom.Wallpaper.Path='D:\Media\photo.webp'
+    Assert-True ((Test-BakaDesktopConfiguration $custom).Valid) 'An image wallpaper was rejected.'
+    $custom.Wallpaper.Path='D:\Media\loop.mp4'
+    Assert-True (-not (Test-BakaDesktopConfiguration $custom).Valid) 'A video file was accepted as an image wallpaper.'
+    $custom.Wallpaper.Mode='Color';$custom.Wallpaper.Color='blue'
+    Assert-True (-not (Test-BakaDesktopConfiguration $custom).Valid) 'An invalid wallpaper color was accepted.'
+    $custom.Wallpaper.Color='#101820';$custom.PinnedApps[0].IconPath='D:\Icons\browser.png'
+    Assert-True ((Test-BakaDesktopConfiguration $custom).Valid) 'A custom dock icon was rejected.'
+    $custom.PinnedApps[0].IconPath='D:\Icons\browser.exe'
+    Assert-True (-not (Test-BakaDesktopConfiguration $custom).Valid) 'An executable was accepted as a dock icon image.'
+    $passed.Add('Wallpaper image/video/color choices and custom dock icons are validated.')
+
     $passed|ForEach-Object { Write-Output ('PASS: '+$_) }
     Write-Output ('RESULT: {0}/{0} desktop-configuration regression checks passed.' -f $passed.Count)
 } finally {

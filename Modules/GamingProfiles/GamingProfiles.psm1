@@ -2,7 +2,10 @@
 
 $script:DefaultProfileValues = @(
     [pscustomobject]@{ Path='HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'; Name='EnableTransparency'; GamingValue=0 },
-    [pscustomobject]@{ Path='HKCU:\Control Panel\Desktop'; Name='MinAnimate'; GamingValue='0' }
+    [pscustomobject]@{ Path='HKCU:\Control Panel\Desktop'; Name='MinAnimate'; GamingValue='0' },
+    [pscustomobject]@{ Path='HKCU:\Software\Microsoft\GameBar'; Name='AutoGameModeEnabled'; GamingValue=1 },
+    [pscustomobject]@{ Path='HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications'; Name='GlobalUserDisabled'; GamingValue=1 },
+    [pscustomobject]@{ Path='HKCU:\System\GameConfigStore'; Name='GameDVR_Enabled'; GamingValue=0 }
 )
 
 function Get-BakaProfilePaths {
@@ -264,7 +267,7 @@ function Set-BakaGamingProfile {
             $state.Phase='Applied'
             Write-BakaAtomicJson -Path $paths.State -BackupPath $paths.StateBackup -Value $state
             Write-BakaProfileMarker -Paths $paths -Profile 'CompetitiveGaming' -Reason 'Gaming profile applied'
-            Write-BakaProfileLog -Path $paths.Log -Message ('profile=CompetitiveGaming transaction={0} changed={1} power-plan=Balanced' -f $state.TransactionId,($changed -join ','))
+             Write-BakaProfileLog -Path $paths.Log -Message ('profile=CompetitiveGaming transaction={0} changed={1} power-plan=Balanced game-mode=enabled background-apps=disabled game-dvr=disabled' -f $state.TransactionId,($changed -join ','))
             return [pscustomobject]@{ Profile=$Profile; Restored=$false; Recovered=$false; Changed=@($changed.ToArray()); AlreadyActive=$false }
         } catch {
             $transitionError = $_.Exception.Message

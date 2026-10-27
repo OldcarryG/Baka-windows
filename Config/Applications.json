@@ -13,7 +13,10 @@
       "relativePath": "Downloads/BakaBrowser-win-Setup-1.2.0.exe",
       "sha256": "E381B835A0607EE2006A9A89588161DA2125518398AEBDB8FFE0CCFB1C342488",
       "authenticode": "NotSigned (confirmed for the pinned release asset)",
-      "installMode": "interactive-per-user",
+      "installMode": "silent-first-logon-per-user",
+      "silentArguments": ["--silent"],
+      "progId": "BakaBrowserHTML",
+      "installedExecutable": "%LOCALAPPDATA%\\BakaBrowser\\current\\baka.exe",
       "requires": ["Microsoft Edge WebView2 Runtime"],
       "defaultBrowser": true,
       "notes": "User-selected browser. Keep WebView2 available. Do not remove Microsoft Edge/WebView2 components."

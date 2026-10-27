@@ -2,6 +2,22 @@
 
 Updated: 2026-10-27
 
+## R3 Arena direction
+
+R3 changes the first-run experience from a small utility overlay into a BAKA-owned gaming desktop layer. BAKA Arena is the visible home surface: a hero, profile cards, safe-tweak ledger, live telemetry, control center, and animation system are shown together. The dock exposes Arena, pinned apps, Control, and Customize. The R2 companion remains the implementation base, but R3's dashboard is the product entry point. Research and third-party license decisions are recorded in `docs/DESIGN_RESEARCH_20261027.md`.
+
+## R4 Liquid Shell direction
+
+R4 turns the dock into the everyday taskbar while Explorer stays the shell:
+
+- **Start and open windows.** The dock gains a Start button (opens Windows Start/search) and an open-window strip that lists up to eight running apps with their real icons. Clicking one focuses, restores, or minimizes it.
+- **Native taskbar auto-hide.** While BAKA runs, the Windows taskbar is set to auto-hide through the documented `SHAppBarMessage` API. The prior state is saved and restored when BAKA exits or the option is turned off. The taskbar, tray, and notifications stay reachable at the screen edge.
+- **Wallpaper freedom.** Settings > Wallpaper accepts any picture (JPG/PNG/BMP/GIF/WebP), a looping video (MP4/MOV/WMV/AVI/MKV/WebM, using Windows codecs), or a solid color, with Fill/Fit/Stretch/Center/Span. Video renders in a borderless WPF `MediaElement` re-parented into the desktop's wallpaper host (`WorkerW`) so it sits behind the desktop icons. It is muted by default and pauses during Gaming and Benchmark profiles. "Default" leaves the wallpaper under Windows Settings control.
+- **Custom dock icons.** Any pinned app can use a user-chosen PNG/JPG/BMP/ICO/GIF. Apps added without a glyph show their executable's own icon.
+- Older saved settings upgrade automatically: missing wallpaper, taskbar, and icon fields get defaults without touching existing values.
+
+Limits: video wallpaper covers the primary display only, and if Explorer restarts the video must be re-applied from Settings (or by restarting BAKA). If Windows exposes no wallpaper host or the codec is missing, BAKA keeps a static background and logs the reason. These behaviors still need installed Windows 11 verification.
+
 ## Architecture
 
 BAKA Liquid is one optional Windows Presentation Foundation companion running in a single-instance, single-threaded apartment process. Explorer remains the Windows shell and the Windows taskbar, notifications, security, servicing and recovery remain under Windows control. The companion owns the floating dock, optional status bar, Quick Panel, settings editor and widgets; it does not install a replacement shell or patch protected system binaries.
@@ -39,6 +55,7 @@ Desktop Acrylic is requested for companion windows through the documented Window
 ## Surfaces and behavior
 
 - **Dock:** configurable pinned apps with Segoe MDL2 icons, accessible names, running-app dots, alignment, size, spacing, auto-hide and a spring-eased pointer wave. The focused icon scales to 1.26, adjacent icons to 1.13, and the next pair to 1.05. The icon-size setting changes the icon tile itself and the dock's height.
+- **BAKA Files:** the default dock Files target opens the BAKA file-management workspace rather than launching an Explorer window. It has Home/Desktop/Downloads/Documents/Pictures navigation, real filesystem drives, address navigation, back/up controls, current-folder search, details listing, double-click directory navigation, and registered Windows application opening. Explorer remains alive as the recovery shell and for native Windows controls; BAKA Files owns normal BAKA file browsing.
 - **Status bar:** optional BAKA identity, profile, network availability, date/time, battery when the host reports one, and Quick Panel access. The native taskbar remains available.
 - **Quick Panel:** profile switching, automatic CS2/TF2 detection resume, theme selection, widget visibility and links to the corresponding Windows Settings pages. Hardware toggles open Windows controls; the panel does not pretend that a setting changed when it did not.
 - **Settings editor:** Appearance, Dock, Top bar and Widgets pages; appearance previews, dock configuration, user-configurable pinned apps, widget visibility/layout, save, reset, import and export, restore-previous, and unsaved-change handling.
@@ -70,7 +87,7 @@ The Liquid preset now has three coordinated, interaction-driven effects: a short
 
 The new original silver-ribbon wallpaper is `Assets/Wallpapers/BAKA-Liquid-Ribbon.png` (1672 × 941; SHA-256 `CE3BD720F1048E496A336B84C1458866C1E1DD83A2A8BDEA108A37ABA57D663C`). The existing procedural 4K black-glass wallpaper remains available. Provenance is recorded in `Assets/ASSET_SOURCES.md`.
 
-The updated source preview passed 13 stages with no runtime errors on the Windows 10 development host, including glass coverage, the sheen, dock wave, fallback consistency, profile motion suppression, and clean shutdown. Because that host does not provide the requested Windows 11 backdrop, this result validates the fallback and interaction logic only. The rebuilt UI-R2 image still requires an installed Windows 11 visual check; no FPS, latency, or installed-shell performance improvement is claimed.
+The updated source preview passed 15 stages with no runtime errors on the Windows 10 development host, including glass coverage, the sheen, dock wave, fallback consistency, profile motion suppression, BAKA Files workspace readability/close, and clean shutdown. Because that host does not provide the requested Windows 11 backdrop, this result validates the fallback and interaction logic only. The preserved R2 image still requires an installed Windows 11 visual check; no FPS, latency, or installed-shell performance improvement is claimed.
 
 ## Source reliability remediation — 2026-10-27
 
@@ -80,4 +97,4 @@ The updated source preview passed 13 stages with no runtime errors on the Window
 - Profile polling now tolerates a Quick Panel that has not been created yet. Settings import catches malformed or invalid files and reports the failure without replacing the current configuration.
 - The smoke timer is initialized before shutdown handlers can inspect it, avoiding a strict-mode cleanup failure.
 
-The latest source smoke passed 13/13 stages. A host-only preview sample averaged 0.494% CPU (0.824% maximum) and 212.76 MiB working set (215.38 MiB maximum) over 15 two-second samples; the CPU target was met in that sample, while the 150 MiB memory target was not. The measurement is not installed-image acceptance evidence.
+The latest source smoke passed 15/15 stages. The latest R3 host-only preview sample averaged 0.583% CPU (0.729% maximum) and 218.47 MiB working set (221.10 MiB maximum) over 10 two-second samples after a three-second warm-up; the CPU target was met in that sample, while the 150 MiB memory target was not. The measurement is not installed-image acceptance evidence.

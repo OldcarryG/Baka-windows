@@ -10,7 +10,11 @@ $sourceGuards=@(
     [pscustomobject]@{Name='game polling tolerates unopened Quick Panel';Pattern='\$script:windows\.Quick -and \$script:windows\.Quick\.IsVisible'},
     [pscustomobject]@{Name='action buttons render supplied glyphs';Pattern='IsNullOrWhiteSpace\(\$Glyph\)'},
     [pscustomobject]@{Name='settings import reports invalid files';Pattern='Settings import failed'},
-    [pscustomobject]@{Name='manual profiles stop automatic process polling';Pattern='if\(\$script:manualOverride\)\{Update-BakaProfileStatus;return\}' }
+    [pscustomobject]@{Name='manual profiles stop automatic process polling';Pattern='if\(\$script:manualOverride\)\{Update-BakaProfileStatus;return\}' },
+    [pscustomobject]@{Name='BAKA Files workspace is implemented';Pattern='function New-BakaFileExplorer'},
+    [pscustomobject]@{Name='video wallpaper is hosted behind desktop icons';Pattern='Set-BakaWindowAsWallpaper'},
+    [pscustomobject]@{Name='native taskbar auto-hide is restored on exit';Pattern='Restore-BakaTaskbarMode'},
+    [pscustomobject]@{Name='video wallpaper pauses during games';Pattern='function Update-BakaVideoWallpaperPlayback'}
 )
 foreach($guard in $sourceGuards){if($source -notmatch $guard.Pattern){throw "Companion reliability guard failed: $($guard.Name)"}}
 $engine=Get-Command powershell.exe -ErrorAction SilentlyContinue
@@ -28,7 +32,7 @@ if(-not $previewRoot){throw 'The preview did not create its isolated temporary d
 $logPath=Join-Path $previewRoot.FullName 'Logs\Companion.log'
 if(-not(Test-Path -LiteralPath $logPath -PathType Leaf)){throw 'The preview did not write a runtime log.'}
 $logLines=@(Get-Content -LiteralPath $logPath)
-$requiredStages=@('ui-smoke-stage=surfaces-visible','ui-smoke-stage=liquid-glass-motion','ui-smoke-stage=glass-surface-coverage','ui-animation=liquid-glint','ui-animation=dock-wave','ui-smoke-stage=gaming-profile','ui-smoke-stage=gaming-profile-motion-suppressed','ui-smoke-stage=benchmark-profile','ui-smoke-stage=benchmark-profile-motion-suppressed','ui-smoke-stage=desktop-restore-and-themes','ui-smoke-stage=widget-and-settings-check','ui-smoke-passed metricsCaptured=true','companion-exit-cleanup-complete')
+$requiredStages=@('ui-smoke-stage=surfaces-visible','ui-smoke-stage=liquid-glass-motion','ui-smoke-stage=glass-surface-coverage','ui-animation=liquid-glint','ui-animation=dock-wave','ui-smoke-stage=gaming-profile','ui-smoke-stage=gaming-profile-motion-suppressed','ui-smoke-stage=benchmark-profile','ui-smoke-stage=benchmark-profile-motion-suppressed','ui-smoke-stage=desktop-restore-and-themes','ui-smoke-stage=widget-and-settings-check','ui-smoke-stage=wallpaper-and-taskbar','wallpaper-preview mode=Image','taskbar-preview autoHide=','ui-smoke-stage=files-surface','ui-smoke-stage=files-close','ui-smoke-passed metricsCaptured=true','companion-exit-cleanup-complete')
 $missingStages=@($requiredStages|Where-Object {-not ($logLines -match [regex]::Escape($_))})
 $runtimeErrors=@($logLines|Where-Object {$_ -match 'ui-smoke-failed|ui-exception|companion-fatal|shutdown-restore-failed'})
 $metricsCaptured=[bool]($logLines|Where-Object {$_ -match 'metrics-query-complete'})

@@ -13,6 +13,7 @@
       "explorerShell": true,
       "optionalAnimations": true,
       "widgets": true,
+      "safeTweaks": [],
       "experimentalTweaks": []
     },
     "CompetitiveGaming": {
@@ -21,8 +22,13 @@
       "optionalAnimations": false,
       "widgets": false,
       "automaticGameDetection": true,
+      "safeTweaks": [
+        "Windows Game Mode",
+        "Disable background app execution",
+        "Disable Game DVR capture overhead"
+      ],
       "experimentalTweaks": [],
-      "note": "Windows scheduler defaults and security protections remain enabled. Promote power changes only after repeatable hardware tests."
+      "note": "Balanced power, Explorer, Windows Security, recovery, servicing, and native scheduling remain enabled. Each registry change is captured and restored when Desktop is selected."
     },
     "Benchmark": {
       "powerPlan": "Balanced",

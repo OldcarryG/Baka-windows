@@ -9,13 +9,20 @@
     "Windows Firewall",
     "Windows Recovery",
     "Bluetooth capability when hardware is present",
-    "Printing and scanning capabilities unless explicitly excluded"
+    "Printing and scanning capabilities unless explicitly excluded",
+    "Xbox identity provider and TCUI (game sign-in for Game Pass and Xbox-enabled PC games)",
+    "Media and image codecs",
+    "Windows Security app, App Installer (winget), Photos, Paint, Notepad, Calculator, Terminal, and Snipping Tool"
   ],
   "candidateRemovals": [
     { "category": "Xbox app and Game Bar", "packageNames": ["Microsoft.GamingApp", "Microsoft.XboxGamingOverlay"], "approved": true },
     { "category": "OneDrive", "packageNames": [], "approved": false },
     { "category": "Weather, News, and promotional consumer apps", "packageNames": ["Microsoft.BingNews", "Microsoft.BingWeather", "Microsoft.MicrosoftOfficeHub", "Microsoft.MicrosoftSolitaireCollection"], "approved": true },
     { "category": "Personal Teams and Clipchamp", "packageNames": ["MSTeams", "Clipchamp.Clipchamp"], "approved": true },
+    { "category": "Bing search, Outlook, To Do, and Power Automate promotions", "packageNames": ["Microsoft.BingSearch", "Microsoft.OutlookForWindows", "Microsoft.Todos", "Microsoft.PowerAutomateDesktop"], "approved": true },
+    { "category": "Help, feedback, and developer hub", "packageNames": ["Microsoft.GetHelp", "Microsoft.WindowsFeedbackHub", "Microsoft.Windows.DevHome"], "approved": true },
+    { "category": "Phone Link, cross-device, and remote assistance", "packageNames": ["Microsoft.YourPhone", "MicrosoftWindows.CrossDevice", "MicrosoftCorporationII.QuickAssist"], "approved": true },
+    { "category": "Game Bar speech overlay (Xbox sign-in components are kept for games)", "packageNames": ["Microsoft.XboxSpeechToTextOverlay"], "approved": true },
     { "category": "Cortana or obsolete assistant components", "packageNames": [], "approved": false },
     { "category": "Unused language packs, fonts, and legacy media components", "packageNames": [], "approved": false },
     { "category": "Printing or scanning capabilities", "packageNames": [], "approved": false }
@@ -25,6 +32,14 @@
     "*WebView2*",
     "*MicrosoftWindows.Client.WebExperience*",
     "*WindowsDefender*",
-    "*WindowsRecovery*"
+    "*WindowsRecovery*",
+    "*SecHealthUI*",
+    "*DesktopAppInstaller*",
+    "*XboxIdentityProvider*",
+    "*Xbox.TCUI*",
+    "*VideoExtension*",
+    "*ImageExtension*",
+    "*WebMediaExtensions*",
+    "*StorePurchaseApp*"
   ]
 }

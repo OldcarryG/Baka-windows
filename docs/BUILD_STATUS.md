@@ -42,7 +42,7 @@ On 2026-10-26, Microsoft release history still listed Windows 11 26H2 build 2630
 
 The visual work improves the desktop's appearance and interaction. Profile behavior is designed to reduce optional BAKA UI activity during gaming and benchmarking, but idle CPU, memory, wakeups, game overhead, FPS, frame pacing, and input latency were not measured. No BAKA performance gain is claimed.
 
-A Windows 10 host preview sample after the reliability pass averaged 0.494% CPU and 212.76 MiB working set over 15 two-second samples (maximums 0.824% CPU and 215.38 MiB). The CPU target was met for this sample; the 150 MiB memory target was not. Installed Windows 11 measurements remain not run. The repeatable procedure is `Scripts/Diagnostics/Measure-CompanionPreview.ps1`.
+The latest R3 Windows 10 host preview sample averaged 0.583% CPU and 218.47 MiB working set over 10 two-second samples after a three-second warm-up (maximums 0.729% CPU and 221.10 MiB). The CPU target was met for this sample; the 150 MiB memory target was not. Installed Windows 11 measurements remain not run. The repeatable procedure is `Scripts/Diagnostics/Measure-CompanionPreview.ps1`.
 
 ## Build issue found and fixed
 
@@ -67,7 +67,7 @@ Raw evidence is retained in the local `Logs/` directory. The sanitized test summ
 | ISO creation | **Passed** | `BuildVM-UI-R2-20261024/ISO-Build.json` and OSCDIMG stdout/stderr logs; exit code 0, BIOS/UEFI boot entries, final size and hash recorded. |
 | Structural ISO validation | **Passed** | `BuildVM-UI-R2-20261024/ISO-Validation.json`; readable mount, single Windows 11 Pro image build 26300.9711, valid Microsoft Setup signature, required BAKA files, and pinned browser hash. |
 | BAKA theme contrast | **Passed, 20/20** | Required presets and optional Violet pass contrast thresholds. |
-| WPF source-preview smoke | **Passed, 13/13 stages** | Includes the live widget refresh-interval and top-bar monitor-placement regression checks. The Windows 10 host used the opaque fallback; this is not installed Windows 11 Acrylic validation. |
+| WPF source-preview smoke | **Passed, 15/15 stages** | Includes BAKA Files workspace readability/close, live widget refresh-interval, and top-bar monitor-placement regression checks. The Windows 10 host used the opaque fallback; this is not installed Windows 11 Acrylic validation. |
 | Desktop settings persistence/recovery | **Passed, 4/4** | Isolated temporary files. |
 | Profile recovery/rollback/instance lock | **Passed, 6/6** | Simulated registry adapter; no host profile registry writes. |
 | CS2/TF2 detection and VALORANT exclusion | **Passed at unit level** | Process detection only; no game was launched. |

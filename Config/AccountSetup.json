@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "note": "Setup creates one local administrator with no password and signs it in automatically, so Windows boots straight to the BAKA desktop with no sign-in screen or Microsoft account prompt. Anyone with physical access can use this PC. Set a password in Settings > Accounts > Sign-in options to bring the sign-in screen back; BAKA then stops auto sign-in because it never stores a password.",
+  "localAccount": {
+    "name": "BAKA",
+    "displayName": "BAKA",
+    "group": "Administrators"
+  },
+  "autoLogon": true,
+  "skipSignInAfterSleep": true,
+  "computerName": "BAKA-PC",
+  "locale": {
+    "inputLocale": "en-US",
+    "systemLocale": "en-US",
+    "uiLanguage": "en-US",
+    "userLocale": "en-US"
+  }
+}

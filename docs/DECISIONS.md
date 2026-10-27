@@ -20,7 +20,7 @@ Updated: 2026-10-27
 - Desktop, Competitive Gaming, and Benchmark remain reversible profiles. Balanced power, native Windows CPU scheduling, and approved security protections remain the defaults. Do not enable unverified global affinity, MSI, interrupt, storage, or polling-rate changes.
 - Game detection targets Counter-Strike 2 and Team Fortress 2. VALORANT is explicitly excluded. Unit detection tests do not count as game compatibility tests.
 - Microsoft Store and WebView2 are retained. The user-selected Baka Browser payload is pinned at SHA-256 `E381B835A0607EE2006A9A89588161DA2125518398AEBDB8FFE0CCFB1C342488`, is unsigned, and has not been executed. Earlier authorization permits running it only in the isolated acceptance VM.
-- Setup keeps interactive disk selection and the requested local or Microsoft account choices. No disk erasure or physical installation is authorized.
+- Setup keeps interactive disk selection. Account handling changed in R4 (see below): a passwordless local account signs in automatically. No disk erasure or physical installation is authorized.
 - Windows Update suppression must remain reversible. Do not claim the suppression or administrator restore workflow works until it passes in the installed candidate.
 - No measured BAKA performance gain is established. Physical hardware is unavailable, so physical FPS, frametime, input, USB, DPC/ISR, and stability results must remain blocked rather than inferred.
 
@@ -30,6 +30,14 @@ Updated: 2026-10-27
 - Treat the host preview memory result (212.76 MiB average working set) as a failed initial budget sample, not as proof of installed-image behavior. Do not claim the 150 MiB target until a targeted optimization and installed Windows 11 measurement support it.
 - Do not rebuild or replace an ISO solely from the shared Hyper-V/VMware EFI timeout. Candidate and official source media produced the same pre-Setup result, and the read-only boot-file comparison found zero differences; the image root cause remains unresolved.
 - Keep ISO rebuilding in the preserved Windows 11 technician VM. The current Windows 10 host lacks the required ADK/OSCDIMG/WinPE/WSIM toolchain; its preflight now reports that limitation cleanly.
+
+## 2026-10-27 R4 "Liquid Shell" decisions (user request)
+
+- The user asked to skip the Windows sign-in page. This supersedes the earlier "local or Microsoft account choice" decision: the answer file now creates one passwordless local administrator (`BAKA`) and signs it in automatically. Anyone with physical access can use the PC; setting a password in Windows restores the sign-in screen (BAKA never stores a password). Disk selection stays interactive (no `windowsPE` pass) and TPM/Secure Boot checks are not bypassed.
+- Debloat now covers 19 exact provisioned packages (adds Bing Search, new Outlook, To Do, Power Automate, Get Help, Feedback Hub, Dev Home, Phone Link, Cross Device, Quick Assist, Xbox speech overlay). Xbox identity/TCUI, Store, Windows Security, App Installer, codecs, and inbox tools are protected by blocked patterns. The same list is also removed online at first logon, so older images get it too.
+- Telemetry upload services/tasks are disabled and ads, suggestions, Copilot, Recall, Start web search, and activity history are turned off through `Config/SystemTuning.json` and `Config/PrivacySettings.json`. Every prior value is backed up; "Restore BAKA System Tuning" puts them back. Security, Update, Xbox sign-in, audio, and network services are on a protected list the code refuses to change.
+- Baka Browser installs silently per user at first logon (Velopack `--silent`), registers itself under Default Programs, and becomes the default for http/https/.htm/.html through the Windows default-associations policy. Edge and WebView2 are kept because Windows components and the browser itself depend on WebView2.
+- The companion becomes a taskbar replacement while keeping Explorer as the shell: a Start button, open-window strip, and auto-hidden native taskbar (restored on exit). Users can set any image, looping video, or solid color as the wallpaper and custom dock icons. Video wallpaper pauses during Gaming/Benchmark profiles.
 
 ## Evidence and maintenance
 
