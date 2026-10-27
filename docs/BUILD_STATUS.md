@@ -2,6 +2,14 @@
 
 Updated: 2026-10-27
 
+## R5 Pop Glass candidate (2026-10-27)
+
+| Artifact | Size | SHA-256 | Status |
+| --- | ---: | --- | --- |
+| `Output/BAKA-Windows-Gaming-Edition-26H2-x64-PopGlass-R5-20261027.iso` | 11,165,024,256 bytes | `5B12244C2F7977C86AA8E5DD0B7EC4ACE3A02AEAC1E36D83E188B5E06A656719` | New candidate; structural validation passed |
+
+Built on the development host with the new `Scripts/08-RemasterISO.ps1`: the pinned R2 media (SHA-256 `55E6883C…`) was copied, its old `$OEM$` payload removed, and the current R4/R5 answer file and runtime payload staged by `05-BuildSetup.ps1`, then mastered by `06-BuildISO.ps1` with ADK OSCDIMG 2.56 (Microsoft-signed `adksetup.exe`, Deployment Tools only). `install.wim` is reused unchanged (Windows 11 Pro 26300.9711, eight offline removals); the eleven newer approved removals run online at first logon. `07-ValidateISO.ps1` passed: valid Microsoft Setup signature, one Pro image at the pinned build, pinned Baka Browser payload, all R4/R5 runtime files and `Autounattend.xml` present.
+
 ## Release state
 
 The BAKA Liquid UI-R2 candidate was built in the authorized Windows 11 technician VM and passed structural ISO validation. It is a **structurally validated candidate**, not a fully acceptance-tested release: a new disposable VMware VM reached Windows Setup and stopped at the missing TPM 2.0 requirement, while the preserved candidate/source AB shells still time out at the EFI CD-ROM handoff. Installed-desktop behavior, Windows SIM, game testing, and physical performance testing remain outstanding.

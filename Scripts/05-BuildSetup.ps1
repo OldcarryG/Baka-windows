@@ -28,7 +28,7 @@ foreach ($wallpaper in $wallpapers) {
     if (-not (Test-Path -LiteralPath $wallpaper.Source -PathType Leaf)) { throw "Required BAKA wallpaper is missing: $($wallpaper.Source)" }
     Copy-Item -LiteralPath $wallpaper.Source -Destination (Join-Path $targetAssets $wallpaper.Name) -Force
 }
-$runtimeFiles = @('Install-SelectedApps.ps1','Install-SelectedDrivers.ps1','Restore-WindowsUpdate.ps1','Set-GamingProfile.ps1','BakaCompanion.ps1','FirstLogon.ps1','SetupComplete.ps1','Register-FirstLogonTask.ps1','Apply-FirstLogonSystemSetup.ps1','Restore-SystemTuning.ps1','Measure-Benchmark.ps1')
+$runtimeFiles = @('Install-SelectedApps.ps1','Install-SelectedDrivers.ps1','Restore-WindowsUpdate.ps1','Set-GamingProfile.ps1','BakaCompanion.ps1','FirstLogon.ps1','SetupComplete.ps1','Register-FirstLogonTask.ps1','Apply-FirstLogonSystemSetup.ps1','Restore-SystemTuning.ps1','Enable-AutoSignIn.ps1','Measure-Benchmark.ps1')
 foreach ($file in $runtimeFiles) {
     $source = Join-Path $PSScriptRoot "Runtime\$file"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime script missing: $source" }

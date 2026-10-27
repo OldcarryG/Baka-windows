@@ -27,6 +27,7 @@ try {
         'sources\$OEM$\$1\ProgramData\BAKA\Modules\DesktopShell.psm1',
         'sources\$OEM$\$1\ProgramData\BAKA\Modules\SystemTuning.psm1',
         'sources\$OEM$\$1\ProgramData\BAKA\Scripts\Restore-SystemTuning.ps1',
+        'sources\$OEM$\$1\ProgramData\BAKA\Scripts\Enable-AutoSignIn.ps1',
         'sources\$OEM$\$1\ProgramData\BAKA\SystemTuning.json',
         'sources\$OEM$\$1\ProgramData\BAKA\GamePerformance.json',
         'sources\$OEM$\$1\ProgramData\BAKA\Debloat.json',
