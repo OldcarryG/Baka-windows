@@ -608,6 +608,18 @@ function New-BakaRow([string]$Title,[string]$Description,$Control){
     $grid.Children.Add($copy)|Out-Null;[System.Windows.Controls.Grid]::SetColumn($Control,1);$Control.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$grid.Children.Add($Control)|Out-Null
     return $grid
 }
+function Protect-BakaComboWheel($Combo){
+    # Scrolling over a closed drop-down must scroll the panel, not silently change the theme or setting.
+    if(-not $Combo -or $Combo.Resources.Contains('BAKA.WheelGuard')){return}
+    $Combo.Resources.Add('BAKA.WheelGuard',$true)
+    $Combo.Add_PreviewMouseWheel({param($sender,$eventArgs)
+        if($sender.IsDropDownOpen){return}
+        $eventArgs.Handled=$true
+        $parent=[System.Windows.Media.VisualTreeHelper]::GetParent($sender)
+        while($parent -and -not ($parent -is [System.Windows.Controls.ScrollViewer])){$parent=[System.Windows.Media.VisualTreeHelper]::GetParent($parent)}
+        if($parent){$parent.ScrollToVerticalOffset($parent.VerticalOffset-($eventArgs.Delta/3))}
+    })
+}
 function Set-BakaSettingsControlTheme($Root){
     $pending=[System.Collections.Generic.Stack[System.Windows.DependencyObject]]::new();$pending.Push($Root)
     while($pending.Count){
@@ -620,6 +632,7 @@ function Set-BakaSettingsControlTheme($Root){
             $selected=[System.Windows.Trigger]::new();$selected.Property=[System.Windows.Controls.TabItem]::IsSelectedProperty;$selected.Value=$true;$selected.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::BackgroundProperty,$script:surfaceBrush));$selected.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::ForegroundProperty,$script:accentBrush));$tabStyle.Triggers.Add($selected);$control.Style=$tabStyle
         }
         elseif($control -is [System.Windows.Controls.ComboBox]){
+            Protect-BakaComboWheel $control
             $control.Background=$script:surfaceAltBrush;$control.Foreground=(New-BakaBrush '#17191E' 255);$control.BorderBrush=$script:borderBrush;$control.Padding=[System.Windows.Thickness]::new(7,5,7,5)
             $itemsStyle=[System.Windows.Style]::new([System.Windows.Controls.ComboBoxItem]);$itemsStyle.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::BackgroundProperty,(New-BakaBrush '#F2F3F5' 255)));$itemsStyle.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::ForegroundProperty,(New-BakaBrush '#17191E' 255)));$itemsStyle.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::PaddingProperty,[System.Windows.Thickness]::new(8,5,8,5)));$control.ItemContainerStyle=$itemsStyle
         }
@@ -1142,9 +1155,9 @@ function New-BakaQuickPanel {
         else{$script:autoGame=$false;$script:detectedGame=$null;[void](Set-BakaUiProfile 'Desktop' 'Auto')}
     } ([string][char]0xE768)
     $stack.Children.Add($autoDetect)|Out-Null
-    $themeCombo=[System.Windows.Controls.ComboBox]::new();$themeCombo.MinWidth=160;$themeCombo.Margin=[System.Windows.Thickness]::new(0,5,0,5)
+    $themeCombo=[System.Windows.Controls.ComboBox]::new();$themeCombo.MinWidth=160;$themeCombo.Margin=[System.Windows.Thickness]::new(0,5,0,5);Protect-BakaComboWheel $themeCombo
     foreach($theme in @($script:themeManifest)){$themeCombo.Items.Add([string]$theme.name)|Out-Null};$themeCombo.SelectedItem=[string]$script:config.appearance.theme
-    $themeCombo.Add_SelectionChanged({param($sender,$eventArgs)if($sender.SelectedItem){$script:config.appearance.theme=[string]$sender.SelectedItem;Set-BakaTheme $script:config.appearance.theme;Save-BakaDesktopConfiguration -Path $script:settingsPath -Configuration $script:config|Out-Null;Write-BakaUiLog ('theme-selected name="{0}"' -f $script:config.appearance.theme)}})
+    $themeCombo.Add_SelectionChanged({param($sender,$eventArgs)if($sender.SelectedItem){$script:config.appearance.theme=[string]$sender.SelectedItem;$picked=Get-BakaTheme $script:config.appearance.theme;if($picked){$script:config.appearance.accentColor=[string]$picked.accent};Set-BakaTheme $script:config.appearance.theme;Save-BakaDesktopConfiguration -Path $script:settingsPath -Configuration $script:config|Out-Null;Write-BakaUiLog ('theme-selected name="{0}"' -f $script:config.appearance.theme)}})
     $stack.Children.Add((New-BakaRow 'Theme' 'Apply a BAKA appearance preset.' $themeCombo))|Out-Null
     $widgetsToggle=[System.Windows.Controls.CheckBox]::new();$widgetsToggle.Content='Show desktop widgets';$widgetsToggle.IsChecked=[bool]$script:config.widgets.enabled;$widgetsToggle.Foreground=$script:textBrush;$widgetsToggle.Margin=[System.Windows.Thickness]::new(0,10,0,10)
     $widgetsToggle.Add_Click({param($sender,$eventArgs)$script:config.widgets.enabled=[bool]$sender.IsChecked;Save-BakaDesktopConfiguration -Path $script:settingsPath -Configuration $script:config|Out-Null;if($script:config.widgets.enabled){Show-BakaWidgets}else{Hide-BakaWidgets};Write-BakaUiLog ('widgets-enabled={0}' -f $script:config.widgets.enabled)})
@@ -1452,8 +1465,8 @@ function New-BakaSettings {
     $appearance.Children.Add((New-BakaHeading 'Theme and surface' 'Preset colors are shared by every BAKA surface; high contrast and remote sessions use opaque fallbacks.'))|Out-Null
     $themeCombo=[System.Windows.Controls.ComboBox]::new();$themeCombo.MinWidth=190;$themeCombo.Margin=[System.Windows.Thickness]::new(0,4,0,8)
     foreach($theme in @($script:themeManifest)){$themeCombo.Items.Add([string]$theme.name)|Out-Null};$themeCombo.SelectedItem=[string]$script:config.appearance.theme
-    $themeCombo.Add_SelectionChanged({param($sender,$eventArgs)if($sender.SelectedItem -and -not $script:settingsLoading){$script:config.appearance.theme=[string]$sender.SelectedItem;Set-BakaTheme $script:config.appearance.theme;$script:settingsDirty=$true}})
-    $appearance.Children.Add((New-BakaRow 'Preset' 'Obsidian, Liquid, Minimal, Gaming, and optional Violet.' $themeCombo))|Out-Null
+    $themeCombo.Add_SelectionChanged({param($sender,$eventArgs)if($sender.SelectedItem -and -not $script:settingsLoading){$script:config.appearance.theme=[string]$sender.SelectedItem;$picked=Get-BakaTheme $script:config.appearance.theme;if($picked){$script:config.appearance.accentColor=[string]$picked.accent;if($script:settingsControls -and $script:settingsControls.Accent){$script:settingsControls.Accent.Text=$script:config.appearance.accentColor}};Set-BakaTheme $script:config.appearance.theme;$script:settingsDirty=$true}})
+    $appearance.Children.Add((New-BakaRow 'Preset' 'Pop Glass (ice blue), Pop Sunset, Pop Mint, Pop Sakura, plus Obsidian, Liquid, Minimal, Gaming, and Violet.' $themeCombo))|Out-Null
     $accentRow=[System.Windows.Controls.StackPanel]::new();$accentRow.Orientation=[System.Windows.Controls.Orientation]::Horizontal
     $accentInput=[System.Windows.Controls.TextBox]::new();$accentInput.Text=[string]$script:config.appearance.accentColor;$accentInput.Width=140;$accentInput.Margin=[System.Windows.Thickness]::new(0,4,8,4);$accentInput.VerticalContentAlignment=[System.Windows.VerticalAlignment]::Center
     $accentApply=New-BakaActionButton 'Preview accent' {param($sender,$eventArgs)$inputBox=$sender.Tag;if(Test-BakaHexColor $inputBox.Text){$script:config.appearance.accentColor=$inputBox.Text.ToUpperInvariant();Set-BakaTheme $script:config.appearance.theme;$script:settingsDirty=$true}else{[System.Windows.Forms.MessageBox]::Show('Enter a color in #RRGGBB format.','Accent color',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information)|Out-Null}}

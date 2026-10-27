@@ -1,4 +1,4 @@
-# BAKA Windows Gaming Edition
+﻿# BAKA Windows Gaming Edition
 
 PowerShell-driven Windows 11 Pro x64 deployment project with Explorer as the shell, reversible gaming profiles, and the BAKA Liquid WPF desktop companion.
 
@@ -8,7 +8,7 @@ PowerShell-driven Windows 11 Pro x64 deployment project with Explorer as the she
 
 **Acceptance checklist: 20 of 37 checks passed (54%).** This counts the tracked verification rows in `docs/ACCEPTANCE_MATRIX.md`, excluding its final release-summary row. The image is **not release accepted**.
 
-`████████████████░░░░░░░░░░░░░░` 54%
+`â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘` 54%
 
 Source/build validation and the BAKA Liquid source checks are complete. BAKA R3 Arena is now a substantial source redesign with a first-run dashboard, gaming control center, live telemetry, safe reversible profile tweaks, and animated dock. The current R2 ISO is preserved and is not the R3 build; it must not be described as containing this redesign. VMware installation of a rebuilt R3 image, game, resource-use, and comparative performance results remain pending; physical gaming results remain unavailable.
 
@@ -22,7 +22,7 @@ A new default look, **BAKA Pop Glass**, mixes SekaiPop's block language with App
 - The dock is icons only, like macOS. Arena shows once on first run and no longer reappears over your apps.
 - All motion is event-driven (nothing animates while idle) and turns off in Gaming and Benchmark profiles.
 
-![BAKA Pop Glass design capture (development host opaque fallback; real Acrylic glass appears on Windows 11).](docs/evidence/screenshots/20261027-baka-popglass-design-capture.png)
+![BAKA Pop Glass design capture (development host opaque fallback; real Acrylic glass appears on Windows 11).](docs/evidence/screenshots/20261027-baka-popglass-ice-design-capture.png)
 
 The capture renders only BAKA surfaces over the BAKA wallpaper. The Windows 10 development host cannot show Desktop Acrylic, so surfaces appear opaque here; translucency needs installed Windows 11 verification.
 
@@ -54,7 +54,7 @@ The latest R3 host preview sample averaged **0.583% CPU** (0.729% maximum) and *
 
 ### VMware boot evidence
 
-The first screenshot shows the BAKA candidate's VMware UEFI boot manager with its ISO listed. The second shows the candidate back at the firmware manager after its EFI timeout; the third captures the stock ISO's “Time out” screen. These are boot-path evidence only; none is a screenshot of an installed desktop.
+The first screenshot shows the BAKA candidate's VMware UEFI boot manager with its ISO listed. The second shows the candidate back at the firmware manager after its EFI timeout; the third captures the stock ISO's â€œTime outâ€ screen. These are boot-path evidence only; none is a screenshot of an installed desktop.
 
 ![BAKA VMware UEFI boot manager; Windows Setup has not been reached yet.](docs/evidence/screenshots/20261026-baka-vmware-uefi-boot-manager.png)
 
@@ -80,14 +80,14 @@ A separate BAKA Liquid UI-R2 candidate has been built in the authorized Windows 
 
 The original ISO and existing candidate remain unchanged:
 
-- Candidate: `Output/BAKA-Windows-Gaming-Edition-26H2-x64-20261016.iso` — SHA-256 `830A4161DBE8C5EFAFDC6DCA19B8FE20571D057A5B97C8F5617EE21DE47A672D`
-- Original: `Output/BAKA-Windows-Gaming-Edition-26H2-x64.iso` — SHA-256 `EC287E1B8FF0FCD59E7DFDF3C9A0B95BA83D133B2AE3A9EF64F8F54E44AC7BAB`
+- Candidate: `Output/BAKA-Windows-Gaming-Edition-26H2-x64-20261016.iso` â€” SHA-256 `830A4161DBE8C5EFAFDC6DCA19B8FE20571D057A5B97C8F5617EE21DE47A672D`
+- Original: `Output/BAKA-Windows-Gaming-Edition-26H2-x64.iso` â€” SHA-256 `EC287E1B8FF0FCD59E7DFDF3C9A0B95BA83D133B2AE3A9EF64F8F54E44AC7BAB`
 
 The earlier candidate does not contain the BAKA Liquid companion. The new candidate is the current artifact for review, not an accepted final release.
 
 ## BAKA Liquid desktop
 
-One optional WPF companion provides the floating dock, optional status bar, Quick Panel, visual settings editor, five themes, and desktop widgets. BAKA Liquid is the default, with Windows Desktop Acrylic, layered silver highlights, brief spring-soft panel entrances, a one-shot glass light sweep, and pointer-focused dock magnification. Explorer remains the shell. Competitive Gaming and Benchmark use opaque surfaces and hide optional widgets and motion while preserving Windows’ Balanced power baseline, native scheduling, security, and reversible profile backend.
+One optional WPF companion provides the floating dock, optional status bar, Quick Panel, visual settings editor, five themes, and desktop widgets. BAKA Liquid is the default, with Windows Desktop Acrylic, layered silver highlights, brief spring-soft panel entrances, a one-shot glass light sweep, and pointer-focused dock magnification. Explorer remains the shell. Competitive Gaming and Benchmark use opaque surfaces and hide optional widgets and motion while preserving Windowsâ€™ Balanced power baseline, native scheduling, security, and reversible profile backend.
 
 Themes: BAKA Obsidian, BAKA Liquid, BAKA Minimal, and BAKA Gaming are the required presets; BAKA Violet remains an optional accent variant. Core widgets: clock/date, calendar, Windows-backed system monitor, and optional local notes. Weather and media controls are deferred. Hardware controls open native Windows Settings pages rather than simulating a toggle.
 
