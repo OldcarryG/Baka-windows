@@ -152,9 +152,11 @@ try{
     [xml]$answerForLogon=Get-Content -LiteralPath $answerPath -Raw
     $oobe=$answerForLogon.unattend.settings|Where-Object pass -eq 'oobeSystem'
     $shellSetup=@($oobe.component|Where-Object name -eq 'Microsoft-Windows-Shell-Setup')[0]
-    $localAccount=$shellSetup.UserAccounts.LocalAccounts.LocalAccount
     $windowsPe=@($answerForLogon.unattend.settings|Where-Object pass -eq 'windowsPE')
-    Assert-Check 'Setup boots straight to the desktop without a sign-in or Microsoft account screen' ($account.autoLogon -and $shellSetup.AutoLogon.Enabled -eq 'true' -and $shellSetup.AutoLogon.Username -eq $account.localAccount.name -and $localAccount.Name -eq $account.localAccount.name -and $shellSetup.OOBE.HideOnlineAccountScreens -eq 'true' -and $windowsPe.Count -eq 0 -and $systemSetup -match 'AutoAdminLogon' -and (Get-Content -LiteralPath $answerPath -Raw) -match 'Enable-AutoSignIn\.ps1' -and (Get-Content -LiteralPath (Join-Path $root 'Scripts\Runtime\Enable-AutoSignIn.ps1') -Raw) -match 'DevicePasswordLessBuildVersion' -and $buildSetupText -match 'Enable-AutoSignIn\.ps1') 'The passwordless local account signs in automatically; disk selection remains interactive (no windowsPE pass).'
+    $answerText=Get-Content -LiteralPath $answerPath -Raw
+    $autoSignInText=Get-Content -LiteralPath (Join-Path $root 'Scripts\Runtime\Enable-AutoSignIn.ps1') -Raw
+    # The answer file must not set an account password at all; BAKA creates the account with New-LocalUser -NoPassword.
+    Assert-Check 'Setup boots straight to the desktop without a sign-in or Microsoft account screen' ($account.autoLogon -and $answerText -match 'Enable-AutoSignIn\.ps1" -CreateAccount' -and $answerText -match 'Enable-AutoSignIn\.ps1" -RegisterTask' -and $answerText -notmatch '<Password>' -and $autoSignInText -match 'New-LocalUser -Name \$userName .*-NoPassword' -and $autoSignInText -match "S-1-5-32-544" -and $shellSetup.OOBE.HideOnlineAccountScreens -eq 'true' -and $windowsPe.Count -eq 0 -and $systemSetup -match 'AutoAdminLogon' -and (Get-Content -LiteralPath $answerPath -Raw) -match 'Enable-AutoSignIn\.ps1' -and (Get-Content -LiteralPath (Join-Path $root 'Scripts\Runtime\Enable-AutoSignIn.ps1') -Raw) -match 'DevicePasswordLessBuildVersion' -and $buildSetupText -match 'Enable-AutoSignIn\.ps1') 'The passwordless local account signs in automatically; disk selection remains interactive (no windowsPE pass).'
 }catch{Assert-Check 'Setup boots straight to the desktop without a sign-in or Microsoft account screen' $false $_.Exception.Message}
 try{
     [xml]$answer=Get-Content -LiteralPath $answerPath -Raw

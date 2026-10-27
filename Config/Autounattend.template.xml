@@ -3,8 +3,9 @@
   BAKA Windows answer file.
   - windowsPE: intentionally absent, so language, edition, and disk selection stay interactive and no disk is erased automatically.
   - specialize: names the PC and registers BAKA's one-time post-OOBE initialization.
-  - oobeSystem: skips the account, privacy, and Microsoft-account screens and creates the local "BAKA" administrator with no
-    password, then signs it in automatically (see Config/AccountSetup.json). Setting a password later restores the sign-in screen.
+  - specialize also creates the local "BAKA" administrator with no password (Enable-AutoSignIn.ps1 -CreateAccount) and registers
+    a task that turns on automatic sign-in once OOBE has finished (see Config/AccountSetup.json).
+  - oobeSystem: skips the account, privacy, and Microsoft-account screens. Setting a password later restores the sign-in screen.
   Hardware requirements (TPM 2.0, Secure Boot) are not bypassed.
 -->
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
@@ -16,14 +17,20 @@
       <RunSynchronous>
         <RunSynchronousCommand wcm:action="add">
           <Order>1</Order>
+          <Description>Create the passwordless BAKA administrator so OOBE skips account creation</Description>
+          <Path>cmd.exe /c powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%ProgramData%\BAKA\Scripts\Enable-AutoSignIn.ps1" -CreateAccount</Path>
+          <WillReboot>Never</WillReboot>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>3</Order>
           <Description>Register BAKA's one-time post-OOBE initialization</Description>
           <Path>cmd.exe /c powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%ProgramData%\BAKA\Scripts\Register-FirstLogonTask.ps1"</Path>
           <WillReboot>Never</WillReboot>
         </RunSynchronousCommand>
         <RunSynchronousCommand wcm:action="add">
           <Order>2</Order>
-          <Description>Configure automatic sign-in for the passwordless BAKA account</Description>
-          <Path>cmd.exe /c powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%ProgramData%\BAKA\Scripts\Enable-AutoSignIn.ps1"</Path>
+          <Description>Register the post-OOBE task that turns on automatic sign-in for the passwordless BAKA account</Description>
+          <Path>cmd.exe /c powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%ProgramData%\BAKA\Scripts\Enable-AutoSignIn.ps1" -RegisterTask</Path>
           <WillReboot>Never</WillReboot>
         </RunSynchronousCommand>
       </RunSynchronous>
@@ -45,28 +52,7 @@
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
         <ProtectYourPC>3</ProtectYourPC>
       </OOBE>
-      <UserAccounts>
-        <LocalAccounts>
-          <LocalAccount wcm:action="add">
-            <Name>BAKA</Name>
-            <DisplayName>BAKA</DisplayName>
-            <Group>Administrators</Group>
-            <Password>
-              <Value></Value>
-              <PlainText>true</PlainText>
-            </Password>
-          </LocalAccount>
-        </LocalAccounts>
-      </UserAccounts>
-      <AutoLogon>
-        <Enabled>true</Enabled>
-        <Username>BAKA</Username>
-        <LogonCount>3</LogonCount>
-        <Password>
-          <Value></Value>
-          <PlainText>true</PlainText>
-        </Password>
-      </AutoLogon>
+
     </component>
   </settings>
 </unattend>
