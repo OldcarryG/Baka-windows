@@ -15,6 +15,12 @@ function Write-InstallLog([string]$Message) {
     $line = '{0} {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message
     Add-Content -LiteralPath $logPath -Value $line -Encoding UTF8
 }
+trap {
+    Write-InstallLog ('fatal error="{0}"' -f $_.Exception.Message)
+    if (-not $Silent) { [System.Windows.Forms.MessageBox]::Show(("BAKA could not install the selected apps.`r`n`r`n{0}`r`n`r`nDetails: {1}" -f $_.Exception.Message,$logPath),'BAKA App Installer','OK','Error') | Out-Null }
+    exit 1
+}
+Write-InstallLog ('start silent={0} user={1}' -f [bool]$Silent,$env:USERNAME)
 function Show-Message([string]$Message,[string]$Title='BAKA Setup',[System.Windows.Forms.MessageBoxButtons]$Buttons=[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]$Icon=[System.Windows.Forms.MessageBoxIcon]::Information) {
     if ($Silent) { Write-InstallLog "Suppressed prompt in silent mode: $Title"; return [System.Windows.Forms.DialogResult]::Yes }
     [System.Windows.Forms.MessageBox]::Show($Message,$Title,$Buttons,$Icon)

@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([int]$TimeoutSeconds=60)
+param([int]$TimeoutSeconds=120)
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 $runtime=Join-Path $root 'Scripts\Runtime\BakaCompanion.ps1'
@@ -14,7 +14,12 @@ $sourceGuards=@(
     [pscustomobject]@{Name='BAKA Files workspace is implemented';Pattern='function New-BakaFileExplorer'},
     [pscustomobject]@{Name='video wallpaper is hosted behind desktop icons';Pattern='Set-BakaWindowAsWallpaper'},
     [pscustomobject]@{Name='native taskbar auto-hide is restored on exit';Pattern='Restore-BakaTaskbarMode'},
-    [pscustomobject]@{Name='video wallpaper pauses during games';Pattern='function Update-BakaVideoWallpaperPlayback'}
+    [pscustomobject]@{Name='video wallpaper pauses during games';Pattern='function Update-BakaVideoWallpaperPlayback'},
+    [pscustomobject]@{Name='Windows taskbar is fully hidden, not only auto-hidden';Pattern='Set-BakaTaskbarVisibility -Visible \$false'},
+    [pscustomobject]@{Name='menu bar and dock reserve their screen edges';Pattern='Register-BakaAppBar -Handle \$handle -Edge Top'},
+    [pscustomobject]@{Name='app bars are released on exit';Pattern='Remove-BakaTopBarReservation'},
+    [pscustomobject]@{Name='BAKA windows are per-pixel transparent';Pattern='\$window\.AllowsTransparency=\$true'},
+    [pscustomobject]@{Name='preview never changes the real power plan';Pattern="power-plan-preview"}
 )
 foreach($guard in $sourceGuards){if($source -notmatch $guard.Pattern){throw "Companion reliability guard failed: $($guard.Name)"}}
 $engine=Get-Command powershell.exe -ErrorAction SilentlyContinue
@@ -32,7 +37,7 @@ if(-not $previewRoot){throw 'The preview did not create its isolated temporary d
 $logPath=Join-Path $previewRoot.FullName 'Logs\Companion.log'
 if(-not(Test-Path -LiteralPath $logPath -PathType Leaf)){throw 'The preview did not write a runtime log.'}
 $logLines=@(Get-Content -LiteralPath $logPath)
-$requiredStages=@('ui-smoke-stage=surfaces-visible','ui-smoke-stage=liquid-glass-motion','ui-smoke-stage=glass-surface-coverage','ui-smoke-stage=pop-glass-keycaps','ui-animation=dock-launch-bounce','variant=pop','variant=phone-rise','variant=phone-rotate','ui-animation=liquid-glint','ui-animation=dock-wave','ui-smoke-stage=gaming-profile','ui-smoke-stage=gaming-profile-motion-suppressed','ui-smoke-stage=benchmark-profile','ui-smoke-stage=benchmark-profile-motion-suppressed','ui-smoke-stage=desktop-restore-and-themes','ui-smoke-stage=widget-and-settings-check','ui-smoke-stage=wallpaper-and-taskbar','wallpaper-preview mode=Image','taskbar-preview autoHide=','ui-smoke-stage=files-surface','ui-smoke-stage=files-close','ui-smoke-passed metricsCaptured=true','companion-exit-cleanup-complete')
+$requiredStages=@('ui-smoke-stage=surfaces-visible','ui-smoke-stage=liquid-glass-motion','ui-smoke-stage=glass-surface-coverage','ui-smoke-stage=liquid-glass-desktop','ui-smoke-stage=window-chrome','ui-smoke-stage=control-center','ui-smoke-stage=menu-bar','ui-animation=dock-launch-bounce','variant=glide','ui-animation=liquid-glint','ui-animation=dock-wave','ui-smoke-stage=gaming-profile','ui-smoke-stage=gaming-profile-motion-suppressed','ui-smoke-stage=benchmark-profile','ui-smoke-stage=benchmark-profile-motion-suppressed','ui-smoke-stage=desktop-restore-and-themes','ui-smoke-stage=widget-and-settings-check','ui-smoke-stage=wallpaper-and-taskbar','wallpaper-preview mode=Image','taskbar-preview autoHide=','ui-smoke-stage=files-surface','ui-smoke-stage=files-close','ui-smoke-stage=launchpad','ui-smoke-passed metricsCaptured=true','companion-exit-cleanup-complete')
 $missingStages=@($requiredStages|Where-Object {-not ($logLines -match [regex]::Escape($_))})
 $runtimeErrors=@($logLines|Where-Object {$_ -match 'ui-smoke-failed|ui-exception|companion-fatal|shutdown-restore-failed'})
 $metricsCaptured=[bool]($logLines|Where-Object {$_ -match 'metrics-query-complete'})

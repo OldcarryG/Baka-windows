@@ -11,7 +11,7 @@ $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    Start-Process -FilePath $powershell -Verb RunAs -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $PSCommandPath) -Wait
+    Start-Process -FilePath $powershell -Verb RunAs -WindowStyle Hidden -ArgumentList ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $PSCommandPath) -Wait
     return
 }
 if (-not $Quiet) {
@@ -26,6 +26,10 @@ foreach ($state in @(@{Label='System';Path=(Join-Path $dataRoot 'SystemTuningBac
         $result = Invoke-BakaSystemTuning -Mode Restore -StatePath $state.Path -Confirm:$false
         $messages.Add("$($state.Label): restored $(@($result.Changed).Count) item(s).")
     } catch { $messages.Add("$($state.Label): $($_.Exception.Message)") }
+}
+$powerModule = Join-Path $dataRoot 'Modules\PowerPlan.psm1'
+if (Test-Path -LiteralPath $powerModule -PathType Leaf) {
+    try { Import-Module $powerModule -Force; if (Remove-BakaPowerPlan -Confirm:$false) { $messages.Add('Power: switched to Balanced and removed the BAKA Gaming plan.') } } catch { $messages.Add("Power: $($_.Exception.Message)") }
 }
 try { & (Join-Path $env:WINDIR 'System32\gpupdate.exe') /force | Out-Null } catch { $messages.Add('Policy refresh did not complete; restart Windows.') }
 if (-not $Quiet) { [System.Windows.Forms.MessageBox]::Show((($messages -join "`r`n") + "`r`n`r`nRestart Windows to finish."),'BAKA System Tuning restored','OK','Information') | Out-Null } else { $messages }

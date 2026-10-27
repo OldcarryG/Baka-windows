@@ -28,13 +28,18 @@ foreach ($wallpaper in $wallpapers) {
     if (-not (Test-Path -LiteralPath $wallpaper.Source -PathType Leaf)) { throw "Required BAKA wallpaper is missing: $($wallpaper.Source)" }
     Copy-Item -LiteralPath $wallpaper.Source -Destination (Join-Path $targetAssets $wallpaper.Name) -Force
 }
+# The BAKA wallpaper gallery: every original wallpaper in Assets\Wallpapers (Aurora is the default).
+if (-not (Test-Path -LiteralPath (Join-Path $root 'Assets\Wallpapers\BAKA-Aurora-4K.png') -PathType Leaf)) { throw 'Default BAKA wallpaper BAKA-Aurora-4K.png is missing; run Tools\New-BakaWallpapers.ps1.' }
+foreach ($extra in @(Get-ChildItem -LiteralPath (Join-Path $root 'Assets\Wallpapers') -File | Where-Object { $_.Extension -in @('.png','.jpg','.jpeg') })) {
+    Copy-Item -LiteralPath $extra.FullName -Destination (Join-Path $targetAssets $extra.Name) -Force
+}
 $runtimeFiles = @('Install-SelectedApps.ps1','Install-SelectedDrivers.ps1','Restore-WindowsUpdate.ps1','Set-GamingProfile.ps1','BakaCompanion.ps1','FirstLogon.ps1','SetupComplete.ps1','Register-FirstLogonTask.ps1','Apply-FirstLogonSystemSetup.ps1','Restore-SystemTuning.ps1','Enable-AutoSignIn.ps1','Measure-Benchmark.ps1')
 foreach ($file in $runtimeFiles) {
     $source = Join-Path $PSScriptRoot "Runtime\$file"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime script missing: $source" }
     Copy-Item -LiteralPath $source -Destination (Join-Path $targetScripts $file) -Force
 }
-foreach ($modulePath in @('UpdateControl\UpdateControl.psm1','GamingProfiles\GamingProfiles.psm1','Recovery\Recovery.psm1','HardwareDetection\HardwareDetection.psm1','DesktopConfiguration.psm1','DesktopShell.psm1','SystemTuning.psm1','CompanionInstance.psm1','SystemMonitoring.psm1')) {
+foreach ($modulePath in @('UpdateControl\UpdateControl.psm1','GamingProfiles\GamingProfiles.psm1','Recovery\Recovery.psm1','HardwareDetection\HardwareDetection.psm1','DesktopConfiguration.psm1','DesktopShell.psm1','SystemTuning.psm1','CompanionInstance.psm1','SystemMonitoring.psm1','PowerPlan.psm1')) {
     $source = Join-Path $root "Modules\$modulePath"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime module missing: $source" }
     $destination = Join-Path $targetModules (Split-Path -Leaf $modulePath)

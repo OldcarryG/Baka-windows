@@ -23,7 +23,11 @@
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization", "name": "DODownloadMode", "type": "DWord", "value": 0, "purpose": "Do not upload updates to other PCs over the internet" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting", "name": "DontSendAdditionalData", "type": "DWord", "value": 1, "purpose": "Do not attach extra data to error reports" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\OOBE", "name": "DisablePrivacyExperience", "type": "DWord", "value": 1, "purpose": "Skip the privacy settings prompt for new accounts" },
-    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\InputPersonalization", "name": "AllowInputPersonalization", "type": "DWord", "value": 0, "purpose": "No online speech and typing personalization" }
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\InputPersonalization", "name": "AllowInputPersonalization", "type": "DWord", "value": 0, "purpose": "No online speech and typing personalization" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "HideFirstRunExperience", "type": "DWord", "value": 1, "purpose": "No Edge welcome/sign-in pages if Edge is opened" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DefaultBrowserSettingEnabled", "type": "DWord", "value": 0, "purpose": "Edge does not ask to replace Baka Browser as default" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "ShowRecommendationsEnabled", "type": "DWord", "value": 0, "purpose": "No Edge recommendation pop-ups" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\EdgeUpdate", "name": "CreateDesktopShortcutDefault", "type": "DWord", "value": 0, "purpose": "Edge updates do not put a shortcut back on the desktop" }
   ],
   "userPolicies": [
     { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableTailoredExperiencesWithDiagnosticData", "type": "DWord", "value": 1, "purpose": "Do not use diagnostic data for tailored experiences" },
@@ -50,7 +54,9 @@
     { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\UserProfileEngagement", "name": "ScoobeSystemSettingEnabled", "type": "DWord", "value": 0, "purpose": "No 'finish setting up' nag screens" },
     { "path": "HKCU:\\Software\\Microsoft\\Siuf\\Rules", "name": "NumberOfSIUFInPeriod", "type": "DWord", "value": 0, "purpose": "No feedback requests" },
     { "path": "HKCU:\\Control Panel\\International\\User Profile", "name": "HttpAcceptLanguageOptOut", "type": "DWord", "value": 1, "purpose": "Websites cannot read the language list" },
-    { "path": "HKCU:\\Software\\Microsoft\\GameBar", "name": "UseNexusForGameBarEnabled", "type": "DWord", "value": 0, "purpose": "Controller Xbox button does not open the removed Game Bar" }
+    { "path": "HKCU:\\Software\\Microsoft\\GameBar", "name": "UseNexusForGameBarEnabled", "type": "DWord", "value": 0, "purpose": "Controller Xbox button does not open the removed Game Bar" },
+    { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableSpotlightCollectionOnDesktop", "type": "DWord", "value": 1, "purpose": "Desktop uses the BAKA wallpaper instead of Windows Spotlight" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel", "name": "{2cc5ca98-6485-489a-920e-b3e88a6ccce3}", "type": "DWord", "value": 1, "purpose": "Remove the Spotlight 'Learn about this picture' desktop icon" }
   ],
   "notApplied": [
     { "name": "DisableWindowsConsumerFeatures", "reason": "Microsoft documents this policy for Enterprise/Education, not Pro." },

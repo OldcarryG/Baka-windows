@@ -37,7 +37,7 @@
   },
   "profiles": {
     "Desktop": {
-      "powerPlan": "Balanced",
+      "powerPlan": "BAKA Gaming",
       "explorerShell": true,
       "optionalAnimations": true,
       "widgets": true,
@@ -45,7 +45,7 @@
       "experimentalTweaks": []
     },
     "CompetitiveGaming": {
-      "powerPlan": "Balanced",
+      "powerPlan": "BAKA Gaming",
       "explorerShell": true,
       "optionalAnimations": false,
       "widgets": false,
@@ -59,7 +59,7 @@
       "note": "Balanced power, Explorer, Windows Security, recovery, servicing, and native scheduling remain enabled. Each registry change is captured and restored when Desktop is selected."
     },
     "Benchmark": {
-      "powerPlan": "Balanced",
+      "powerPlan": "BAKA Gaming",
       "recordConditions": true,
       "restoreBaselineOnExit": true,
       "experimentalTweaks": [],

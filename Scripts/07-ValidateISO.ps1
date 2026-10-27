@@ -25,6 +25,8 @@ try {
         'sources\$OEM$\$1\ProgramData\BAKA\Modules\SystemMonitoring.psm1',
         'sources\$OEM$\$1\ProgramData\BAKA\Modules\UpdateControl.psm1',
         'sources\$OEM$\$1\ProgramData\BAKA\Modules\DesktopShell.psm1',
+        'sources\$OEM$\$1\ProgramData\BAKA\Modules\PowerPlan.psm1',
+        'sources\$OEM$\$1\ProgramData\BAKA\Assets\BAKA-Aurora-4K.png',
         'sources\$OEM$\$1\ProgramData\BAKA\Modules\SystemTuning.psm1',
         'sources\$OEM$\$1\ProgramData\BAKA\Scripts\Restore-SystemTuning.ps1',
         'sources\$OEM$\$1\ProgramData\BAKA\Scripts\Enable-AutoSignIn.ps1',

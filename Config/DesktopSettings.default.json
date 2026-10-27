@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "appearance": {
-    "theme": "BAKA Pop Glass",
-    "accentColor": "#38BDF8",
-    "glassIntensity": 40,
+    "theme": "BAKA Liquid Glass",
+    "accentColor": "#5AC8FA",
+    "glassIntensity": 34,
     "animationIntensity": "Full",
     "reducedMotion": false
   },
   "wallpaper": {
-    "mode": "Default",
-    "path": "",
+    "mode": "Image",
+    "path": "%ProgramData%\\BAKA\\Assets\\BAKA-Aurora-4K.png",
     "fit": "Fill",
     "color": "#05060A",
     "muted": true,
@@ -23,7 +23,7 @@
   "dock": {
     "alignment": "Center",
     "iconSize": 52,
-    "spacing": 9,
+    "spacing": 8,
     "autoHide": false,
     "magnification": true,
     "monitor": "Primary"
@@ -47,6 +47,8 @@
   "pinnedApps": [
     { "id": "baka-browser", "name": "Baka Browser", "kind": "Executable", "target": "%LOCALAPPDATA%\\BakaBrowser\\current\\baka.exe", "arguments": "", "processName": "baka", "glyph": "\uE774", "iconPath": "" },
     { "id": "explorer", "name": "Files", "kind": "Executable", "target": "%WINDIR%\\explorer.exe", "arguments": "", "processName": "explorer", "glyph": "\uE8B7", "iconPath": "" },
+    { "id": "steam", "name": "Steam", "kind": "Executable", "target": "%ProgramFiles(x86)%\\Steam\\steam.exe", "arguments": "", "processName": "steam", "glyph": "\uE7FC", "iconPath": "" },
+    { "id": "terminal", "name": "Terminal", "kind": "Executable", "target": "%WINDIR%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "arguments": "", "processName": "powershell", "glyph": "\uE756", "iconPath": "" },
     { "id": "settings", "name": "Settings", "kind": "Uri", "target": "ms-settings:", "arguments": "", "processName": "SystemSettings", "glyph": "\uE713", "iconPath": "" },
     { "id": "taskmgr", "name": "Task Manager", "kind": "Executable", "target": "%WINDIR%\\System32\\Taskmgr.exe", "arguments": "", "processName": "Taskmgr", "glyph": "\uE9D9", "iconPath": "" }
   ]

@@ -12,7 +12,7 @@ $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 $principal=[Security.Principal.WindowsPrincipal]::new($identity)
 if(-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
     $powershell=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    Start-Process -FilePath $powershell -Verb RunAs -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $PSCommandPath) -Wait
+    Start-Process -FilePath $powershell -Verb RunAs -WindowStyle Hidden -ArgumentList ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $PSCommandPath) -Wait
     return
 }
 Import-Module $modulePath -Force
@@ -21,7 +21,12 @@ $families=@(Get-BakaHardwareFamilies -Inventory $inventory)
 $inventory | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $logDirectory 'HardwareInventory.json') -Encoding UTF8
 $manifest=Get-Content -LiteralPath $manifestPath -Raw|ConvertFrom-Json
 $enabled=@($manifest.postInstallCatalog|Where-Object enabled)
-if($enabled.Count -eq 0){Write-DriverLog 'No driver packages are approved/enabled; no driver was downloaded or installed.';Write-Host 'Hardware inventory saved. No driver packages are enabled in the reviewed catalog.';return}
+Add-Type -AssemblyName System.Windows.Forms
+if($enabled.Count -eq 0){
+    Write-DriverLog 'No driver packages are approved/enabled; no driver was downloaded or installed.'
+    [System.Windows.Forms.MessageBox]::Show(("Hardware detected: {0}.`r`n`r`nNo extra vendor driver packages are enabled in the BAKA catalog, so Windows keeps its own signed drivers. GPU drivers come from NVIDIA, AMD, or Intel directly." -f (($families|Sort-Object -Unique) -join ', ')),'BAKA hardware drivers','OK','Information')|Out-Null
+    return
+}
 $results=[System.Collections.Generic.List[object]]::new()
 foreach($driver in $enabled){
     $matched=$false
@@ -57,4 +62,4 @@ foreach($driver in $enabled){
     if($process.ExitCode -ne 0){Write-DriverLog "Installer failed for $($driver.family), exit code $($process.ExitCode)."}else{Write-DriverLog "Installer completed for $($driver.family)."}
 }
 $results | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $logDirectory 'DriverInstallResults.json') -Encoding UTF8
-$results | Format-Table -AutoSize
+[System.Windows.Forms.MessageBox]::Show((($results|ForEach-Object {'{0}: {1}' -f $_.Family,$_.Status}) -join "`r`n"),'BAKA hardware drivers','OK','Information')|Out-Null

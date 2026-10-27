@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "themes": [
+    { "name": "BAKA Liquid Glass", "canvas": "#0B0D12", "surface": "#1B1F27", "surfaceAlt": "#2B303B", "text": "#F5F7FA", "muted": "#AEB7C4", "border": "#707A8C", "accent": "#5AC8FA", "accent2": "#BF8CFF", "style": "Liquid", "glassIntensity": 34, "backdrop": "Acrylic", "animations": "Full" },
     { "name": "BAKA Pop Glass", "canvas": "#0A0F14", "surface": "#151C24", "surfaceAlt": "#1F2933", "text": "#F8FAFC", "muted": "#CBD5E1", "border": "#E2E8F0", "accent": "#38BDF8", "accent2": "#34D399", "ring": "#EEF2F7", "shadow": "#05080B", "style": "PopGlass", "glassIntensity": 40, "backdrop": "Acrylic", "animations": "Full" },
     { "name": "BAKA Pop Sunset", "canvas": "#120C0B", "surface": "#221A1A", "surfaceAlt": "#2E2222", "text": "#FFF8F1", "muted": "#E9D5C8", "border": "#FFE4D1", "accent": "#FF8A4C", "accent2": "#FFD166", "ring": "#FFE9D6", "shadow": "#0D0706", "style": "PopGlass", "glassIntensity": 40, "backdrop": "Acrylic", "animations": "Full" },
     { "name": "BAKA Pop Mint", "canvas": "#08120F", "surface": "#10201C", "surfaceAlt": "#183029", "text": "#F2FFFA", "muted": "#C4E3D9", "border": "#DDF7EE", "accent": "#2DD4BF", "accent2": "#A3E635", "ring": "#E3FAF1", "shadow": "#050C0A", "style": "PopGlass", "glassIntensity": 40, "backdrop": "Acrylic", "animations": "Full" },

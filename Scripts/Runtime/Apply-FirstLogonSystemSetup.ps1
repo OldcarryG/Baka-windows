@@ -42,6 +42,15 @@ try{
         }
     }
 
+    # BAKA Gaming power plan (Ultimate Performance base + gaming tweaks). Desktops switch to it right away;
+    # laptops keep Balanced on battery and get the plan from the Gaming profile or the Quick Panel.
+    try{
+        Import-Module (Join-Path $root 'Modules\PowerPlan.psm1') -Force
+        $laptop=Test-BakaBatteryPresent
+        $plan=Install-BakaPowerPlan -Activate:(-not $laptop) -Confirm:$false
+        Write-Output ('Power plan "{0}" ready (based on {1}, {2} settings, active={3}, laptop={4}).' -f $plan.Name,$plan.BasedOn,$plan.SettingsApplied,$plan.Active,$laptop)
+    }catch{Write-Output "BAKA power plan was not created: $($_.Exception.Message)"}
+
     # Boot straight to the desktop: keep auto sign-in for the passwordless BAKA account created by Setup.
     $accountPath=Join-Path $root 'AccountSetup.json'
     if(Test-Path -LiteralPath $accountPath -PathType Leaf){
@@ -63,14 +72,25 @@ try{
         }
     }
 
+    # BAKA tools live in BAKA Settings > System and in a Start menu folder with real icons. They run
+    # without a console window; nothing is left on the desktop that looks like a PowerShell command.
     $shell=New-Object -ComObject WScript.Shell
     $powershell=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $imageres=Join-Path $env:WINDIR 'System32\imageres.dll'
+    $commonDesktop=[Environment]::GetFolderPath('CommonDesktopDirectory')
+    foreach($old in @('BAKA Install Selected Apps.lnk','BAKA Hardware Drivers.lnk','Restore Windows Update.lnk','Restore BAKA System Tuning.lnk','Microsoft Edge.lnk')){
+        $oldPath=Join-Path $commonDesktop $old
+        if(Test-Path -LiteralPath $oldPath -PathType Leaf){Remove-Item -LiteralPath $oldPath -Force}
+    }
+    $menuFolder=Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'BAKA'
+    New-Item -ItemType Directory -Path $menuFolder -Force|Out-Null
     $shortcutSpecs=@(
-        @{Folder=[Environment]::GetFolderPath('CommonDesktopDirectory');Name='BAKA Install Selected Apps.lnk';Script='Install-SelectedApps.ps1';Description='Install the approved BAKA application packages for this user.'},
-        @{Folder=[Environment]::GetFolderPath('CommonDesktopDirectory');Name='BAKA Hardware Drivers.lnk';Script='Install-SelectedDrivers.ps1';Description='Detect hardware and install only approved matching vendor drivers.'},
-        @{Folder=[Environment]::GetFolderPath('CommonDesktopDirectory');Name='Restore Windows Update.lnk';Script='Restore-WindowsUpdate.ps1';Description='Restore Windows Update policy settings as an administrator.'},
-        @{Folder=[Environment]::GetFolderPath('CommonDesktopDirectory');Name='Restore BAKA System Tuning.lnk';Script='Restore-SystemTuning.ps1';Description='Undo BAKA service, scheduled-task, privacy, and default-browser policy changes.'},
-        @{Folder=[Environment]::GetFolderPath('CommonStartup');Name='BAKA Liquid Desktop.lnk';Script='BakaCompanion.ps1';Description='BAKA Liquid dock, Quick Panel, optional bar, widgets, wallpaper, and reversible gaming profiles.';Sta=$true;Hidden=$true}
+        @{Folder=$menuFolder;Name='BAKA Settings.lnk';Script='BakaCompanion.ps1';Arguments='-OpenSettings';Description='Theme, wallpaper, dock, top bar, widgets, power, and BAKA tools.';Sta=$true;Icon="$imageres,109"},
+        @{Folder=$menuFolder;Name='Reinstall Baka Browser.lnk';Script='Install-SelectedApps.ps1';Description='Install or repair Baka Browser for this user.';Icon="$imageres,1023"},
+        @{Folder=$menuFolder;Name='Install Hardware Drivers.lnk';Script='Install-SelectedDrivers.ps1';Description='Detect hardware and install only approved matching vendor drivers.';Icon="$imageres,27"},
+        @{Folder=$menuFolder;Name='Restore Windows Update.lnk';Script='Restore-WindowsUpdate.ps1';Description='Turn Windows Update back on (asks for administrator approval).';Icon="$imageres,1401"},
+        @{Folder=$menuFolder;Name='Restore BAKA System Tuning.lnk';Script='Restore-SystemTuning.ps1';Description='Undo BAKA service, scheduled-task, privacy, power plan, and default-browser policy changes.';Icon="$imageres,5364"},
+        @{Folder=[Environment]::GetFolderPath('CommonStartup');Name='BAKA Liquid Desktop.lnk';Script='BakaCompanion.ps1';Description='BAKA Liquid desktop: top bar, dock, launcher, Quick Panel, widgets, wallpaper, and gaming profiles.';Sta=$true;Icon="$imageres,109"}
     )
     $legacyDock=Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'BAKA Gaming Dock.lnk'
     if(Test-Path -LiteralPath $legacyDock -PathType Leaf){Remove-Item -LiteralPath $legacyDock -Force}
@@ -79,10 +99,12 @@ try{
         $link.TargetPath=$powershell
         $arguments='-NoProfile'
         if($spec.Sta){$arguments+=' -STA'}
-        if($spec.Hidden){$arguments+=' -WindowStyle Hidden'}
-        $link.Arguments=$arguments+' -ExecutionPolicy Bypass -File "'+(Join-Path $root ('Scripts\'+$spec.Script))+'"'
+        $arguments+=' -WindowStyle Hidden'
+        $link.Arguments=$arguments+' -ExecutionPolicy Bypass -File "'+(Join-Path $root ('Scripts\'+$spec.Script))+'"'+$(if($spec.Arguments){' '+$spec.Arguments}else{''})
         $link.WorkingDirectory=Join-Path $root 'Scripts'
         $link.Description=$spec.Description
+        $link.WindowStyle=7
+        if($spec.Icon){$link.IconLocation=$spec.Icon}
         $link.Save()
     }
     $activeSetup='HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{D7C6DA30-92B6-4B30-A4E0-26A2B2602A10}'

@@ -7,6 +7,8 @@ $logDirectory = Join-Path $userRoot 'Logs'
 if (-not (Test-Path -LiteralPath $logDirectory)) { New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null }
 $logPath = Join-Path $logDirectory 'FirstLogon.log'
 function Write-FirstLogonLog([string]$Message) { Add-Content -LiteralPath $logPath -Value ('{0} {1}' -f (Get-Date -Format 'o'), $Message) -Encoding UTF8 }
+# One failed step must not skip the rest (browser, desktop, wallpaper): log it and continue.
+trap { Write-FirstLogonLog ('step-failed error="{0}"' -f $_.Exception.Message); continue }
 $privacyPath = Join-Path $root 'PrivacySettings.json'
 if (Test-Path -LiteralPath $privacyPath -PathType Leaf) {
     $privacy = Get-Content -LiteralPath $privacyPath -Raw | ConvertFrom-Json
@@ -34,12 +36,22 @@ New-ItemProperty -LiteralPath $personalize -Name 'EnableTransparency' -PropertyT
 New-ItemProperty -LiteralPath $personalize -Name 'ColorPrevalence' -PropertyType DWord -Value 0 -Force | Out-Null
 
 $powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-# Install the selected apps (Baka Browser) silently in the background so sign-in is not delayed.
+# Install the selected apps (Baka Browser) before the desktop appears, so the browser is already there
+# and already the default the first time the user sees BAKA. The installer ships inside the image.
 $installer = Join-Path $root 'Scripts\Install-SelectedApps.ps1'
 if (Test-Path -LiteralPath $installer -PathType Leaf) {
-    Start-Process -FilePath $powershell -ArgumentList @('-NoProfile','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $installer),'-Silent') -WindowStyle Hidden
+    $install = Start-Process -FilePath $powershell -ArgumentList @('-NoProfile','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $installer),'-Silent') -WindowStyle Hidden -PassThru
     Write-FirstLogonLog 'silent-app-install-started'
+    if ($install.WaitForExit(240000)) { Write-FirstLogonLog ('silent-app-install-finished exitCode={0}' -f $install.ExitCode) }
+    else { Write-FirstLogonLog 'silent-app-install-still-running; the BAKA desktop will finish it in the background' }
 }
+# No Edge shortcut on this user's desktop (Baka Browser is the browser).
+$edgeLink = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Microsoft Edge.lnk'
+if (Test-Path -LiteralPath $edgeLink -PathType Leaf) { Remove-Item -LiteralPath $edgeLink -Force -ErrorAction SilentlyContinue }
+# Desktop background is a picture (not Windows Spotlight), so the BAKA wallpaper stays.
+$wallpapersKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers'
+if (-not (Test-Path -LiteralPath $wallpapersKey)) { New-Item -Path $wallpapersKey -Force | Out-Null }
+New-ItemProperty -LiteralPath $wallpapersKey -Name 'BackgroundType' -PropertyType DWord -Value 0 -Force | Out-Null
 # Start the BAKA desktop now; the Startup shortcut takes over from the next sign-in (single instance).
 $companion = Join-Path $root 'Scripts\BakaCompanion.ps1'
 if (Test-Path -LiteralPath $companion -PathType Leaf) {
@@ -47,7 +59,7 @@ if (Test-Path -LiteralPath $companion -PathType Leaf) {
     Write-FirstLogonLog 'companion-started'
 }
 
-$wallpaper = Join-Path $root 'Assets\BAKA-BlackGlass-4K.png'
+$wallpaper = Join-Path $root 'Assets\BAKA-Aurora-4K.png'
 if (-not (Test-Path -LiteralPath $wallpaper -PathType Leaf)) { $wallpaper = Join-Path $root 'Assets\BAKA-Liquid-Ribbon.png' }
 if (-not (Test-Path -LiteralPath $wallpaper -PathType Leaf)) { return }
 $signature = @'

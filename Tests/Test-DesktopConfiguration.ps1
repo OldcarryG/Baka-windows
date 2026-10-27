@@ -46,7 +46,7 @@ try {
     foreach($app in @($legacy.pinnedApps)){$app.PSObject.Properties.Remove('iconPath')}
     [IO.File]::WriteAllText($legacyPath,($legacy|ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($true))
     $upgraded=Read-BakaDesktopConfiguration -Path $legacyPath -DefaultPath $defaultPath
-    Assert-True ($upgraded.Wallpaper.Mode -eq 'Default' -and $upgraded.Taskbar.AutoHideWindowsTaskbar -eq $true -and @($upgraded.PinnedApps|Where-Object {$null -eq $_.PSObject.Properties['IconPath']}).Count -eq 0) 'Settings saved before wallpaper/taskbar support were not upgraded with defaults.'
+    Assert-True ($upgraded.Wallpaper.Mode -eq 'Image' -and [string]$upgraded.Wallpaper.Path -like '*BAKA-Aurora-4K.png' -and $upgraded.Taskbar.AutoHideWindowsTaskbar -eq $true -and @($upgraded.PinnedApps|Where-Object {$null -eq $_.PSObject.Properties['IconPath']}).Count -eq 0) 'Settings saved before wallpaper/taskbar support were not upgraded with defaults.'
     $passed.Add('Settings saved by earlier releases gain wallpaper, taskbar, and icon defaults without losing values.')
 
     $custom=Complete-BakaDesktopConfiguration (Get-BakaDefaultDesktopConfiguration)
