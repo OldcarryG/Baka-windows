@@ -4,6 +4,15 @@ $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 $runtime=Join-Path $root 'Scripts\Runtime\BakaCompanion.ps1'
 if(-not(Test-Path -LiteralPath $runtime -PathType Leaf)){throw "BAKA companion is missing: $runtime"}
+$source=Get-Content -LiteralPath $runtime -Raw -ErrorAction Stop
+$sourceGuards=@(
+    [pscustomobject]@{Name='smoke timer initialized before cleanup';Pattern='\$script:smokeTimer=\$null'},
+    [pscustomobject]@{Name='game polling tolerates unopened Quick Panel';Pattern='\$script:windows\.Quick -and \$script:windows\.Quick\.IsVisible'},
+    [pscustomobject]@{Name='action buttons render supplied glyphs';Pattern='IsNullOrWhiteSpace\(\$Glyph\)'},
+    [pscustomobject]@{Name='settings import reports invalid files';Pattern='Settings import failed'},
+    [pscustomobject]@{Name='manual profiles stop automatic process polling';Pattern='if\(\$script:manualOverride\)\{Update-BakaProfileStatus;return\}' }
+)
+foreach($guard in $sourceGuards){if($source -notmatch $guard.Pattern){throw "Companion reliability guard failed: $($guard.Name)"}}
 $engine=Get-Command powershell.exe -ErrorAction SilentlyContinue
 if(-not $engine){$engine=Get-Command pwsh.exe -ErrorAction Stop}
 $existing=@(Get-ChildItem -LiteralPath $env:TEMP -Directory -Filter 'BAKA-Liquid-Preview-*' -ErrorAction SilentlyContinue|ForEach-Object FullName)

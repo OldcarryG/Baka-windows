@@ -131,6 +131,7 @@ $script:metricsRunspace=$null
 $script:metricsAsyncResult=$null
 $script:systemMetricsLast=$null
 $script:systemMetricsError=''
+$script:smokeTimer=$null
 $script:app=[System.Windows.Application]::new()
 $script:app.ShutdownMode=[System.Windows.ShutdownMode]::OnExplicitShutdown
 $script:app.add_DispatcherUnhandledException({param($sender,$eventArgs) $scriptTrace=try{$eventArgs.Exception.ScriptStackTrace}catch{''};$position=try{$eventArgs.Exception.InvocationInfo.PositionMessage}catch{''};Write-BakaUiLog ('ui-exception error="{0}" position="{1}" scriptStack="{2}" stack="{3}"' -f $eventArgs.Exception.Message,$position,$scriptTrace,$eventArgs.Exception.StackTrace);if($script:smokeTestMode){$script:smokeFailed=$true};$eventArgs.Handled=$true})
@@ -394,8 +395,12 @@ function New-BakaActionButton([string]$Label,[scriptblock]$Action,[string]$Glyph
     $button=[System.Windows.Controls.Button]::new();$button.Padding=[System.Windows.Thickness]::new(14,9,14,9);$button.Margin=[System.Windows.Thickness]::new(4)
     $button.Background=$script:surfaceAltBrush;$button.Foreground=$script:textBrush;$button.BorderBrush=$script:borderBrush;$button.BorderThickness=[System.Windows.Thickness]::new(1)
     $button.Cursor=[System.Windows.Input.Cursors]::Hand;$button.ToolTip=$Label;[System.Windows.Automation.AutomationProperties]::SetName($button,$Label)
-    $text=New-BakaText $Label 12 'Normal' $script:textBrush;$text.VerticalAlignment=[System.Windows.VerticalAlignment]::Center
-    $button.Content=$text
+    $content=[System.Windows.Controls.StackPanel]::new();$content.Orientation=[System.Windows.Controls.Orientation]::Horizontal;$content.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Center
+    if(-not [string]::IsNullOrWhiteSpace($Glyph)){
+        $icon=New-BakaText $Glyph 15 'Normal' $script:accentBrush;$icon.FontFamily=[System.Windows.Media.FontFamily]::new('Segoe MDL2 Assets');$icon.Width=22;$icon.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Center;$icon.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$content.Children.Add($icon)|Out-Null
+    }
+    $text=New-BakaText $Label 12 'Normal' $script:textBrush;$text.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$content.Children.Add($text)|Out-Null
+    $button.Content=$content
     $button.Add_MouseEnter({param($sender,$eventArgs)$sender.Background=New-BakaBrush $script:theme.accent 80;Set-BakaButtonHover $sender $true})
     $button.Add_MouseLeave({param($sender,$eventArgs)$sender.Background=$script:surfaceAltBrush;Set-BakaButtonHover $sender $false})
     $button.Add_Click($Action)
@@ -513,18 +518,34 @@ function Update-BakaProfileStatus {
 }
 function Set-BakaUiProfile([string]$Profile,[string]$Reason='Manual'){
     $previous=$script:activeProfile
-    $result=Set-BakaCompanionProfile -Profile $Profile
-    $script:activeProfile=$Profile
-    if($Reason -eq 'Manual'){$script:manualOverride=$Profile}elseif($Reason -eq 'Auto'){$script:manualOverride=$null}
-    if($Profile -ne 'Desktop'){
-        if(-not $script:widgetsVisibleBeforeProfile){$script:widgetsVisibleBeforeProfile=@($script:widgetWindows.Values|Where-Object {$_ -is [System.Windows.Window] -and $_.IsVisible}).Count -gt 0}
-        Hide-BakaWidgets
-    }elseif($previous -ne 'Desktop' -and $script:widgetsVisibleBeforeProfile -and $script:config.widgets.enabled){Show-BakaWidgets;$script:widgetsVisibleBeforeProfile=$false}
-    if($script:windows.Dock){Set-BakaDockAppearance;Set-BakaDockPosition}
-    Set-BakaTheme $script:config.appearance.theme
-    Update-BakaProfileStatus
-    Write-BakaUiLog ('profile-change from={0} to={1} reason={2} reported-changes={3}' -f $previous,$Profile,$Reason,(@($result.Changed)-join ','))
-    return $result
+    $previousOverride=$script:manualOverride
+    try {
+        $result=Set-BakaCompanionProfile -Profile $Profile
+        $script:activeProfile=$Profile
+        if($Reason -eq 'Manual'){$script:manualOverride=$Profile}elseif($Reason -eq 'Auto'){$script:manualOverride=$null}
+        if($Profile -ne 'Desktop'){
+            if(-not $script:widgetsVisibleBeforeProfile){$script:widgetsVisibleBeforeProfile=@($script:widgetWindows.Values|Where-Object {$_ -is [System.Windows.Window] -and $_.IsVisible}).Count -gt 0}
+            Hide-BakaWidgets
+        }elseif($previous -ne 'Desktop' -and $script:widgetsVisibleBeforeProfile -and $script:config.widgets.enabled){Show-BakaWidgets;$script:widgetsVisibleBeforeProfile=$false}
+        if($script:windows.Dock){Set-BakaDockAppearance;Set-BakaDockPosition}
+        Set-BakaTheme $script:config.appearance.theme
+        Update-BakaProfileStatus
+        Update-BakaDockIndicators
+        if($script:profileTimer){if($script:manualOverride){$script:profileTimer.Stop()}elseif(-not $script:profileTimer.IsEnabled){$script:profileTimer.Start()}}
+        Write-BakaUiLog ('profile-change from={0} to={1} reason={2} reported-changes={3}' -f $previous,$Profile,$Reason,(@($result.Changed)-join ','))
+        return $result
+    } catch {
+        $failure=$_.Exception.Message
+        try {
+            if($Profile -ne $previous){[void](Set-BakaCompanionProfile -Profile $previous)}
+            $script:activeProfile=$previous;$script:manualOverride=$previousOverride
+            Set-BakaTheme $script:config.appearance.theme
+            Update-BakaProfileStatus
+            if($script:profileTimer){if($script:manualOverride){$script:profileTimer.Stop()}elseif(-not $script:profileTimer.IsEnabled){$script:profileTimer.Start()}}
+        } catch { Write-BakaUiLog ('profile-ui-rollback-failed error="{0}" original="{1}"' -f $_.Exception.Message,$failure) }
+        Write-BakaUiLog ('profile-ui-change-failed from={0} requested={1} error="{2}"' -f $previous,$Profile,$failure)
+        throw "BAKA could not apply profile '$Profile'; the previous profile '$previous' was restored where possible. $failure"
+    }
 }
 
 function New-BakaDock {
@@ -968,7 +989,7 @@ function New-BakaSettings {
     $reset=New-BakaActionButton 'Reset defaults' {if([System.Windows.Forms.MessageBox]::Show('Reset BAKA appearance, dock, bar, and widget settings to the reviewed defaults?','Reset BAKA settings',[System.Windows.Forms.MessageBoxButtons]::YesNo,[System.Windows.Forms.MessageBoxIcon]::Question) -eq [System.Windows.Forms.DialogResult]::Yes){$script:config=Get-BakaDefaultDesktopConfiguration;$script:widgetUserVisible=[bool]$script:config.widgets.enabled;$script:settingsDirty=$true;Invoke-BakaSettingsRefresh;[System.Windows.Forms.MessageBox]::Show('Defaults are previewed. Choose Save changes to persist them.','BAKA settings',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information)|Out-Null}} ([string][char]0xE777)
     $restore=New-BakaActionButton 'Restore previous' {try{$previous=Get-Content -LiteralPath ($script:settingsPath+'.bak') -Raw -ErrorAction Stop|ConvertFrom-Json -ErrorAction Stop;$valid=Test-BakaDesktopConfiguration $previous;if(-not $valid.Valid){throw ($valid.Errors -join ' ')};$script:config=$previous;$script:widgetUserVisible=[bool]$script:config.widgets.enabled;$script:settingsDirty=$true;Invoke-BakaSettingsRefresh;[System.Windows.Forms.MessageBox]::Show('Previous settings are previewed. Choose Save changes to keep them.','BAKA settings',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information)|Out-Null}catch{[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'Previous settings unavailable',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Warning)|Out-Null}} ([string][char]0xE777)
     $export=New-BakaActionButton 'Export' { $dialog=[System.Windows.Forms.SaveFileDialog]::new();$dialog.Filter='BAKA settings (*.json)|*.json';$dialog.FileName='baka-desktop-settings.json';if($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){Export-BakaDesktopConfiguration -Path $dialog.FileName -Configuration $script:config|Out-Null}} ([string][char]0xE74E)
-    $import=New-BakaActionButton 'Import' { $dialog=[System.Windows.Forms.OpenFileDialog]::new();$dialog.Filter='BAKA settings (*.json)|*.json';if($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){$candidate=Get-Content -LiteralPath $dialog.FileName -Raw|ConvertFrom-Json;$valid=Test-BakaDesktopConfiguration $candidate;if(-not $valid.Valid){throw ($valid.Errors -join ' ')};$script:config=$candidate;$script:settingsDirty=$true;Invoke-BakaSettingsRefresh}} ([string][char]0xE8B5)
+    $import=New-BakaActionButton 'Import' { try{$dialog=[System.Windows.Forms.OpenFileDialog]::new();$dialog.Filter='BAKA settings (*.json)|*.json';if($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){$candidate=Get-Content -LiteralPath $dialog.FileName -Raw -ErrorAction Stop|ConvertFrom-Json -ErrorAction Stop;$valid=Test-BakaDesktopConfiguration $candidate;if(-not $valid.Valid){throw ($valid.Errors -join ' ')};$script:config=$candidate;$script:widgetUserVisible=[bool]$script:config.widgets.enabled;$script:settingsDirty=$true;Invoke-BakaSettingsRefresh}}catch{[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'Settings import failed',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Warning)|Out-Null} } ([string][char]0xE8B5)
     foreach($button in @($import,$export,$restore,$reset,$save)){$footer.Children.Add($button)|Out-Null}
     [System.Windows.Controls.Grid]::SetRow($footer,2);$layout.Children.Add($footer)|Out-Null
     Set-BakaSettingsControlTheme $layout
@@ -1078,6 +1099,7 @@ $script:profileTimer=[System.Windows.Threading.DispatcherTimer]::new()
 $script:profileTimer.Interval=[TimeSpan]::FromSeconds(4)
 $script:profileTimer.Add_Tick({
     try {
+        if($script:manualOverride){Update-BakaProfileStatus;return}
         $game=Get-BakaDetectedGame
         $gameDetected=[bool]$game
         if($gameDetected){$script:detectedGame=$game.DisplayName}else{$script:detectedGame=$null}
@@ -1087,7 +1109,7 @@ $script:profileTimer.Add_Tick({
         }
         if($gameDetected){
             if($script:windows.Dock.IsVisible){$script:windows.Dock.Hide()}
-            if($script:windows.Quick.IsVisible){$script:windows.Quick.Hide()}
+            if($script:windows.Quick -and $script:windows.Quick.IsVisible){$script:windows.Quick.Hide()}
             Set-BakaBarVisibility $true
             Hide-BakaWidgets
         }else{

@@ -1,6 +1,6 @@
 # BAKA Liquid desktop design
 
-Updated: 2026-10-26
+Updated: 2026-10-27
 
 ## Architecture
 
@@ -71,3 +71,13 @@ The Liquid preset now has three coordinated, interaction-driven effects: a short
 The new original silver-ribbon wallpaper is `Assets/Wallpapers/BAKA-Liquid-Ribbon.png` (1672 × 941; SHA-256 `CE3BD720F1048E496A336B84C1458866C1E1DD83A2A8BDEA108A37ABA57D663C`). The existing procedural 4K black-glass wallpaper remains available. Provenance is recorded in `Assets/ASSET_SOURCES.md`.
 
 The updated source preview passed 13 stages with no runtime errors on the Windows 10 development host, including glass coverage, the sheen, dock wave, fallback consistency, profile motion suppression, and clean shutdown. Because that host does not provide the requested Windows 11 backdrop, this result validates the fallback and interaction logic only. The rebuilt UI-R2 image still requires an installed Windows 11 visual check; no FPS, latency, or installed-shell performance improvement is claimed.
+
+## Source reliability remediation — 2026-10-27
+
+- Action buttons now display the supplied Segoe MDL2 glyph beside the accessible text label; the glyph parameter is no longer silently ignored.
+- Manual Desktop, Competitive Gaming, and Benchmark selections stop the four-second automatic process-detection timer. Automatic detection resumes only when the user selects automatic mode.
+- Profile presentation failures attempt to restore the previous backend profile and UI state, while the existing registry transaction continues to provide rollback for Windows values.
+- Profile polling now tolerates a Quick Panel that has not been created yet. Settings import catches malformed or invalid files and reports the failure without replacing the current configuration.
+- The smoke timer is initialized before shutdown handlers can inspect it, avoiding a strict-mode cleanup failure.
+
+The latest source smoke passed 13/13 stages. A host-only preview sample averaged 0.494% CPU (0.824% maximum) and 212.76 MiB working set (215.38 MiB maximum) over 15 two-second samples; the CPU target was met in that sample, while the 150 MiB memory target was not. The measurement is not installed-image acceptance evidence.

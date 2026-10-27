@@ -1,7 +1,11 @@
 # VMware Windows A/B comparison — status and protocol
 
-**Updated:** 2026-10-26  
-**Status:** Workstation 26H1 is installed and two matched VM shells are prepared. Both the BAKA candidate and official source ISO receive Secure Boot approval, then time out at the EFI CD-ROM handoff. Windows Setup and guest acceptance remain unverified; vTPM setup is also pending.
+**Updated:** 2026-10-27
+**Status:** Workstation 26H1 is installed. The preserved matched AB shells still time out at the EFI CD-ROM handoff for both candidate and source, but a new disposable VMware acceptance VM reached a genuine Windows 11 Setup screen before stopping at the missing TPM 2.0 requirement. Installation and guest acceptance remain unverified.
+
+The 2026-10-27 source remediation was not rebuilt into a new ISO: the candidate and stock source produced the same pre-Setup timeout in the preserved AB shells, so no image-specific boot correction is supported by that comparison. The four local ISO hashes were rechecked and remain unchanged. A separate disposable acceptance VM was created and reached Setup; its vTPM configuration remains pending.
+
+The disposable acceptance VM created on 2026-10-27 did reach Windows 11 Setup. Setup reported that TPM 2.0 was missing. The VM was intentionally kept separate from the preserved AB shells and the unrelated existing user VM. See `docs/evidence/VMWARE_ACCEPTANCE_20261027.md`.
 
 ## Objective
 
@@ -61,7 +65,8 @@ VMware graphics are virtualized, and Hyper-V is active on the host. These runs c
 | Host and image audit | **Complete** |
 | VMware Workstation installation | **Complete; Broadcom Authenticode signature verified** |
 | Stock and BAKA VMware guest shells | **Created and matched; each has 4 vCPU, 12 GiB RAM, and a 160 GiB growable disk** |
-| UEFI/Secure Boot boot check | **Failed to reach Setup in both guests; matching EFI timeout after loader approval** |
+| UEFI/Secure Boot boot check | **Passed in new disposable VM; preserved AB comparison still times out** |
+| Windows 11 Setup requirement check | **Reached Setup; blocked by missing TPM 2.0** |
 | vTPM configuration | **Pending Workstation encryption + TPM device setup** |
 | Guest metric collector | **Prepared; host-only syntax/output smoke check passed** |
 | Authentic installed-desktop screenshots | **Not captured; only UEFI boot-path and stock timeout screenshots exist** |

@@ -6,11 +6,17 @@ PowerShell-driven Windows 11 Pro x64 deployment project with Explorer as the she
 
 ## Progress
 
-**Acceptance checklist: 16 of 30 checks passed (53%).** This counts the tracked verification rows in `docs/ACCEPTANCE_MATRIX.md`, excluding its final release-summary row. The image is **not release accepted**.
+**Acceptance checklist: 20 of 37 checks passed (54%).** This counts the tracked verification rows in `docs/ACCEPTANCE_MATRIX.md`, excluding its final release-summary row. The image is **not release accepted**.
 
-`████████████████░░░░░░░░░░░░░░` 53%
+`████████████████░░░░░░░░░░░░░░` 54%
 
-Source/build validation and the BAKA Liquid source checks are complete. VMware Workstation 26H1 is installed and the matched stock and BAKA guest shells are prepared. In both VMware guests, Secure Boot approved the installer loader, then EFI reported “Time out” before Windows Setup. The matching stock result points to an unresolved shared VM boot-path issue; it does not prove a BAKA-only defect. Installed desktop, game, resource-use, and comparative performance results are still pending; physical gaming results remain unavailable.
+Source/build validation and the BAKA Liquid source checks are complete. VMware Workstation 26H1 is installed. The preserved matched stock/BAKA shells still show a shared EFI timeout, while a new disposable BAKA VM reached real Windows 11 Setup and stopped on the missing TPM 2.0 requirement. Installed desktop, game, resource-use, and comparative performance results are still pending; physical gaming results remain unavailable.
+
+### 2026-10-27 source remediation
+
+The companion reliability pass is complete at source level: action buttons now render their supplied Windows icon glyphs, manual profiles stop automatic game-process polling, profile UI failures attempt a backend/UI rollback, unopened Quick Panel state is guarded, settings import errors are reported, and shutdown cleanup state is initialized before event handlers run. The preview smoke remains **Passed, 13/13 stages**; isolated source preflight is **Passed, 79 checks with 3 explicitly skipped external-artifact checks**.
+
+A documented host preview sample averaged **0.494% CPU** (0.824% maximum) and **212.76 MiB working set** (215.38 MiB maximum) across 15 samples at two-second intervals. CPU was within the initial target; working set exceeded the 150 MiB target. This is a Windows 10 development-host preview measurement, not an installed Windows 11 result. No FPS, latency, or physical gaming benefit is claimed.
 
 ### VMware boot evidence
 
@@ -22,9 +28,17 @@ The first screenshot shows the BAKA candidate's VMware UEFI boot manager with it
 
 ![Official stock Windows ISO shows the same VMware EFI timeout.](docs/evidence/screenshots/20261026-stock-source-vmware-efi-timeout.png)
 
+### Fresh VMware Setup evidence
+
+A new disposable VMware acceptance VM reached a genuine Windows 11 Setup screen with the R2 ISO. Setup then reported the missing TPM 2.0 requirement. This is a boot/Setup observation, not an installation or desktop acceptance result.
+
+![Genuine VMware guest console showing Windows 11 Setup and the missing TPM 2.0 requirement.](docs/evidence/screenshots/20261027-vmware-baka-boot-result.png)
+
+Detailed configuration and limitations are recorded in `docs/evidence/VMWARE_ACCEPTANCE_20261027.md`.
+
 ## Release status
 
-A separate BAKA Liquid UI-R2 candidate has been built in the authorized Windows 11 build VM and passed structural ISO validation. It is **not fully acceptance-tested**: both the candidate and official source time out during VMware EFI boot after Secure Boot approves the loader. Windows Setup has not opened. Windows SIM, install/OOBE, installed desktop behavior, runtime security/update restoration, and game tests remain outstanding.
+A separate BAKA Liquid UI-R2 candidate has been built in the authorized Windows 11 build VM and passed structural ISO validation. It is **not fully acceptance-tested**: a new disposable VMware run reached Windows Setup but stopped because the VM lacked TPM 2.0; the preserved AB shells and official source still show the earlier shared EFI timeout. Windows SIM, install/OOBE, installed desktop behavior, runtime security/update restoration, and game tests remain outstanding.
 
 - Candidate: `Output/BAKA-Windows-Gaming-Edition-26H2-x64-BakaLiquid-UI-R2-20261024.iso`
 - SHA-256: `55E6883CC303AE5AD8D22EDD3C8A7E9344C13498F6623A79F4D5D1D5DF877CD8`
@@ -60,6 +74,12 @@ Run the isolated source checks from the project root on Windows:
 ./Tests/Test-ProjectConfiguration.ps1
 ```
 
+For a host-only companion resource sample (not installed-image acceptance), run:
+
+```powershell
+./Scripts/Diagnostics/Measure-CompanionPreview.ps1
+```
+
 The full project preflight requires the pinned source image, signed servicing packages, and the pinned Baka Browser installer to be present locally. These external inputs are excluded from GitHub. For a checkout without them, use `./Tests/Test-ProjectConfiguration.ps1 -SkipExternalArtifactChecks`; the skipped checks are reported explicitly. The isolated preview and release-guard checks do not build or modify Windows.
 
 See `docs/GITHUB_WORKFLOW.md` for the branch, review, GitHub Actions, and release workflow.
@@ -68,8 +88,8 @@ See `docs/GITHUB_WORKFLOW.md` for the branch, review, GitHub Actions, and releas
 
 The build pipeline accepts explicit input and output paths and refuses to overwrite an existing workspace or ISO. The R2 build used the authorized Windows 11 technician VM and current ADK toolchain; any later rebuild must use a new output path and preserve the recorded artifacts.
 
-The current candidate still requires a verified Windows Setup boot, Windows SIM validation, a clean UEFI installation and OOBE, installed runtime/security/update-restoration tests, and resource measurements. CS2/TF2 gameplay and physical gaming performance remain unverified. VALORANT is excluded. No BAKA FPS, frametime, or input-latency gain is claimed.
+The current candidate still requires a verified Windows Setup boot, Windows SIM validation, a clean UEFI installation and OOBE, installed runtime/security/update-restoration tests, and installed-image resource measurements. CS2/TF2 gameplay and physical gaming performance remain unverified. VALORANT is excluded. No BAKA FPS, frametime, or input-latency gain is claimed.
 
 See `docs/BUILD_STATUS.md`, `docs/ACCEPTANCE_MATRIX.md`, and `docs/PROGRESS_REPORT.md` before using an ISO.
 
-The VMware stock-vs-BAKA comparison is tracked in `docs/VMWARE_AB_COMPARISON.md`. VMware is installed and the two matched guest shells are prepared. A guest metric collector is ready, but Windows Setup has not been reached; no installed-desktop screenshots, game runs, or guest resource measurements have been produced.
+The VMware stock-vs-BAKA comparison is tracked in `docs/VMWARE_AB_COMPARISON.md`. VMware is installed and the two matched guest shells are preserved. A new disposable BAKA VM produced genuine Setup evidence; no installed-desktop screenshots, game runs, or guest resource measurements have been produced.

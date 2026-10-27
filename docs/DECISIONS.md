@@ -1,6 +1,6 @@
 # BAKA Windows Gaming Edition — decisions and current state
 
-Updated: 2026-10-26
+Updated: 2026-10-27
 
 ## Release state
 
@@ -23,6 +23,13 @@ Updated: 2026-10-26
 - Setup keeps interactive disk selection and the requested local or Microsoft account choices. No disk erasure or physical installation is authorized.
 - Windows Update suppression must remain reversible. Do not claim the suppression or administrator restore workflow works until it passes in the installed candidate.
 - No measured BAKA performance gain is established. Physical hardware is unavailable, so physical FPS, frametime, input, USB, DPC/ISR, and stability results must remain blocked rather than inferred.
+
+## 2026-10-27 source remediation decision
+
+- Keep the PowerShell/WPF companion architecture and apply focused reliability fixes rather than rebuild the image without evidence. The source preview passed after the changes.
+- Treat the host preview memory result (212.76 MiB average working set) as a failed initial budget sample, not as proof of installed-image behavior. Do not claim the 150 MiB target until a targeted optimization and installed Windows 11 measurement support it.
+- Do not rebuild or replace an ISO solely from the shared Hyper-V/VMware EFI timeout. Candidate and official source media produced the same pre-Setup result, and the read-only boot-file comparison found zero differences; the image root cause remains unresolved.
+- Keep ISO rebuilding in the preserved Windows 11 technician VM. The current Windows 10 host lacks the required ADK/OSCDIMG/WinPE/WSIM toolchain; its preflight now reports that limitation cleanly.
 
 ## Evidence and maintenance
 

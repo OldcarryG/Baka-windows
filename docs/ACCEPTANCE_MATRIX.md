@@ -1,6 +1,6 @@
 ﻿# BAKA release acceptance matrix
 
-Updated: 2026-10-26. A result is marked **Passed** only when the named evidence supports it. Source previews and configuration checks do not count as installed-image acceptance.
+Updated: 2026-10-27. A result is marked **Passed** only when the named evidence supports it. Source previews and configuration checks do not count as installed-image acceptance.
 
 ## Release artifacts
 
@@ -24,7 +24,7 @@ All four hashes were recalculated on 2026-10-26 and match the recorded values. R
 
 | Requirement | Status | Evidence / limits |
 | --- | --- | --- |
-| Project configuration and PowerShell parser | **Passed** | Full local preflight passed 83/83. Repository-safe mode passed 77 checks and explicitly skipped 3 external-artifact checks. See `docs/evidence/SOURCE_VALIDATION_20261026.md`. |
+| Project configuration and PowerShell parser | **Passed** | Full local preflight passed 85/85. Repository-safe mode passed 79 checks and explicitly skipped 3 external-artifact checks. See `docs/evidence/SOURCE_VALIDATION_20261026.md`. |
 | Clean source-only checkout | **Passed** | Repository-safe preflight and all seven isolated test scripts passed without ignored media or build folders present. |
 | Official source and Windows build identity | **Passed** | Guest source verification and final ISO validation; Windows 11 Pro x64 en-US, build 26300.9711; valid Microsoft Setup signature. |
 | Approved image servicing and integrity | **Passed** | DISM servicing logs and `BuildContext-20261024.json`; KB5127648 package identity verified, image integrity/commit completed. |
@@ -40,24 +40,27 @@ All four hashes were recalculated on 2026-10-26 and match the recorded values. R
 | CS2/TF2 process detection and VALORANT exclusion | **Passed at unit level** | Process-name checks only. No game installation, launch, gameplay, or anti-cheat test. |
 | System metrics data path | **Passed at source level** | Returned values or explicit unavailable states. Sensor accuracy and companion overhead were not measured. |
 | Release output overwrite guards | **Passed, 2/2** | Existing workspaces and ISO destinations remained protected. |
-| OSCDIMG remoting failure handling | **Bug fixed and regression checked** | Output is redirected to separate logs, exit status is checked, and build record is only written on success. Regression included in the 83/83 project preflight. |
+| OSCDIMG remoting failure handling | **Bug fixed and regression checked** | Output is redirected to separate logs, exit status is checked, and build record is only written on success. Regression included in the 85/85 project preflight. |
+| Companion reliability remediation | **Passed at source level** | Icon glyph rendering, manual-profile polling suspension, Quick Panel null guard, settings-import containment, profile UI rollback attempt, and strict-mode cleanup initialization are covered by source guards and the 13/13 preview smoke. |
+| Companion host preview CPU target | **Passed for this sample only** | 15 samples at two-second intervals averaged 0.494% CPU (0.824% maximum); development-host preview only. |
+| Companion host preview memory target | **Failed for this sample** | Average working set 212.76 MiB; maximum 215.38 MiB against the 150 MiB target. This is not an installed Windows 11 measurement. |
 
 ## Not run or blocked
 
 | Requirement | Status | Evidence / limitation |
 | --- | --- | --- |
 | Windows SIM catalog-backed answer-file validation | **Not run** | Console capture timed out; Windows SIM was not opened and no catalog-backed validation is claimed. |
-| Candidate ISO boot in a VM | **Failed in current VM attempts; root cause unresolved** | Hyper-V produced Event 18603 EFI loader failures for R2 and the official Microsoft source. In VMware 26H1, both R2 and the official source log `SECUREBOOT: Image APPROVED` followed by `Status upon boot failure: Time out` at the SATA CD-ROM EFI handoff. Neither reached Windows Setup. The matching source result does not establish a candidate-only defect. VMware vTPM setup is also pending for Windows 11 installation. See `docs/VMWARE_AB_COMPARISON.md` and the screenshots in `docs/evidence/screenshots/`. |
-| Clean UEFI install, interactive disk selection, confirmation, OOBE | **Not run** | Setup could not be inspected or operated. The new blank test disk is attached and the earlier disk is detached. No partition or erase action was sent. |
+| Candidate ISO boot in a VM | **Passed in disposable VMware VM; earlier AB attempts failed** | The new 4-vCPU/12-GiB UEFI/Secure Boot VM reached a genuine Windows 11 Setup screen; evidence is `docs/evidence/VMWARE_ACCEPTANCE_20261027.md`. Earlier preserved AB attempts still show a shared candidate/source timeout. |
+| Clean UEFI install, interactive disk selection, confirmation, OOBE | **Blocked** | VMware Setup stopped at the TPM 2.0 requirement because the disposable VM had no vTPM. No partition or erase action was sent. |
 | Local and Microsoft account setup paths | **Not run** | Requires interactive OOBE on the candidate. |
-| Installed BAKA Liquid desktop, dock, bar, Quick Panel, widgets, editor | **Not run** | Source preview is not installed-image runtime evidence. |
+| Installed BAKA Liquid desktop, dock, bar, Quick Panel, widgets, editor | **Blocked** | Installation could not proceed past the VMware TPM requirement; source preview is not installed-image runtime evidence. |
 | Profile switching, restoration, Explorer fallback, crash recovery | **Not run in installed guest** | Reversible logic has isolated source tests; actual installed behavior remains unverified. |
 | Defender, Firewall, SmartScreen, UAC, exploit protection, recovery | **Not run in installed guest** | Build config retained these components; runtime state has not been inspected. |
 | Windows Update suppression and administrator restoration | **Not run in installed guest** | Static implementation is present; policy and restore flow still need runtime proof. |
 | UI scaling, keyboard/focus accessibility, multiple monitors, sleep/wake, long-run stability | **Not run** | Requires installed runtime and appropriate VM/display coverage. |
-| Companion CPU, memory, wakeups, startup time, game overhead | **Not measured** | No installed process measurements. No resource budget or FPS benefit is claimed. |
+| Installed companion CPU, memory, wakeups, startup time, game overhead | **Not run** | A host preview sample exists, but no installed Windows 11 process measurement exists. No resource budget or FPS benefit is claimed. |
 | Baka Browser install and launch | **Not run** | The unsigned installer was staged and hash-matched but not executed. The acceptance VM has not reached a verified installed desktop. Earlier authorization is limited to that isolated VM. |
-| VMware CS2, Team Fortress 2, or another free game | **Not run** | VMware Workstation 26H1 is installed and the two matched guest shells are prepared, but Windows Setup has not been reached and no game installation or gameplay result exists. Anti-cheat compatibility is unclaimed. VALORANT is excluded per user request. |
+| VMware CS2, Team Fortress 2, or another free game | **Not run** | VMware reached Setup in a disposable VM, but installation is blocked pending vTPM configuration; no game installation or gameplay result exists. Anti-cheat compatibility is unclaimed. VALORANT is excluded per user request. |
 | Physical Intel/AMD FPS, 1% lows, frame pacing, input latency, USB polling, DPC/ISR, peripheral stability | **Blocked** | Suitable physical test hardware is unavailable. No physical results are claimed. |
 | Release acceptance | **Incomplete** | The candidate is structurally validated, not fully acceptance-tested. |
 

@@ -1,10 +1,18 @@
 ﻿# BAKA Windows Gaming Edition — progress report
 
-Updated: 2026-10-26
+Updated: 2026-10-27
 
 ## Current result
 
-A distinct BAKA Liquid UI-R2 candidate has been built in the user-authorized Windows 11 technician VM and passed structural ISO validation. The original ISO and the earlier 2026-10-16 candidate remain unchanged. This is **not a fully acceptance-tested release**: both the BAKA candidate and official stock ISO reach VMware UEFI, but Secure Boot handoff ends in “Time out” before Windows Setup. SATA port 0, IDE CD-ROM, and one timed Enter-key attempt did not resolve the black boot screen. Installation/OOBE, Windows SIM, installed desktop behavior, security and update-restoration checks, game testing, and physical performance measurements remain outstanding.
+A distinct BAKA Liquid UI-R2 candidate has been built in the user-authorized Windows 11 technician VM and passed structural ISO validation. The original ISO and the earlier 2026-10-16 candidate remain unchanged. This is **not a fully acceptance-tested release**: a new disposable VMware VM reached a genuine Windows 11 Setup screen, then stopped because the VM lacked TPM 2.0; the preserved AB candidate/source comparison still ends in a shared EFI timeout. Installation/OOBE, Windows SIM, installed desktop behavior, security and update-restoration checks, game testing, and physical performance measurements remain outstanding.
+
+## Source reliability remediation — 2026-10-27
+
+The live BAKA Liquid companion received a focused reliability and responsiveness pass. Action buttons now render their supplied Windows icon glyphs; manual profiles stop automatic process detection; a not-yet-created Quick Panel is safe during profile polling; malformed settings imports are contained and reported; profile UI changes attempt rollback to the previous backend/UI state; and the smoke timer is initialized before cleanup handlers run. The existing BAKA source smoke passed 13/13 stages after these changes.
+
+The build-host preflight diagnostic was also hardened to fall back from a missing `ProgramFiles(x86)` environment variable and to report absent WSIM paths instead of throwing a null-path error. On this host it now correctly reports Windows 10 Pro 19045 with no OSCDIMG, WinPE add-on, or WSIM, so ISO rebuilding remains blocked until the preserved Windows 11 technician VM is available.
+
+An actual host preview sample (15 samples, two-second interval, five-second startup warm-up) averaged 0.494% CPU and 212.76 MiB working set, with maxima of 0.824% CPU and 215.38 MiB. The CPU result met the initial target in this host sample; the memory result did not meet 150 MiB. This was a Windows 10 development preview and does not establish installed Windows 11 resource use. The repeatable procedure is `Scripts/Diagnostics/Measure-CompanionPreview.ps1`.
 
 Primary review artifact:
 
@@ -36,7 +44,7 @@ The original and prior candidate were rehashed after the build and remain unchan
 - Fixed a top-bar monitor-selection bug where the display setting was only read during initial window creation. The bar now repositions from the saved monitor setting when settings are applied, including after a restart.
 - Added isolated UI smoke assertions for both corrected settings paths. Added a strict-by-default project-preflight option for source-only CI checkouts: `-SkipExternalArtifactChecks` explicitly reports skipped media and installer byte/signature checks and continues validating the source manifests and PowerShell code.
 - Fixed clean-checkout test setup exposed by the first GitHub Actions run: preflight and release-guard tests now create their ignored `Logs`/`Output` directories when absent, as they are in a fresh clone.
-- Validated the staged source snapshot from a clean archive with no ignored media/build folders: the 77-pass/3-skip source preflight and all seven isolated test scripts passed.
+- Validated the staged source snapshot from a clean archive with no ignored media/build folders: the latest repository-safe preflight passed 79 checks with 3 explicit skips, and all isolated test scripts passed.
 - Added a Windows GitHub Actions source-validation workflow, a repository `.gitignore`, and portable source-test and contribution guidance. ISO images, source media, servicing packages, the unsigned browser installer, VM files, and raw host logs are excluded from commits.
 - Recalculated the current R2 candidate, earlier candidate, original ISO, and Microsoft source hashes. No ISO or VM disk was modified during this source remediation.
 - The source-validation workflow passed on the pushed source commit after the clean-checkout directory fix; the initial run exposed the missing-directory assumption and remains visible in Actions history.
@@ -54,15 +62,21 @@ The serviced Microsoft update contains an upstream fix for mouse-input stutter i
 - Added `Scripts/Diagnostics/Collect-ABGuestMetrics.ps1` to record guest CPU, memory, disk throughput, and detected BAKA/game process usage as timestamped CSV and JSON. Its syntax and output flow passed a short host-only smoke check; this is not a guest measurement and yields no performance conclusion.
 - The source ISO is build 26300.9457 and the BAKA candidate is 26300.9711. The stock guest must receive the same approved update before a fair comparison.
 
+## VMware acceptance — 2026-10-27
+
+- Created a separate disposable 4-vCPU/12-GiB UEFI/Secure Boot VMware VM with a new 80 GiB growable disk and the R2 ISO attached. The preserved AB shells and unrelated existing user VM were not modified.
+- The candidate reached real Windows 11 Setup. Genuine VMware guest evidence is `docs/evidence/screenshots/20261027-vmware-baka-boot-result.png`; the screenshot SHA-256 is `E712042C81EE0F7A486D30CF737E161F02AC3207600B5860B7DF12E5F1339A3A`.
+- Setup reported the missing TPM 2.0 requirement. Workstation's supported encryption/vTPM UI flow remains pending; no unsupported VMX TPM bypass was used. No disk partitioning or installation action was performed.
+
 ## VMware lab setup — 2026-10-26
 
 - Verified VMware Workstation Pro 26H1 build 25388281. The installer has a valid Broadcom Inc. Authenticode signature; SHA-256 is `A0EF9087607D9CAD20B08139E73E41242E044AD5BD8CEE141D3BAD314586737F`.
 - Created matched `BAKA-Stock-Reference` and `BAKA-Liquid-R2` Workstation VM shells in ignored `Work/VMware-AB-20261026/`. Each has 4 vCPUs, 12 GiB RAM, a 160 GiB growable disk, UEFI firmware, Secure Boot, 3D acceleration, NAT networking, and its stock or BAKA ISO attached. The source and candidate ISOs remain unchanged.
-- The BAKA candidate's VMware UEFI boot log reports `SECUREBOOT: Image APPROVED`, and the firmware lists the candidate ISO. Windows Setup has not opened. The VMware attempt therefore does not resolve the earlier Hyper-V boot failure.
+- The preserved AB BAKA shell's VMware UEFI boot log reports `SECUREBOOT: Image APPROVED`, and the firmware lists the candidate ISO. That preserved comparison still did not open Setup and does not resolve the earlier Hyper-V boot failure.
 - Workstation requires VM encryption before adding a vTPM. Broadcom's instructions use Workstation's encryption and TPM settings UI; its employee response says `vmcli` cannot create encryption or a vTPM. The Windows computer-use capture channel failed twice (`FrameArrived timed out: timed out waiting on channel`; `window capture timed out: timed out waiting on channel`), so UI automation stopped. No TPM bypass or unsupported VMX TPM flag was used. [Broadcom Windows 11 guest instructions](https://knowledge.broadcom.com/external/article/315650) · [Broadcom vmcli response](https://community.broadcom.com/vmware-cloud-foundation/discussion/vmcli-add-encryption-for-enabling-tpm)
-- Captured genuine boot-manager evidence at `docs/evidence/screenshots/20261026-baka-vmware-uefi-boot-manager.png`. No installed Windows desktop, game, or VM performance result exists yet. Physical hardware testing remains unavailable.
+- Captured genuine boot-manager evidence at `docs/evidence/screenshots/20261026-baka-vmware-uefi-boot-manager.png` and genuine Setup evidence at `docs/evidence/screenshots/20261027-vmware-baka-boot-result.png`. No installed Windows desktop, game, or VM performance result exists yet. Physical hardware testing remains unavailable.
 - Tested the official source ISO in the matched stock guest: it also logs `SECUREBOOT: Image APPROVED` and then `Status upon boot failure: Time out` at the EFI CD-ROM handoff. Saved the actual firmware screenshot at `docs/evidence/screenshots/20261026-stock-source-vmware-efi-timeout.png`. This common result does not establish a BAKA-only boot defect. BAKA trials moving the ISO from SATA port 1 to port 0 and then IDE had the same timeout. A timed Enter-key event and the vendor-recommended `windows10-64` guest type also did not resolve it. Workstation reports `Monitor Mode: ULM` with Hyper-V detected. No Windows Setup or installed desktop has been reached.
-- Further VMware testing depends on enabling Workstation encryption and adding a vTPM device to each VM, then booting the attached ISO. The A/B plan, VM shells, and metrics collector are ready; no BAKA performance gain is claimed.
+- Further VMware installation testing depends on completing Workstation encryption and adding a vTPM device to the disposable VM. The A/B plan, preserved shells, and metrics collector are ready; no BAKA performance gain is claimed.
 
 ## Bugs fixed
 
@@ -77,8 +91,8 @@ The serviced Microsoft update contains an upstream fix for mouse-input stutter i
 
 | Check | Result | Evidence / limits |
 | --- | --- | --- |
-| Full project parser/configuration preflight | Passed, 83/83 | Local source media, signed servicing packages, and pinned browser payload were present and checked. |
-| Repository-safe project preflight | Passed, 78 passed / 3 explicitly skipped | Latest host rerun; skips are limited to external ISO bytes, servicing package bytes/signatures, and the excluded browser installer bytes/signature. |
+| Full project parser/configuration preflight | Passed, 85/85 | Local source media, signed servicing packages, and pinned browser payload were present and checked. |
+| Repository-safe project preflight | Passed, 79 passed / 3 explicitly skipped | Latest host rerun; skips are limited to external ISO bytes, servicing package bytes/signatures, and the excluded browser installer bytes/signature. |
 | Clean source-only checkout | Passed | The repository-safe preflight and all seven isolated test scripts passed with no ignored media/build folders present. |
 | Windows 11 build host preflight | Passed, 8/8 | Raw machine-specific build evidence is retained locally and not published. |
 | Source transfer and integrity | Passed, 60 files | Transferred build inputs were hash-checked; raw host records remain local. |
@@ -99,7 +113,7 @@ Complete evidence inventory and acceptance status are in `docs/BUILD_STATUS.md` 
 ## Outstanding acceptance
 
 - Windows SIM catalog-backed answer-file validation remains outstanding. Console capture timed out and the GUI was not opened.
-- Candidate and official-source boot attempts both failed in one acceptance Hyper-V environment: Event 18603 reports EFI/BOOT/BOOTX64.EFI status 0x00010003 / extended 0x00000013 for R2, Microsoft source, then R2 twice. A read-only comparison found no differences across 64 EFI/boot/Windows PE boot files per image. The DVD remained first in UEFI order and Secure Boot remained on. Root cause remains unresolved. Ten console captures timed out, including two on the latest retry; no guest input or partition/erase action occurred.
+- The earlier Hyper-V and preserved VMware AB attempts still failed before Setup with the documented shared EFI timeout. A new disposable VMware VM reached Setup but stopped at the missing TPM 2.0 requirement. No disk partitioning or installation action occurred.
 - Clean UEFI installation, interactive disk confirmation, OOBE, and both local and Microsoft account paths. The new empty 80 GiB test disk is attached; the previous system disk remains detached. No partition or erase action has been performed.
 - Installed desktop testing: dock, bar, Quick Panel, widgets, persistence, profile switching/restoration, Explorer fallback, scaling, keyboard access, multi-monitor, sleep/wake, and crash recovery.
 - Runtime Defender, Firewall, SmartScreen, UAC, exploit-protection, recovery, and Windows Update suppression/restoration checks.

@@ -8,7 +8,10 @@ $os = Get-CimInstance Win32_OperatingSystem
 $isWindows11 = ($os.Caption -match 'Windows 11') -and ([version]$os.Version -ge [version]'10.0.22000')
 $is64Bit = [Environment]::Is64BitOperatingSystem
 $isElevated = Test-BakaAdministrator
-$requiredAdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\Assessment and Deployment Kit'
+$programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+if ([string]::IsNullOrWhiteSpace($programFilesX86)) { $programFilesX86 = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFilesX86) }
+if ([string]::IsNullOrWhiteSpace($programFilesX86)) { $programFilesX86 = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles) }
+$requiredAdkRoot = Join-Path $programFilesX86 'Windows Kits\10\Assessment and Deployment Kit'
 $oscdimg = Join-Path $requiredAdkRoot 'Deployment Tools\amd64\Oscdimg\oscdimg.exe'
 $winPeMake = Join-Path $requiredAdkRoot 'Windows Preinstallation Environment\MakeWinPEMedia.cmd'
 $wsimCandidates = @(
@@ -28,7 +31,7 @@ $checks = @(
     [pscustomobject]@{ Name='DISM'; Passed=(Test-Path -LiteralPath $dism); Detail=$dism },
     [pscustomobject]@{ Name='OSCDIMG'; Passed=(Test-Path -LiteralPath $oscdimg); Detail=$oscdimg },
     [pscustomobject]@{ Name='Windows PE add-on'; Passed=(Test-Path -LiteralPath $winPeMake); Detail=$winPeMake },
-    [pscustomobject]@{ Name='Windows System Image Manager'; Passed=(Test-Path -LiteralPath $wsim); Detail=$wsim },
+    [pscustomobject]@{ Name='Windows System Image Manager'; Passed=([bool]$wsim -and (Test-Path -LiteralPath $wsim)); Detail=if($wsim){$wsim}else{'Not found in the installed ADK paths.'} },
     [pscustomobject]@{ Name='Free space'; Passed=($freeGiB -ge [double]$config.minimumFreeSpaceGiB); Detail="$freeGiB GiB free; $($config.minimumFreeSpaceGiB) GiB required." }
 )
 $result = [pscustomobject]@{

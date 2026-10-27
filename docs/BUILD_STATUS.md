@@ -1,10 +1,10 @@
 ﻿# Build and release status
 
-Updated: 2026-10-26
+Updated: 2026-10-27
 
 ## Release state
 
-The BAKA Liquid UI-R2 candidate was built in the authorized Windows 11 technician VM and passed structural ISO validation. It is a **structurally validated candidate**, not a fully acceptance-tested release: in VMware 26H1, the candidate and official source both receive Secure Boot approval and then time out at the EFI CD-ROM handoff. Windows Setup has not opened. Installed-desktop behavior, Windows SIM, game testing, and physical performance testing remain outstanding.
+The BAKA Liquid UI-R2 candidate was built in the authorized Windows 11 technician VM and passed structural ISO validation. It is a **structurally validated candidate**, not a fully acceptance-tested release: a new disposable VMware VM reached Windows Setup and stopped at the missing TPM 2.0 requirement, while the preserved candidate/source AB shells still time out at the EFI CD-ROM handoff. Installed-desktop behavior, Windows SIM, game testing, and physical performance testing remain outstanding.
 
 | Artifact | Size | SHA-256 | Status |
 | --- | ---: | --- | --- |
@@ -14,6 +14,12 @@ The BAKA Liquid UI-R2 candidate was built in the authorized Windows 11 technicia
 | `Source/OfficialWindowsMedia/Windows11_Client_x64_en-us_26300_9457.iso` | 9,047,330,816 bytes | `BD4307DF32BC8AF33B39CCECB1174AEB345386630F89A2B86C7A4E36B55EA650` | Pinned Microsoft source; verified |
 
 The current candidate hash was recalculated on the host on 2026-10-26. The earlier candidate, original ISO, and Microsoft source hashes were recalculated after the build and matched. The R2 ISO is the primary artifact for review; do not call it fully accepted until the remaining acceptance tests pass.
+
+The four ISO hashes were recalculated again on 2026-10-27 and still match the recorded values. No image was modified. The current source remediation is not integrated into a newly rebuilt ISO because the candidate has not reached an installed desktop and the shared stock/candidate VM timeout does not identify an image component to change.
+
+The current host-side build preflight was rerun after a diagnostic fix and correctly failed with: Windows 10 Pro build 19045, no OSCDIMG, no WinPE add-on, and no Windows SIM in the installed ADK paths. It is not a suitable Windows 11 technician host for rebuilding this image. The existing Windows 11 technician VM remains the required build environment.
+
+On 2026-10-27, a new disposable VMware VM booted the R2 ISO to a genuine Windows 11 Setup window. Setup reported the missing TPM 2.0 requirement because the VM had no vTPM. This establishes VMware boot/Setup reachability for this VM configuration, but not installation or runtime acceptance. Evidence: `docs/evidence/VMWARE_ACCEPTANCE_20261027.md`.
 
 ## Build inputs and servicing
 
@@ -36,6 +42,8 @@ On 2026-10-26, Microsoft release history still listed Windows 11 26H2 build 2630
 
 The visual work improves the desktop's appearance and interaction. Profile behavior is designed to reduce optional BAKA UI activity during gaming and benchmarking, but idle CPU, memory, wakeups, game overhead, FPS, frame pacing, and input latency were not measured. No BAKA performance gain is claimed.
 
+A Windows 10 host preview sample after the reliability pass averaged 0.494% CPU and 212.76 MiB working set over 15 two-second samples (maximums 0.824% CPU and 215.38 MiB). The CPU target was met for this sample; the 150 MiB memory target was not. Installed Windows 11 measurements remain not run. The repeatable procedure is `Scripts/Diagnostics/Measure-CompanionPreview.ps1`.
+
 ## Build issue found and fixed
 
 The first OSCDIMG attempt created a file with the expected byte count, but PowerShell remoting treated native output as a terminating error and the ISO failed to mount. That incomplete file was preserved under isolated build diagnostics. Raw diagnostics are retained locally and are not included in the source repository.
@@ -48,7 +56,7 @@ Raw evidence is retained in the local `Logs/` directory. The sanitized test summ
 
 | Check | Result | Evidence and limits |
 | --- | --- | --- |
-| Full project configuration and parser preflight | **Passed, 83/83** | Includes external source, package, and browser installer hash/signature checks. |
+| Full project configuration and parser preflight | **Passed, 85/85** | Includes external source, package, and browser installer hash/signature checks. |
 | Repository-safe source preflight | **Passed, 78 passed / 3 explicitly skipped** | Latest host rerun passed; skips only checks requiring excluded external ISO, servicing packages, and browser installer bytes. |
 | Build VM preflight | **Passed, 8/8** | `BuildVM-UI-R2-20261024/BuildHost-20261024-155554.json`; Windows 11, x64, admin, and required tools. |
 | Input transfer | **Passed, 60 files** | The transferred build inputs were hash-checked; the machine-specific transfer manifest is retained locally. |
@@ -69,11 +77,11 @@ Raw evidence is retained in the local `Logs/` directory. The sanitized test summ
 ## Acceptance not completed
 
 - Windows SIM catalog-backed answer-file validation was not performed. XML/source checks are not SIM validation. The technician VM heartbeat was healthy, but its console capture timed out and Windows SIM was not opened.
-- Candidate and official-source boot attempts both failed in the earlier Hyper-V environment: Event 18603 shows EFI/BOOT/BOOTX64.EFI status 0x00010003 with extended status 0x00000013 for R2, Microsoft source, then R2 twice. Read-only comparison found zero differences across 64 EFI/boot/Windows PE boot files per image. In VMware, both images receive Secure Boot approval and then time out at the EFI CD-ROM handoff. SATA port 0, IDE CD-ROM, and a timed Enter-key attempt did not clear the black boot screen. Windows Setup has not opened; the matching stock result leaves the VM boot-path root cause unresolved. See `docs/evidence/SOURCE_VALIDATION_20261026.md` and `docs/VMWARE_AB_COMPARISON.md`.
+- The earlier Hyper-V and preserved VMware AB attempts still document the shared EFI timeout. A new disposable VMware VM reached genuine Windows 11 Setup, where Setup reported missing TPM 2.0. Installation remains blocked and the original AB timeout root cause remains unresolved. See `docs/evidence/VMWARE_ACCEPTANCE_20261027.md` and `docs/VMWARE_AB_COMPARISON.md`.
 - Clean UEFI install, disk-selection confirmation, local/Microsoft account OOBE paths, and first-boot workflow were not run. A fresh empty 80 GiB test disk is attached; the prior system disk remains detached. No partition or erase action has been performed.
 - The acceptance VM is Off after the latest failed boot attempt. The R2 DVD remains first, Secure Boot and TPM remain enabled, and the fresh 80 GiB test disk remains attached under an automatic Hyper-V checkpoint. Guest heartbeat reported No Contact while running. VMConnect opens, but its display capture channel times out. The prior system disk remains detached.
 - Installed dock, bar, Quick Panel, widgets, profile restoration, Explorer fallback, Windows security, update suppression/restoration, sleep/wake, accessibility, scaling, and crash recovery remain untested.
-- Baka Browser execution, VMware CS2/Team Fortress 2 installation or gameplay, and anti-cheat behavior were not tested. VMware Workstation 26H1 is installed, but the guest has not reached Windows Setup. VALORANT remains excluded by user instruction.
+- Baka Browser execution, VMware CS2/Team Fortress 2 installation or gameplay, and anti-cheat behavior were not tested. VMware reached Setup but could not install without a vTPM. VALORANT remains excluded by user instruction.
 - Physical Intel/AMD performance, FPS, 1% lows, frame pacing, input latency, USB polling, DPC/ISR, peripheral stability, and runtime resource use are unavailable without suitable physical hardware.
 
 The candidate is structurally validated but **not fully acceptance-tested**. Do not claim measured FPS or latency improvements.
