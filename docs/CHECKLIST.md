@@ -1,6 +1,6 @@
 # BAKA Windows: your requests checklist
 
-Updated: 2026-10-28 (after R8: compact UI, Windows key, themed icons, RAM fixes; not in an ISO yet). A box is ticked only when it is done **and** verified on an installed BAKA system. "Built" means the code is written and the automated tests pass, but it has not yet been seen working in an installed VM.
+Updated: 2026-10-28 (R9: compact UI, Windows key, themed icons, RAM fixes). A box is ticked only when it is done **and** verified on an installed BAKA system. "Built" means the code is written and the automated tests pass, but it has not yet been seen working in an installed VM.
 
 Legend: ✅ done and verified · 🟡 built, waiting for VM proof · 🔄 in progress · ❌ not done / blocked
 
@@ -49,14 +49,15 @@ Legend: ✅ done and verified · 🟡 built, waiting for VM proof · 🔄 in pro
 
 | | Request | Status / evidence |
 |---|---|---|
-| ✅ | Source and tests on GitHub | `68bbd27` on OldcarryG/Baka-windows; all 9 test suites pass |
+| ✅ | Source and tests on GitHub | `d6f5114` on OldcarryG/Baka-windows; all 9 test suites pass |
 | ✅ | Clean R8 ISO | `Output/BAKA-Windows-Gaming-Edition-26H2-x64-CarbonShell-R8-20261028.iso`, 11,174,055,936 bytes, SHA-256 `187EE1E10BF0A204C7F436C68648C0F458BE73298A7124B0C4CBB5B12D5AA488`. Structural validation passed: valid Microsoft Setup signature, Windows 11 Pro 26300.9711, Baka Browser 1.3.0 hash matches, BakaShell.exe present |
-| ❌ | Test R8 in VMware | Blocked: the VMware encryption password for the test VM is no longer saved in Windows Credential Manager, so the VM cannot be reinstalled automatically |
+| ✅ | Clean R9 ISO (compact UI, Windows key, themed icons, RAM fixes) | `Output/BAKA-Windows-Gaming-Edition-26H2-x64-CarbonShell-R9-20261028.iso`, 11,174,060,032 bytes, SHA-256 `40E4EC950571458ACD9AED8CF2E7D39A7895B04A7060B4CE75A31C11993705DC`. Structural validation passed (valid Setup signature, Windows 11 Pro 26300.9711, Baka Browser 1.3.0 hash matches) |
+| ❌ | Test R8/R9 in VMware | Blocked: the VMware encryption password for the test VM is no longer saved in Windows Credential Manager, so the VM cannot be reinstalled automatically |
 | ➖ | Games tested | Skipped here by your request; you test on your PC |
 | ❌ | 100% complete | Not yet: VM proof for the 🟡 items, tray icons, native desktop |
 
 ## Score
 
-6 of 31 verified (✅), 17 built and waiting for VM or PC proof (🟡), 1 waiting on your decision (🔄), 6 not done, blocked, or waiting on your PC test (❌), 1 skipped by request (➖).
+7 of 32 verified (✅), 17 built and waiting for VM or PC proof (🟡), 1 waiting on your decision (🔄), 6 not done, blocked, or waiting on your PC test (❌), 1 skipped by request (➖).
 
-The R8 ISO does not include the compact UI, Windows-key, themed-icon, and RAM fixes; they go into R9.
+The R9 ISO includes the compact UI, Windows-key, themed-icon, and RAM fixes. R8 does not.
