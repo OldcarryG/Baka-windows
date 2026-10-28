@@ -5,7 +5,8 @@
     "accentColor": "#FAFAFA",
     "glassIntensity": 34,
     "animationIntensity": "Full",
-    "reducedMotion": false
+    "reducedMotion": false,
+    "iconStyle": "Themed"
   },
   "wallpaper": {
     "mode": "Image",

@@ -3,7 +3,7 @@
 function Get-BakaDefaultDesktopConfiguration {
     [pscustomobject]@{
         SchemaVersion=1
-        Appearance=[pscustomobject]@{ Theme='BAKA Carbon'; AccentColor='#FAFAFA'; GlassIntensity=40; AnimationIntensity='Full'; ReducedMotion=$false }
+        Appearance=[pscustomobject]@{ Theme='BAKA Carbon'; AccentColor='#FAFAFA'; GlassIntensity=40; AnimationIntensity='Full'; ReducedMotion=$false; IconStyle='Themed' }
         Dock=[pscustomobject]@{ Alignment='Left'; IconSize=40; Spacing=6; AutoHide=$false; Magnification=$true; Monitor='Primary' }
         TopBar=[pscustomobject]@{ Enabled=$true; ShowProfile=$true; ShowDate=$true; Monitor='Primary' }
         Widgets=[pscustomobject]@{
@@ -80,6 +80,8 @@ function Test-BakaDesktopConfiguration {
     if (-not (Test-BakaHexColor ([string]$Configuration.Appearance.AccentColor))) { $errors.Add('Appearance.AccentColor must be a six-digit #RRGGBB color.') }
     if ([int]$Configuration.Appearance.GlassIntensity -lt 0 -or [int]$Configuration.Appearance.GlassIntensity -gt 45) { $errors.Add('Appearance.GlassIntensity must be between 0 and 45.') }
     if ([string]$Configuration.Appearance.AnimationIntensity -notin @('Off','Subtle','Full')) { $errors.Add('Appearance.AnimationIntensity must be Off, Subtle, or Full.') }
+    $iconStyle=Get-BakaConfigMember $Configuration.Appearance 'IconStyle'
+    if ($null -ne $iconStyle -and [string]$iconStyle -notin @('Themed','Tinted','Clear','Wallpaper','Original','Mono')) { $errors.Add('Appearance.IconStyle must be Themed, Tinted, Clear, Wallpaper, Original, or Mono.') }
     if ([int]$Configuration.Dock.IconSize -lt 40 -or [int]$Configuration.Dock.IconSize -gt 72) { $errors.Add('Dock.IconSize must be between 40 and 72.') }
     if ([int]$Configuration.Dock.Spacing -lt 4 -or [int]$Configuration.Dock.Spacing -gt 18) { $errors.Add('Dock.Spacing must be between 4 and 18.') }
     if ([string]$Configuration.Dock.Alignment -notin @('Left','Center','Right')) { $errors.Add('Dock.Alignment must be Left, Center, or Right.') }

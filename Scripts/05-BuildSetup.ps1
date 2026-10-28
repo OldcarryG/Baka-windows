@@ -33,7 +33,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $root 'Assets\Wallpapers\BAKA-Stealt
 foreach ($extra in @(Get-ChildItem -LiteralPath (Join-Path $root 'Assets\Wallpapers') -File | Where-Object { $_.Extension -in @('.png','.jpg','.jpeg') })) {
     Copy-Item -LiteralPath $extra.FullName -Destination (Join-Path $targetAssets $extra.Name) -Force
 }
-$runtimeFiles = @('Install-SelectedApps.ps1','Install-SelectedDrivers.ps1','Restore-WindowsUpdate.ps1','Set-GamingProfile.ps1','BakaCompanion.ps1','FirstLogon.ps1','SetupComplete.ps1','Register-FirstLogonTask.ps1','Apply-FirstLogonSystemSetup.ps1','Restore-SystemTuning.ps1','Enable-AutoSignIn.ps1','Measure-Benchmark.ps1')
+$runtimeFiles = @('Install-SelectedApps.ps1','Install-SelectedDrivers.ps1','Restore-WindowsUpdate.ps1','Set-GamingProfile.ps1','BakaCompanion.ps1','FirstLogon.ps1','SetupComplete.ps1','Register-FirstLogonTask.ps1','Apply-FirstLogonSystemSetup.ps1','Restore-SystemTuning.ps1','Enable-AutoSignIn.ps1','Measure-Benchmark.ps1','Set-BakaAdBlockDns.ps1','Install-MediaCodecs.ps1')
 foreach ($file in $runtimeFiles) {
     $source = Join-Path $PSScriptRoot "Runtime\$file"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime script missing: $source" }
@@ -47,7 +47,7 @@ $shellSource = Join-Path $PSScriptRoot 'Runtime\BakaShell.cs'
 $shellExe = Join-Path $targetScripts 'BakaShell.exe'
 $compile = & $csc /nologo /optimize+ /target:winexe "/out:$shellExe" $shellSource 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $shellExe -PathType Leaf)) { throw "BAKA shell launcher did not compile: $compile" }
-foreach ($modulePath in @('UpdateControl\UpdateControl.psm1','GamingProfiles\GamingProfiles.psm1','Recovery\Recovery.psm1','HardwareDetection\HardwareDetection.psm1','DesktopConfiguration.psm1','DesktopShell.psm1','SystemTuning.psm1','CompanionInstance.psm1','SystemMonitoring.psm1','PowerPlan.psm1')) {
+foreach ($modulePath in @('UpdateControl\UpdateControl.psm1','GamingProfiles\GamingProfiles.psm1','Recovery\Recovery.psm1','HardwareDetection\HardwareDetection.psm1','DesktopConfiguration.psm1','DesktopShell.psm1','SystemTuning.psm1','CompanionInstance.psm1','SystemMonitoring.psm1','PowerPlan.psm1','AdBlockDns.psm1')) {
     $source = Join-Path $root "Modules\$modulePath"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime module missing: $source" }
     $destination = Join-Path $targetModules (Split-Path -Leaf $modulePath)

@@ -45,6 +45,12 @@ if (Test-Path -LiteralPath $installer -PathType Leaf) {
     if ($install.WaitForExit(240000)) { Write-FirstLogonLog ('silent-app-install-finished exitCode={0}' -f $install.ExitCode) }
     else { Write-FirstLogonLog 'silent-app-install-still-running; the BAKA desktop will finish it in the background' }
 }
+# Free 4K video codecs (AV1, VP9, HEVC from Device Manufacturer, HEIF) from Microsoft Store, in the background.
+$codecInstaller = Join-Path $root 'Scripts\Install-MediaCodecs.ps1'
+if (Test-Path -LiteralPath $codecInstaller -PathType Leaf) {
+    Start-Process -FilePath $powershell -ArgumentList @('-NoProfile','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $codecInstaller)) -WindowStyle Hidden
+    Write-FirstLogonLog 'media-codec-install-started'
+}
 # BAKA is this user's Windows shell (per-user Winlogon override): Explorer's taskbar, Start, and desktop
 # no longer load. The BAKA desktop takes over on this first sign-in. Ctrl+Alt+Shift+E restores Explorer.
 $winlogonUser = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon'

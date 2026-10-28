@@ -35,6 +35,13 @@ function Get-BakaPowerPlanTweaks {
         [pscustomobject]@{Sub='0012ee47-9041-4b5d-9b77-535fba8b1442';Setting='d639518a-e56d-4345-8af2-b9f32fb26109';Ac=0;Dc=100;Purpose='NVMe primary idle timeout off on AC (no NVMe power-state latency)'}
         [pscustomobject]@{Sub='9596fb26-9850-41fd-ac3e-f7c3c00afd4b';Setting='10778347-1370-4ee0-8bbd-33bdacaade49';Ac=1;Dc=0;Purpose='Video playback optimized for quality on AC'}
         [pscustomobject]@{Sub='238c9fa8-0aad-41ed-83f4-97be242c8f20';Setting='bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d';Ac=0;Dc=1;Purpose='No wake timers on AC (no surprise wake-ups for maintenance)'}
+        # Hybrid CPUs (Intel P/E cores, AMD dual-CCD): Microsoft's heterogeneous scheduling settings.
+        # 2 = prefer performant processors. Skipped automatically on CPUs that do not have them.
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='93b8b6dc-0698-4d1c-9ee4-0644e900c85d';Ac=2;Dc=5;Purpose='Long-running threads (games) prefer performance cores on AC'}
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='bae08b81-2d5e-4688-ad6a-13243356654b';Ac=2;Dc=5;Purpose='Short-running threads prefer performance cores on AC'}
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='0cc5b647-c1df-4637-891a-dec35c318584';Ac=100;Dc=10;Purpose='Efficiency cores are not parked on AC either'}
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='4d2b0152-7d5c-498b-88e2-34345392a2c5';Ac=15;Dc=30;Purpose='CPU performance is re-evaluated every 15 ms instead of 30 ms (faster clock response)'}
+        [pscustomobject]@{Sub='2a737441-1930-4402-8d77-b2bebba308a3';Setting='0853a681-27c8-4100-a2fd-82013e970683';Ac=0;Dc=50;Purpose='USB hub selective-suspend timeout off on AC'}
     )
 }
 

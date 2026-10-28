@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "diagnosticDataLevel": 1,
+  "adBlockDns": { "enabled": true, "provider": "AdGuard", "note": "Encrypted AdGuard DNS (free) blocks ad and tracker domains for every app. Turn off in BAKA Settings > System or with Restore BAKA System Tuning; the previous DNS servers come back." },
   "note": "Windows 11 Pro retains required diagnostic data (AllowTelemetry 0 is honored only on Enterprise/Education/Server). BAKA disables the telemetry upload service and tasks in SystemTuning.json, turns off ads, suggestions, Copilot, Recall, web search in Start, and activity history. This configuration does not claim zero telemetry. All values are backed up and restorable.",
   "devicePolicies": [
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "AllowTelemetry", "type": "DWord", "value": 1, "purpose": "Required diagnostic data only" },
@@ -27,7 +28,17 @@
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "HideFirstRunExperience", "type": "DWord", "value": 1, "purpose": "No Edge welcome/sign-in pages if Edge is opened" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DefaultBrowserSettingEnabled", "type": "DWord", "value": 0, "purpose": "Edge does not ask to replace Baka Browser as default" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "ShowRecommendationsEnabled", "type": "DWord", "value": 0, "purpose": "No Edge recommendation pop-ups" },
-    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\EdgeUpdate", "name": "CreateDesktopShortcutDefault", "type": "DWord", "value": 0, "purpose": "Edge updates do not put a shortcut back on the desktop" }
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\EdgeUpdate", "name": "CreateDesktopShortcutDefault", "type": "DWord", "value": 0, "purpose": "Edge updates do not put a shortcut back on the desktop" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "PersonalizationReportingEnabled", "type": "DWord", "value": 0, "purpose": "Edge does not send browsing data for ad personalization (WinUtil Edge debloat)" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "UserFeedbackAllowed", "type": "DWord", "value": 0, "purpose": "No Edge feedback prompts" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DiagnosticData", "type": "DWord", "value": 0, "purpose": "Edge sends no optional diagnostic data" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EdgeShoppingAssistantEnabled", "type": "DWord", "value": 0, "purpose": "No Edge shopping pop-ups" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "ShowMicrosoftRewards", "type": "DWord", "value": 0, "purpose": "No Microsoft Rewards promotions in Edge" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DefaultBrowserSettingsCampaignEnabled", "type": "DWord", "value": 0, "purpose": "Edge does not campaign to become the default browser" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Device Metadata", "name": "PreventDeviceMetadataFromNetwork", "type": "DWord", "value": 1, "purpose": "Plugging in a device does not silently download vendor companion apps (WinUtil)" },
+    { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager", "name": "DisableWpbtExecution", "type": "DWord", "value": 1, "purpose": "Firmware cannot inject a program into Windows at boot (Windows Platform Binary Table; WinUtil)" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\WindowsNotepad", "name": "DisableAIFeatures", "type": "DWord", "value": 1, "purpose": "No AI features in Notepad" },
+    { "path": "HKLM:\\SYSTEM\\Maps", "name": "AutoUpdateEnabled", "type": "DWord", "value": 0, "purpose": "Offline maps do not download updates in the background" }
   ],
   "userPolicies": [
     { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableTailoredExperiencesWithDiagnosticData", "type": "DWord", "value": 1, "purpose": "Do not use diagnostic data for tailored experiences" },
@@ -56,6 +67,13 @@
     { "path": "HKCU:\\Control Panel\\International\\User Profile", "name": "HttpAcceptLanguageOptOut", "type": "DWord", "value": 1, "purpose": "Websites cannot read the language list" },
     { "path": "HKCU:\\Software\\Microsoft\\GameBar", "name": "UseNexusForGameBarEnabled", "type": "DWord", "value": 0, "purpose": "Controller Xbox button does not open the removed Game Bar" },
     { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableSpotlightCollectionOnDesktop", "type": "DWord", "value": 1, "purpose": "Desktop uses the BAKA wallpaper instead of Windows Spotlight" },
+    { "path": "HKCU:\\Software\\Microsoft\\Speech_OneCore\\Settings\\OnlineSpeechPrivacy", "name": "HasAccepted", "type": "DWord", "value": 0, "purpose": "No online speech recognition (voice is not sent to Microsoft)" },
+    { "path": "HKCU:\\Software\\Microsoft\\Input\\TIPC", "name": "Enabled", "type": "DWord", "value": 0, "purpose": "Typing data is not sent to improve language recognition" },
+    { "path": "HKCU:\\Software\\Microsoft\\InputPersonalization", "name": "RestrictImplicitInkCollection", "type": "DWord", "value": 1, "purpose": "No handwriting data collection" },
+    { "path": "HKCU:\\Software\\Microsoft\\InputPersonalization", "name": "RestrictImplicitTextCollection", "type": "DWord", "value": 1, "purpose": "No typed-text data collection" },
+    { "path": "HKCU:\\Software\\Microsoft\\InputPersonalization\\TrainedDataStore", "name": "HarvestContacts", "type": "DWord", "value": 0, "purpose": "Contacts are not collected for input personalization" },
+    { "path": "HKCU:\\Software\\Microsoft\\Personalization\\Settings", "name": "AcceptedPrivacyPolicy", "type": "DWord", "value": 0, "purpose": "Inking and typing personalization off" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_TrackProgs", "type": "DWord", "value": 0, "purpose": "Windows does not track app launches for Start suggestions" },
     { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel", "name": "{2cc5ca98-6485-489a-920e-b3e88a6ccce3}", "type": "DWord", "value": 1, "purpose": "Remove the Spotlight 'Learn about this picture' desktop icon" }
   ],
   "notApplied": [

@@ -51,6 +51,16 @@ try{
         Write-Output ('Power plan "{0}" ready (based on {1}, {2} settings, active={3}, laptop={4}).' -f $plan.Name,$plan.BasedOn,$plan.SettingsApplied,$plan.Active,$laptop)
     }catch{Write-Output "BAKA power plan was not created: $($_.Exception.Message)"}
 
+    # System-wide ad and tracker blocking: encrypted AdGuard DNS on every connected adapter (restorable).
+    try{
+        $privacyDns=$privacy.PSObject.Properties['adBlockDns']
+        if(-not $privacyDns -or $privacyDns.Value.enabled){
+            Import-Module (Join-Path $root 'Modules\AdBlockDns.psm1') -Force
+            $dns=Enable-BakaAdBlockDns -Confirm:$false
+            Write-Output ('Ad-blocking DNS ({0}) on: {1}' -f $dns.Provider,(@($dns.Adapters) -join ', '))
+        }
+    }catch{Write-Output "Ad-blocking DNS was not turned on: $($_.Exception.Message)"}
+
     # Boot straight to the desktop: keep auto sign-in for the passwordless BAKA account created by Setup.
     $accountPath=Join-Path $root 'AccountSetup.json'
     if(Test-Path -LiteralPath $accountPath -PathType Leaf){

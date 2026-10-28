@@ -272,8 +272,20 @@ function Set-BakaTheme([string]$Name){
     foreach($key in @('Dashboard','Files','Dock','Quick','TopBar','Settings')){if($script:windows[$key]){Set-BakaWindowSurface $script:windows[$key];Update-BakaVisualTreeTheme $script:windows[$key] $oldBrushes}}
     foreach($widget in @($script:widgetWindows.Values|Where-Object {$_ -is [System.Windows.Window]})){Set-BakaWindowSurface $widget;Update-BakaVisualTreeTheme $widget $oldBrushes}
     # App icons follow the theme (monochrome themes tint every icon), so a theme change redraws the dock.
-    if($script:lastIconTheme -and $script:lastIconTheme -ne $script:theme.name -and $script:windows.Dock -and (Get-Command Set-BakaDockAppearance -ErrorAction SilentlyContinue)){Set-BakaDockAppearance}
-    $script:lastIconTheme=$script:theme.name
+    if(Get-Command Update-BakaIconStyle -ErrorAction SilentlyContinue){Update-BakaIconStyle}
+}
+function Update-BakaIconStyle {
+    # Icon tiles are built from the theme, accent and wallpaper; when any of them changes the dock, open-window
+    # icons and Launchpad are redrawn (Launchpad is rebuilt the next time it opens).
+    if(-not (Get-Command Get-BakaIconStyleKey -ErrorAction SilentlyContinue)){return}   # first theme load runs before the icon code
+    $key=Get-BakaIconStyleKey
+    if($script:lastIconKey -and $script:lastIconKey -ne $key){
+        if($script:windows.Dock -and (Get-Command Set-BakaDockAppearance -ErrorAction SilentlyContinue)){Set-BakaDockAppearance}
+        $script:runningAppSignature=$null
+        if($script:windows.Launchpad){try{$script:windows.Launchpad.Tag=$null;$script:allowShutdown=$true;$script:windows.Launchpad.Close()}catch{}finally{$script:allowShutdown=$false};$script:windows.Launchpad=$null}
+        Write-BakaUiLog ('icon-style-applied key="{0}"' -f $key)
+    }
+    $script:lastIconKey=$key
 }
 function Set-BakaOpaqueFallback($Window){
     $oldBrushes=@{Text=$script:textBrush;Muted=$script:mutedBrush;Accent=$script:accentBrush;Surface=$script:surfaceBrush;Glass=$script:glassBrush;SurfaceAlt=$script:surfaceAltBrush;Border=$script:borderBrush;Rim=$script:rimBrush}
@@ -582,7 +594,7 @@ function Get-BakaImageSource([string]$Path,[int]$DecodeWidth=64){
 function Get-BakaExecutableIconSource([string]$Path){
     $expanded=[Environment]::ExpandEnvironmentVariables($Path)
     if([string]::IsNullOrWhiteSpace($expanded) -or -not (Test-Path -LiteralPath $expanded -PathType Leaf)){return $null}
-    $cacheKey='exe|'+$expanded+'|'+[bool](Test-BakaThemedIcons)+'|'+$script:theme.text
+    $cacheKey='exe|'+$expanded+'|'+(Get-BakaIconStyleKey)
     if($script:iconCache.ContainsKey($cacheKey)){return $script:iconCache[$cacheKey]}
     try{
         $icon=[System.Drawing.Icon]::ExtractAssociatedIcon($expanded)
@@ -729,7 +741,13 @@ function Set-BakaSettingsControlTheme($Root){
         elseif($control -is [System.Windows.Controls.TabItem]){
             $control.Padding=[System.Windows.Thickness]::new(12,7,12,7)
             $tabStyle=[System.Windows.Style]::new([System.Windows.Controls.TabItem]);$tabStyle.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::BackgroundProperty,$script:surfaceAltBrush));$tabStyle.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::ForegroundProperty,$script:textBrush));$tabStyle.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::BorderBrushProperty,$script:borderBrush));$tabStyle.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::PaddingProperty,[System.Windows.Thickness]::new(12,7,12,7)))
-            $selected=[System.Windows.Trigger]::new();$selected.Property=[System.Windows.Controls.TabItem]::IsSelectedProperty;$selected.Value=$true;$selected.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::BackgroundProperty,$script:surfaceBrush));$selected.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::ForegroundProperty,$script:accentBrush));$tabStyle.Triggers.Add($selected);$control.Style=$tabStyle
+            # Own template: the stock Windows tab template paints a light-blue hover and a white selected tab
+            # that ignore the theme (white text on light blue was unreadable).
+            if(-not $script:tabItemTemplate){$script:tabItemTemplate=[System.Windows.Markup.XamlReader]::Parse('<ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" TargetType="TabItem"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8" Margin="0,0,4,4" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"><ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border></ControlTemplate>')}
+            $tabStyle.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::TemplateProperty,$script:tabItemTemplate))
+            $hover=[System.Windows.Trigger]::new();$hover.Property=[System.Windows.UIElement]::IsMouseOverProperty;$hover.Value=$true;$hover.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::BackgroundProperty,$script:surfaceBrush));$tabStyle.Triggers.Add($hover)
+            # Selected tab: accent fill; the selection handler gives it dark text.
+            $selected=[System.Windows.Trigger]::new();$selected.Property=[System.Windows.Controls.TabItem]::IsSelectedProperty;$selected.Value=$true;$selected.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::BackgroundProperty,$script:accentBrush));$selected.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::BorderBrushProperty,$script:accentBrush));$tabStyle.Triggers.Add($selected);$control.Style=$tabStyle
         }
         elseif($control -is [System.Windows.Controls.ComboBox]){
             Protect-BakaComboWheel $control
@@ -1002,6 +1020,17 @@ function Invoke-BakaWallpaper([switch]$Force){
     }
     if($script:shellMode){try{Update-BakaDesktopBackground}catch{Write-BakaUiLog ('desktop-background-failed error="{0}"' -f $_.Exception.Message)}}
     $script:wallpaperDirty=$false
+    Update-BakaIconStyle   # Wallpaper-style icon tiles follow the new wallpaper
+}
+function New-BakaIconStyleCombo {
+    $combo=[System.Windows.Controls.ComboBox]::new();$combo.MinWidth=160
+    [System.Windows.Automation.AutomationProperties]::SetName($combo,'App icon style')
+    foreach($style in $script:iconStyles){$combo.Items.Add($style)|Out-Null};$combo.SelectedItem=Get-BakaIconStyle
+    $combo.Add_SelectionChanged({param($sender,$eventArgs)if($sender.SelectedItem -and -not $script:settingsLoading){
+        if($script:config.appearance.PSObject.Properties['iconStyle']){$script:config.appearance.iconStyle=[string]$sender.SelectedItem}else{$script:config.appearance|Add-Member -NotePropertyName iconStyle -NotePropertyValue ([string]$sender.SelectedItem) -Force}
+        $script:settingsDirty=$true;Update-BakaIconStyle;try{Save-BakaDesktopConfiguration -Path $script:settingsPath -Configuration $script:config|Out-Null}catch{}
+        Write-BakaUiLog ('icon-style-selected style={0}' -f $sender.SelectedItem)}})
+    return $combo
 }
 
 function Update-BakaProfileStatus {
@@ -1519,6 +1548,8 @@ function New-BakaQuickPanel {
     $themeCombo.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Stretch;$themeCombo.ToolTip='Colors for every BAKA surface'
     [System.Windows.Automation.AutomationProperties]::SetName($themeCombo,'Theme')
     $stack.Children.Add($themeCombo)|Out-Null
+    $iconCombo=New-BakaIconStyleCombo;$iconCombo.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Stretch;$iconCombo.Margin=[System.Windows.Thickness]::new(0,4,0,2);$iconCombo.ToolTip='App icon style: Themed, Tinted, Clear, Wallpaper, Original, Mono'
+    $stack.Children.Add($iconCombo)|Out-Null
     $stack.Children.Add((New-BakaWallpaperGallery 3 96))|Out-Null
     $widgetsToggle=[System.Windows.Controls.CheckBox]::new();$widgetsToggle.Content='Show desktop widgets';$widgetsToggle.IsChecked=[bool]$script:config.widgets.enabled;$widgetsToggle.Foreground=$script:textBrush;$widgetsToggle.Margin=[System.Windows.Thickness]::new(2,6,0,4)
     $widgetsToggle.Add_Click({param($sender,$eventArgs)$script:config.widgets.enabled=[bool]$sender.IsChecked;Save-BakaDesktopConfiguration -Path $script:settingsPath -Configuration $script:config|Out-Null;if($script:config.widgets.enabled){Show-BakaWidgets}else{Hide-BakaWidgets};Write-BakaUiLog ('widgets-enabled={0}' -f $script:config.widgets.enabled)})
@@ -1662,6 +1693,7 @@ function ConvertTo-BakaBitmapSource($Icon){
 }
 if(-not ('BakaIconTint' -as [type])){
     Add-Type -TypeDefinition @'
+using System;
 public static class BakaIconTint {
   // Re-colours premultiplied BGRA icon pixels to one tint, keeping the icon's shape (alpha) and shading
   // (brightness), so every app icon matches a monochrome theme. 0.42..1.0 keeps dark details readable.
@@ -1677,30 +1709,147 @@ public static class BakaIconTint {
     }
     return o;
   }
+
+  // Draws an app icon on a rounded tile (iOS/macOS style). style: 1 Themed (theme-coloured tile, icon in its
+  // own colours), 2 Tinted (dark tile, icon recoloured to the accent), 3 Clear (see-through glass tile, light
+  // icon), 4 Wallpaper (tile cut from the wallpaper). Colours are 0xRRGGBB. Output is n x n premultiplied BGRA.
+  public static byte[] Tile(byte[] px, int w, int h, int n, int style, int top, int bottom, int border, int accent, int text, byte[] wall) {
+    byte[] o = new byte[n * n * 4];
+    double radius = n * 0.23, inset = 0.5;
+    for (int y = 0; y < n; y++) {
+      for (int x = 0; x < n; x++) {
+        double cov = Coverage(x + 0.5, y + 0.5, inset, n - inset, radius);
+        if (cov <= 0) continue;
+        double t = (double)y / (n - 1);
+        double r, g, b, a;
+        if (style == 4 && wall != null) {
+          int wi = (y * n + x) * 4;            // wallpaper thumbnail, already n x n BGRA, darkened a little
+          b = wall[wi] * 0.9; g = wall[wi + 1] * 0.9; r = wall[wi + 2] * 0.9; a = 255;
+        } else if (style == 3) {
+          r = 255; g = 255; b = 255; a = 34 + 18 * (1 - t);   // clear glass: white at ~13-20%
+        } else {
+          int c0 = style == 2 ? Darken(bottom, 0.55) : top, c1 = style == 2 ? Darken(bottom, 0.35) : bottom;
+          r = Lerp((c0 >> 16) & 255, (c1 >> 16) & 255, t); g = Lerp((c0 >> 8) & 255, (c1 >> 8) & 255, t); b = Lerp(c0 & 255, c1 & 255, t); a = 255;
+        }
+        // soft top sheen and a hairline rim in the theme's border colour
+        double edge = EdgeDistance(x + 0.5, y + 0.5, inset, n - inset, radius);
+        if (edge < 1.2) { double k = (1.2 - edge) / 1.2 * 0.55; r = Lerp(r, (border >> 16) & 255, k); g = Lerp(g, (border >> 8) & 255, k); b = Lerp(b, border & 255, k); a = Math.Max(a, 90 * k + a * (1 - k)); }
+        if (t < 0.45) { double k = (0.45 - t) / 0.45 * 0.10; r += (255 - r) * k; g += (255 - g) * k; b += (255 - b) * k; }
+        double pa = a / 255.0 * cov;
+        int i = (y * n + x) * 4;
+        o[i] = (byte)(b * pa); o[i + 1] = (byte)(g * pa); o[i + 2] = (byte)(r * pa); o[i + 3] = (byte)(255 * pa);
+      }
+    }
+    // the app icon, scaled to 62% of the tile and centred (bilinear on premultiplied pixels)
+    int size = (int)Math.Round(n * 0.62), off = (n - size) / 2;
+    for (int y = 0; y < size; y++) {
+      for (int x = 0; x < size; x++) {
+        double sx = (x + 0.5) * w / size - 0.5, sy = (y + 0.5) * h / size - 0.5;
+        double sb, sg, sr, sa; Sample(px, w, h, sx, sy, out sb, out sg, out sr, out sa);
+        if (sa <= 0) continue;
+        if (style == 2 || style == 3) {                 // recolour: shape and shading kept, hue replaced
+          int c = style == 2 ? accent : text;
+          double lum = (0.0722 * sb + 0.7152 * sg + 0.2126 * sr) / sa; if (lum > 1) lum = 1;
+          double f = (style == 2 ? 0.35 + 0.65 * lum : 0.55 + 0.45 * lum) * sa;
+          sr = ((c >> 16) & 255) / 255.0 * f; sg = ((c >> 8) & 255) / 255.0 * f; sb = (c & 255) / 255.0 * f;
+        }
+        int i = ((y + off) * n + x + off) * 4;
+        double inv = 1 - sa;
+        o[i] = (byte)Math.Min(255, sb * 255 + o[i] * inv); o[i + 1] = (byte)Math.Min(255, sg * 255 + o[i + 1] * inv);
+        o[i + 2] = (byte)Math.Min(255, sr * 255 + o[i + 2] * inv); o[i + 3] = (byte)Math.Min(255, sa * 255 + o[i + 3] * inv);
+      }
+    }
+    return o;
+  }
+  static double Lerp(double a, double b, double t) { return a + (b - a) * t; }
+  static int Darken(int c, double k) { return ((int)(((c >> 16) & 255) * k) << 16) | ((int)(((c >> 8) & 255) * k) << 8) | (int)((c & 255) * k); }
+  // Signed distance to a rounded square (negative inside).
+  static double Sdf(double x, double y, double lo, double hi, double r) {
+    double c = (lo + hi) / 2, half = (hi - lo) / 2 - r;
+    double qx = Math.Abs(x - c) - half, qy = Math.Abs(y - c) - half;
+    double ox = Math.Max(qx, 0), oy = Math.Max(qy, 0);
+    return Math.Sqrt(ox * ox + oy * oy) + Math.Min(Math.Max(qx, qy), 0) - r;
+  }
+  static double EdgeDistance(double x, double y, double lo, double hi, double r) { return -Sdf(x, y, lo, hi, r); }
+  static double Coverage(double x, double y, double lo, double hi, double r) {
+    double c = 0.5 - Sdf(x, y, lo, hi, r);          // one-pixel antialiased edge
+    return c >= 1 ? 1 : c <= 0 ? 0 : c;
+  }
+  static void Sample(byte[] px, int w, int h, double x, double y, out double b, out double g, out double r, out double a) {
+    int x0 = (int)Math.Floor(x), y0 = (int)Math.Floor(y); double fx = x - x0, fy = y - y0;
+    b = g = r = a = 0;
+    for (int j = 0; j < 2; j++) for (int k = 0; k < 2; k++) {
+      int xx = x0 + k, yy = y0 + j; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+      double wt = (k == 0 ? 1 - fx : fx) * (j == 0 ? 1 - fy : fy); int i = (yy * w + xx) * 4;
+      b += px[i] * wt; g += px[i + 1] * wt; r += px[i + 2] * wt; a += px[i + 3] * wt;
+    }
+    b /= 255; g /= 255; r /= 255; a /= 255;
+  }
 }
 '@ -ErrorAction SilentlyContinue
 }
-function Test-BakaThemedIcons {
-    $override=$script:config.appearance.PSObject.Properties['themedIcons']
-    if($override -and $null -ne $override.Value){return [bool]$override.Value}
-    return ([string]$script:theme.iconStyle -eq 'Mono')
+# Icon styles. Original keeps app icons as they are; Themed, Tinted, Clear and Wallpaper put every icon on a
+# rounded tile built from the current theme (or wallpaper), so they change whenever the theme does; Mono is
+# the older single-colour look.
+$script:iconStyles=@('Themed','Tinted','Clear','Wallpaper','Original','Mono')
+function Get-BakaIconStyle {
+    $style=[string]$script:config.appearance.PSObject.Properties['iconStyle'].Value
+    if($style -in $script:iconStyles){return $style}
+    $legacy=$script:config.appearance.PSObject.Properties['themedIcons']
+    if($legacy -and $legacy.Value -eq $false){return 'Original'}
+    return 'Themed'
+}
+function Test-BakaThemedIcons {return ((Get-BakaIconStyle) -ne 'Original')}
+function Get-BakaIconStyleKey {
+    $style=Get-BakaIconStyle
+    $wall=if($style -eq 'Wallpaper'){[string]$script:config.wallpaper.path}else{''}
+    return ('{0}|{1}|{2}|{3}|{4}' -f $style,$script:theme.name,$script:config.appearance.accentColor,$script:theme.text,$wall)
+}
+function ConvertTo-BakaRgb([string]$Hex){$c=ConvertTo-BakaColor $Hex;return ([int]$c.R -shl 16) -bor ([int]$c.G -shl 8) -bor [int]$c.B}
+function Get-BakaWallpaperTilePixels([int]$Size){
+    # The wallpaper (or the shipped BAKA one) shrunk and centre-cropped to a square, cached per path and size.
+    $path=[Environment]::ExpandEnvironmentVariables([string]$script:config.wallpaper.path)
+    if([string]$script:config.wallpaper.mode -ne 'Image' -or -not (Test-Path -LiteralPath $path -PathType Leaf)){$path=Get-BakaShippedWallpaperPath}
+    if(-not $path){return $null}
+    $key='wall|'+$path+'|'+$Size
+    if($script:iconCache.ContainsKey($key)){return $script:iconCache[$key]}
+    try{
+        $image=[System.Windows.Media.Imaging.BitmapImage]::new();$image.BeginInit();$image.CacheOption=[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad;$image.DecodePixelHeight=$Size;$image.UriSource=[Uri]::new($path);$image.EndInit();$image.Freeze()
+        $converted=[System.Windows.Media.Imaging.FormatConvertedBitmap]::new($image,[System.Windows.Media.PixelFormats]::Pbgra32,$null,0)
+        $x=[math]::Max(0,[int](($converted.PixelWidth-$Size)/2));$w=[math]::Min($Size,$converted.PixelWidth);$h=[math]::Min($Size,$converted.PixelHeight)
+        $crop=[System.Windows.Media.Imaging.CroppedBitmap]::new($converted,[System.Windows.Int32Rect]::new($x,0,$w,$h))
+        $scaled=[System.Windows.Media.Imaging.TransformedBitmap]::new($crop,[System.Windows.Media.ScaleTransform]::new($Size/$w,$Size/$h))
+        $final=[System.Windows.Media.Imaging.FormatConvertedBitmap]::new($scaled,[System.Windows.Media.PixelFormats]::Pbgra32,$null,0)
+        $pixels=[byte[]]::new($Size*$Size*4);$final.CopyPixels([System.Windows.Int32Rect]::new(0,0,[math]::Min($Size,$final.PixelWidth),[math]::Min($Size,$final.PixelHeight)),$pixels,$Size*4,0)
+        $script:iconCache[$key]=$pixels;return $pixels
+    }catch{Write-BakaUiLog ('icon-wallpaper-tile-failed error="{0}"' -f $_.Exception.Message);return $null}
 }
 function ConvertTo-BakaThemedIcon($Source){
-    # Applied to every dock, Launchpad, and open-window icon when the theme asks for matching icons.
-    if(-not $Source -or -not (Test-BakaThemedIcons)){return $Source}
+    # Applied to every dock, Launchpad, and open-window icon. Original returns the icon untouched.
+    $style=Get-BakaIconStyle
+    if(-not $Source -or $style -eq 'Original'){return $Source}
     try{
         $converted=[System.Windows.Media.Imaging.FormatConvertedBitmap]::new($Source,[System.Windows.Media.PixelFormats]::Pbgra32,$null,0)
         $width=$converted.PixelWidth;$height=$converted.PixelHeight;$stride=$width*4
         $pixels=[byte[]]::new($stride*$height);$converted.CopyPixels($pixels,$stride,0)
-        $tint=ConvertTo-BakaColor ([string]$script:theme.text)
-        $mono=[BakaIconTint]::Mono($pixels,$tint.R,$tint.G,$tint.B)
-        $bitmap=[System.Windows.Media.Imaging.BitmapSource]::Create($width,$height,96,96,[System.Windows.Media.PixelFormats]::Pbgra32,$null,$mono,$stride);$bitmap.Freeze()
+        if($style -eq 'Mono'){
+            $tint=ConvertTo-BakaColor ([string]$script:theme.text)
+            $out=[BakaIconTint]::Mono($pixels,$tint.R,$tint.G,$tint.B);$n=$width;$outHeight=$height
+        }else{
+            $n=96;$outHeight=96
+            $code=switch($style){'Tinted'{2}'Clear'{3}'Wallpaper'{4}default{1}}
+            $wall=if($code -eq 4){Get-BakaWallpaperTilePixels $n}else{$null}
+            if($code -eq 4 -and -not $wall){$code=1}
+            $accent=[string]$script:config.appearance.accentColor;if(-not (Test-BakaHexColor $accent)){$accent=[string]$script:theme.accent}
+            $out=[BakaIconTint]::Tile($pixels,$width,$height,$n,$code,(ConvertTo-BakaRgb ([string]$script:theme.surfaceAlt)),(ConvertTo-BakaRgb ([string]$script:theme.surface)),(ConvertTo-BakaRgb ([string]$script:theme.border)),(ConvertTo-BakaRgb $accent),(ConvertTo-BakaRgb ([string]$script:theme.text)),$wall)
+        }
+        $bitmap=[System.Windows.Media.Imaging.BitmapSource]::Create($n,$outHeight,96,96,[System.Windows.Media.PixelFormats]::Pbgra32,$null,$out,$n*4);$bitmap.Freeze()
         return $bitmap
-    }catch{return $Source}
+    }catch{Write-BakaUiLog ('icon-style-failed style={0} error="{1}"' -f $style,$_.Exception.Message);return $Source}
 }
 function Get-BakaShellIconSource([string]$ParsingName,[int]$Size=64){
     if([string]::IsNullOrWhiteSpace($ParsingName)){return $null}
-    $key='shell|'+$ParsingName+'|'+$Size+'|'+[bool](Test-BakaThemedIcons)+'|'+$script:theme.text
+    $key='shell|'+$ParsingName+'|'+$Size+'|'+(Get-BakaIconStyleKey)
     if($script:iconCache.ContainsKey($key)){return $script:iconCache[$key]}
     $source=$null
     try{$source=ConvertTo-BakaThemedIcon (ConvertTo-BakaBitmapSource (Get-BakaShellIconPixels -ParsingName $ParsingName -Size $Size))}catch{}
@@ -1917,7 +2066,84 @@ function Format-BakaMetrics($Metrics){
     $network=if($null -ne $Metrics.NetworkReceiveKiBs){('{0:N1} KiB/s down  ·  {1:N1} KiB/s up' -f $Metrics.NetworkReceiveKiBs,$Metrics.NetworkSendKiBs)}else{'Network throughput unavailable'}
     @($cpu,$memory,$gpu,$temperature,$disk,$network) -join "`n"
 }
+if(-not ('BakaMetrics' -as [type])){
+    # Live numbers read with plain .NET (performance counters, GlobalMemoryStatusEx, DriveInfo, network
+    # statistics) on a thread-pool thread. This replaces a second PowerShell runspace with CIM, which cost
+    # the desktop more memory than the whole Arena window.
+    Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+public sealed class BakaMetricSample {
+  public string CapturedAt; public object CpuPercent; public object MemoryUsedMiB; public object MemoryTotalMiB;
+  public object DiskFreeGiB; public object DiskTotalGiB; public object NetworkReceiveKiBs; public object NetworkSendKiBs;
+  public object GpuEnginePeakPercent; public object GpuTemperatureC; public string Error;
+}
+public static class BakaMetrics {
+  [StructLayout(LayoutKind.Sequential)] struct MemStatus { public uint Length, Load; public ulong TotalPhys, AvailPhys, TotalPage, AvailPage, TotalVirtual, AvailVirtual, AvailExtended; }
+  [DllImport("kernel32.dll")] static extern bool GlobalMemoryStatusEx(ref MemStatus s);
+  static PerformanceCounter cpu; static PerformanceCounterCategory gpuCategory; static Dictionary<string, CounterSample> gpuPrev = new Dictionary<string, CounterSample>();
+  static long lastRx = -1, lastTx = -1; static DateTime lastNet; static int busy; static volatile BakaMetricSample latest;
+  public static void BeginRead() { if (Interlocked.Exchange(ref busy, 1) == 1) return; Task.Run(() => { try { latest = Read(); } catch (Exception ex) { latest = new BakaMetricSample { CapturedAt = DateTime.Now.ToString("o"), Error = ex.Message }; } finally { busy = 0; } }); }
+  public static BakaMetricSample Take() { var s = latest; latest = null; return s; }
+  public static BakaMetricSample Read() {
+    var s = new BakaMetricSample { CapturedAt = DateTime.Now.ToString("o") };
+    try {
+      if (cpu == null) { cpu = PerformanceCounterCategory.Exists("Processor Information") ? new PerformanceCounter("Processor Information", "% Processor Utility", "_Total", true) : new PerformanceCounter("Processor", "% Processor Time", "_Total", true); cpu.NextValue(); Thread.Sleep(250); }
+      s.CpuPercent = (int)Math.Round(Math.Max(0, Math.Min(100, cpu.NextValue())));
+    } catch { cpu = null; }
+    try { var m = new MemStatus { Length = (uint)Marshal.SizeOf(typeof(MemStatus)) }; if (GlobalMemoryStatusEx(ref m)) { s.MemoryTotalMiB = (long)(m.TotalPhys / 1048576); s.MemoryUsedMiB = (long)((m.TotalPhys - m.AvailPhys) / 1048576); } } catch { }
+    try { var d = new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory)); s.DiskFreeGiB = Math.Round(d.AvailableFreeSpace / 1073741824.0, 1); s.DiskTotalGiB = Math.Round(d.TotalSize / 1073741824.0, 1); } catch { }
+    try {
+      long rx = 0, tx = 0;
+      foreach (var n in NetworkInterface.GetAllNetworkInterfaces()) { if (n.NetworkInterfaceType == NetworkInterfaceType.Loopback || n.OperationalStatus != OperationalStatus.Up) continue; var st = n.GetIPv4Statistics(); rx += st.BytesReceived; tx += st.BytesSent; }
+      var now = DateTime.UtcNow;
+      if (lastRx >= 0) { var sec = Math.Max(0.5, (now - lastNet).TotalSeconds); s.NetworkReceiveKiBs = Math.Round(Math.Max(0, rx - lastRx) / 1024.0 / sec, 1); s.NetworkSendKiBs = Math.Round(Math.Max(0, tx - lastTx) / 1024.0 / sec, 1); }
+      lastRx = rx; lastTx = tx; lastNet = now;
+    } catch { }
+    try {
+      // One ReadCategory call returns every GPU engine instance; utilisation is the change between two reads,
+      // summed per adapter and engine type, and the busiest engine is reported (as Task Manager does).
+      if (gpuCategory == null && PerformanceCounterCategory.Exists("GPU Engine")) gpuCategory = new PerformanceCounterCategory("GPU Engine");
+      if (gpuCategory != null) {
+        var data = gpuCategory.ReadCategory()["Utilization Percentage"];
+        var now = new Dictionary<string, CounterSample>();
+        var byEngine = new Dictionary<string, double>();
+        if (data != null) foreach (InstanceData d in data.Values) {
+          now[d.InstanceName] = d.Sample;
+          CounterSample prev; if (!gpuPrev.TryGetValue(d.InstanceName, out prev)) continue;
+          double v = CounterSample.Calculate(prev, d.Sample);
+          var name = d.InstanceName; int p = name.IndexOf("_luid_"); int e = name.IndexOf("_engtype_");
+          string key = (p >= 0 ? name.Substring(p, Math.Min(name.Length - p, 30)) : "") + (e >= 0 ? name.Substring(e) : "");
+          double cur; byEngine.TryGetValue(key, out cur); byEngine[key] = cur + v;
+        }
+        gpuPrev = now;
+        if (byEngine.Count > 0) s.GpuEnginePeakPercent = (int)Math.Round(Math.Min(100, byEngine.Values.Max()));
+      }
+    } catch { gpuCategory = null; }
+    return s;
+  }
+}
+'@ -ErrorAction SilentlyContinue
+}
 function Start-BakaMetricRead {
+    if('BakaMetrics' -as [type]){
+        # Show the previous result (if any) and start the next read in the background.
+        $result=[BakaMetrics]::Take()
+        if($result){
+            $script:systemMetricsLast=$result;$script:systemMetricsError=[string]$result.Error;Update-BakaDashboardMetrics $result
+            if($script:systemWidgetText -and $script:widgetWindows.ContainsKey('system') -and $script:widgetWindows['system'].IsVisible){$script:systemWidgetText.Text=Format-BakaMetrics $result}
+            Write-BakaUiLog ('metrics-query-complete cpu={0} gpuEnginePeak={1} memoryMiB={2} diskFreeGiB={3}' -f $result.CpuPercent,$result.GpuEnginePeakPercent,$result.MemoryUsedMiB,$result.DiskFreeGiB)
+        }
+        [BakaMetrics]::BeginRead()
+        return
+    }
     if($script:metricsPowerShell){
         if(-not $script:metricsAsyncResult.IsCompleted){return}
         try{
@@ -2081,6 +2307,7 @@ function New-BakaSettings {
     foreach($theme in @($script:themeManifest)){$themeCombo.Items.Add([string]$theme.name)|Out-Null};$themeCombo.SelectedItem=[string]$script:config.appearance.theme
     $themeCombo.Add_SelectionChanged({param($sender,$eventArgs)if($sender.SelectedItem -and -not $script:settingsLoading){$script:config.appearance.theme=[string]$sender.SelectedItem;$picked=Get-BakaTheme $script:config.appearance.theme;if($picked){$script:config.appearance.accentColor=[string]$picked.accent;if($script:settingsControls -and $script:settingsControls.Accent){$script:settingsControls.Accent.Text=$script:config.appearance.accentColor}};Set-BakaTheme $script:config.appearance.theme;$script:settingsDirty=$true}})
     $appearance.Children.Add((New-BakaRow 'Preset' 'Pop Glass (ice blue), Pop Sunset, Pop Mint, Pop Sakura, plus Obsidian, Liquid, Minimal, Gaming, and Violet.' $themeCombo))|Out-Null
+    $appearance.Children.Add((New-BakaRow 'App icons' 'Themed: icons on tiles in the theme colours. Tinted: accent-coloured icons. Clear: see-through glass tiles. Wallpaper: tiles cut from your wallpaper. Original: icons as the apps ship them.' (New-BakaIconStyleCombo)))|Out-Null
     $accentRow=[System.Windows.Controls.StackPanel]::new();$accentRow.Orientation=[System.Windows.Controls.Orientation]::Horizontal
     $accentInput=[System.Windows.Controls.TextBox]::new();$accentInput.Text=[string]$script:config.appearance.accentColor;$accentInput.Width=140;$accentInput.Margin=[System.Windows.Thickness]::new(0,4,8,4);$accentInput.VerticalContentAlignment=[System.Windows.VerticalAlignment]::Center
     $accentApply=New-BakaActionButton 'Preview accent' {param($sender,$eventArgs)$inputBox=$sender.Tag;if(Test-BakaHexColor $inputBox.Text){$script:config.appearance.accentColor=$inputBox.Text.ToUpperInvariant();Set-BakaTheme $script:config.appearance.theme;$script:settingsDirty=$true}else{[System.Windows.Forms.MessageBox]::Show('Enter a color in #RRGGBB format.','Accent color',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information)|Out-Null}}
@@ -2215,6 +2442,13 @@ function New-BakaSettings {
     $systemPower.Children.Add((New-BakaActionButton 'Use Balanced plan' {if($script:powerModuleAvailable){Set-BakaPowerPlanChoice (Get-BakaBalancedPowerPlanGuid)}} ([string][char]0xE83F)))|Out-Null
     $systemPower.Children.Add((New-BakaActionButton 'Power Options' {Start-Process -FilePath (Join-Path $env:WINDIR 'System32\control.exe') -ArgumentList 'powercfg.cpl'|Out-Null} ([string][char]0xE7E8)))|Out-Null
     $systemContent.Children.Add($systemPower)|Out-Null
+    $systemContent.Children.Add((New-BakaText 'Ad and tracker blocking' 12 'Bold'))|Out-Null
+    $dnsState=if(Test-Path -LiteralPath (Join-Path $env:ProgramData 'BAKA\AdBlockDnsBackup.json')){'On'}else{'Off'}
+    $systemContent.Children.Add((New-BakaText ("Status: $dnsState. Windows uses encrypted AdGuard DNS (free), which blocks ad, tracker and analytics domains for every app, game launcher and browser. Your previous DNS settings are saved and come back with 'Use my normal DNS'. Asks for administrator approval.") 10 'Normal' $script:mutedBrush))|Out-Null
+    $dnsButtons=[System.Windows.Controls.WrapPanel]::new();$dnsButtons.Margin=[System.Windows.Thickness]::new(0,4,0,8)
+    $dnsButtons.Children.Add((New-BakaActionButton 'Block ads in every app' {[void](Invoke-BakaTool 'Set-BakaAdBlockDns.ps1' @('-Enable'))} ([string][char]0xE72E)))|Out-Null
+    $dnsButtons.Children.Add((New-BakaActionButton 'Use my normal DNS' {[void](Invoke-BakaTool 'Set-BakaAdBlockDns.ps1' @('-Disable'))} ([string][char]0xE777)))|Out-Null
+    $systemContent.Children.Add($dnsButtons)|Out-Null
     $systemContent.Children.Add((New-BakaText 'Tools' 12 'Bold'))|Out-Null
     foreach($tool in @(
         @{Label='Reinstall Baka Browser';Script='Install-SelectedApps.ps1';Glyph=[string][char]0xE774;Copy='Installs or repairs Baka Browser from the copy inside BAKA and makes it the default browser at the next sign-in.'},
@@ -2245,11 +2479,17 @@ function New-BakaSettings {
     Set-BakaWindowContent $window $layout;Set-BakaCompactScale $window 0.85;$script:windows.Settings=$window
     $window.add_Closing({param($sender,$eventArgs) if(-not $script:allowShutdown -and -not $script:allowSettingsClose){$eventArgs.Cancel=$true;Close-BakaSettings}})
     $script:settingsTabs=$tabs
-    $tabs.Add_SelectionChanged({param($sender,$eventArgs)if($sender -is [System.Windows.Controls.TabControl]){foreach($tabItem in $sender.Items){if($tabItem.IsSelected){$tabItem.Foreground=(New-BakaBrush '#17191E' 255)}else{$tabItem.Foreground=$script:textBrush}}}})
-    foreach($tabItem in $tabs.Items){if($tabItem.IsSelected){$tabItem.Foreground=(New-BakaBrush '#17191E' 255)}else{$tabItem.Foreground=$script:textBrush}}
+    $tabs.Add_SelectionChanged({param($sender,$eventArgs)if($sender -is [System.Windows.Controls.TabControl]){Update-BakaTabForeground $sender}})
+    Update-BakaTabForeground $tabs
     $script:settingsControls=@{Theme=$themeCombo;Accent=$accentInput;Glass=$glass;Motion=$motion;ReducedMotion=$reducedMotion;DockSize=$size;DockSpacing=$spacing;DockAlignment=$align;DockMonitor=$monitorCombo;DockAutoHide=$autoHide;DockMagnify=$magnify;PinnedApps=$appsList;BarEnabled=$barEnabled;BarProfile=$barStatus;BarDate=$barDate;BarMonitor=$barMonitor;WidgetsEnabled=$widgetMaster;WidgetChecks=$widgetChecks;WidgetRefresh=$refresh;WallpaperMode=$wallpaperMode;WallpaperPath=$wallpaperPath;WallpaperFit=$wallpaperFit;WallpaperColor=$wallpaperColor;WallpaperMuted=$wallpaperMuted;WallpaperPause=$wallpaperPause;TaskbarHide=$taskbarHide;TaskbarRunning=$taskbarRunning;TaskbarStart=$taskbarStart}
     $script:settingsLoading=$false
     return $window
+}
+# The selected tab is filled with the accent, so its text is dark or light depending on the accent's brightness.
+function Update-BakaTabForeground($Tabs){
+    $c=$script:accentBrush.Color;$luma=(0.2126*$c.R+0.7152*$c.G+0.0722*$c.B)/255
+    $onAccent=if($luma -gt 0.55){New-BakaBrush '#17191E' 255}else{New-BakaBrush '#FAFAFA' 255}
+    foreach($tabItem in $Tabs.Items){if($tabItem.IsSelected){$tabItem.Foreground=$onAccent}else{$tabItem.Foreground=$script:textBrush}}
 }
 function Show-BakaSettings([string]$Tab=''){
     if(-not $script:windows.Settings){$script:settingsLoading=$true;$script:settingsOriginal=Copy-BakaSettings $script:config;$script:windows.Settings=New-BakaSettings}
@@ -2686,8 +2926,23 @@ $script:windows.Dock.add_Loaded({
                 2 {Save-BakaDesignCapture $script:capturePathValue @('Dashboard','Dock','TopBar','Quick');foreach($k in 'Quick','Dashboard'){if($script:windows[$k]){$script:windows[$k].Hide()}}}
                 3 {Save-BakaDesignCapture (Get-BakaCapturePath 'desktop') @('Dock','TopBar');Show-BakaLaunchpad}
                 4 {Save-BakaDesignCapture (Get-BakaCapturePath 'launchpad') @('Dock','TopBar','Launchpad');if($script:windows.Launchpad){$script:windows.Launchpad.Hide()};Show-BakaSettings}
-                5 {Save-BakaDesignCapture (Get-BakaCapturePath 'settings') @('Dock','TopBar','Settings');$script:allowSettingsClose=$true;if($script:windows.Settings){$script:windows.Settings.Hide()};Show-BakaFiles}
-                6 {Save-BakaDesignCapture (Get-BakaCapturePath 'files') @('Dock','TopBar','Files');$sender.Stop();Exit-BakaCompanion}
+                5 {Save-BakaDesignCapture (Get-BakaCapturePath 'settings') @('Dock','TopBar','Settings');$sys=@($script:settingsTabs.Items|Where-Object {$_.Header -eq 'System'})[0];if($sys){$script:settingsTabs.SelectedItem=$sys;$script:captureSystemScroll=$sys.Content;[void]$sys.Content.Dispatcher.BeginInvoke([Action]{$script:captureSystemScroll.ScrollToEnd()},[System.Windows.Threading.DispatcherPriority]::ContextIdle)}}
+                6 {Save-BakaDesignCapture (Get-BakaCapturePath 'settings-system') @('Dock','TopBar','Settings');$script:allowSettingsClose=$true;if($script:windows.Settings){$script:windows.Settings.Hide()};Show-BakaFiles}
+                7 {Save-BakaDesignCapture (Get-BakaCapturePath 'files') @('Dock','TopBar','Files');if($script:windows.Files){$script:windows.Files.Hide()};$script:captureIconIndex=0}
+                default {
+                    # One capture per icon style: dock + Launchpad, so each style can be compared.
+                    $styles=@('Themed','Tinted','Clear','Wallpaper','Original')
+                    if($script:captureIconIndex -gt 0){Save-BakaDesignCapture (Get-BakaCapturePath ('icons-'+$styles[$script:captureIconIndex-1].ToLowerInvariant())) @('Dock','TopBar','Launchpad');if($script:windows.Launchpad){$script:windows.Launchpad.Hide()}}
+                    if($script:captureIconIndex -ge $styles.Count){$sender.Stop();Exit-BakaCompanion;return}
+                    $next=$styles[$script:captureIconIndex]
+                    $script:config.appearance|Add-Member -NotePropertyName iconStyle -NotePropertyValue $next -Force
+                    # Show each style where it differs most: Tinted with a coloured accent, Wallpaper with a colourful wallpaper.
+                    if($next -eq 'Tinted'){$script:config.appearance.accentColor='#FB5668';Set-BakaTheme 'BAKA Carbon Red'}
+                    elseif($script:theme.name -ne 'BAKA Carbon'){$script:config.appearance.accentColor='#FAFAFA';Set-BakaTheme 'BAKA Carbon'}
+                    if($next -eq 'Wallpaper'){$aurora=@(Get-BakaWallpaperGallery|Where-Object {$_.Name -match 'Aurora|Synth|Ocean'}|Select-Object -First 1);if($aurora){$script:config.wallpaper.path=[string]$aurora[0].Path;$script:config.wallpaper.mode='Image'}}
+                    Update-BakaIconStyle;Show-BakaLaunchpad
+                    $script:captureIconIndex++
+                }
             }
         })
         $script:captureTimer.Start()

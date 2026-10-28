@@ -13,7 +13,9 @@
     { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\PriorityControl", "name": "Win32PrioritySeparation", "type": "DWord", "value": 38, "purpose": "Short, variable quantums with a 3x boost for the foreground app (the game) instead of the background (Windows default 2)" },
     { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling", "name": "PowerThrottlingOff", "type": "DWord", "value": 1, "purpose": "Windows does not power-throttle games and their helper processes (EcoQoS) on AC power" },
     { "path": "HKLM:\\SOFTWARE\\Microsoft\\PolicyManager\\default\\ApplicationManagement\\AllowGameDVR", "name": "value", "type": "DWord", "value": 0, "purpose": "Game DVR is also off through the MDM policy path Windows 11 checks" },
-    { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\mouclass\\Parameters", "name": "MouseDataQueueSize", "type": "DWord", "value": 100, "purpose": "Windows default mouse input buffer (explicit, restorable; guards against bad tweak tools)" }
+    { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\mouclass\\Parameters", "name": "MouseDataQueueSize", "type": "DWord", "value": 100, "purpose": "Windows default mouse input buffer (explicit, restorable; guards against bad tweak tools)" },
+    { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "NetworkThrottlingIndex", "type": "DWord", "value": -1, "purpose": "No MMCSS network throttling while audio/video plays (0xFFFFFFFF); keeps online-game packets from being paced behind media playback" },
+    { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem", "name": "LongPathsEnabled", "type": "DWord", "value": 1, "purpose": "Long file paths for game mods and launchers (Chris Titus WinUtil 'Enable Long Paths')" }
   ],
   "userPolicies": [
     { "path": "HKCU:\\Software\\Microsoft\\GameBar", "name": "AutoGameModeEnabled", "type": "DWord", "value": 1, "purpose": "Windows Game Mode on for every game" },
@@ -29,6 +31,11 @@
     { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings", "name": "NOC_GLOBAL_SETTING_ALLOW_CRITICAL_TOASTS_ABOVE_LOCK", "type": "DWord", "value": 0, "purpose": "No toasts over the lock screen" },
     { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseSpeed", "type": "String", "value": "0", "purpose": "Turn off 'Enhance pointer precision' so aim follows raw mouse movement" },
     { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseThreshold1", "type": "String", "value": "0", "purpose": "Turn off pointer acceleration threshold 1" },
-    { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseThreshold2", "type": "String", "value": "0", "purpose": "Turn off pointer acceleration threshold 2" }
+    { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseThreshold2", "type": "String", "value": "0", "purpose": "Turn off pointer acceleration threshold 2" },
+    { "path": "HKCU:\\Control Panel\\Desktop", "name": "MenuShowDelay", "type": "String", "value": "200", "purpose": "Menus open in 200 ms instead of 400 ms (WinUtil visual-performance tweak)" },
+    { "path": "HKCU:\\Control Panel\\Desktop", "name": "JPEGImportQuality", "type": "DWord", "value": 100, "purpose": "Windows keeps 4K wallpapers at full quality instead of re-compressing them to 85%" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "name": "AppsUseLightTheme", "type": "DWord", "value": 0, "purpose": "Dark mode for Windows apps, matching the BAKA desktop" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "name": "SystemUsesLightTheme", "type": "DWord", "value": 0, "purpose": "Dark mode for Windows itself, matching the BAKA desktop" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "HideFileExt", "type": "DWord", "value": 0, "purpose": "Show file extensions (security: 'photo.jpg.exe' is visible as an .exe)" }
   ]
 }

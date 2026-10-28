@@ -28,6 +28,10 @@ foreach ($state in @(@{Label='System';Path=(Join-Path $dataRoot 'SystemTuningBac
     } catch { $messages.Add("$($state.Label): $($_.Exception.Message)") }
 }
 try { Remove-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name 'Shell' -ErrorAction Stop; $messages.Add('Shell: Explorer is the Windows shell again from the next sign-in.') } catch { }
+$dnsModule = Join-Path $dataRoot 'Modules\AdBlockDns.psm1'
+if (Test-Path -LiteralPath $dnsModule -PathType Leaf) {
+    try { Import-Module $dnsModule -Force; $dns = Disable-BakaAdBlockDns -Confirm:$false; if (@($dns.Restored).Count) { $messages.Add('DNS: previous DNS servers restored (ad-blocking DNS off).') } } catch { $messages.Add("DNS: $($_.Exception.Message)") }
+}
 $powerModule = Join-Path $dataRoot 'Modules\PowerPlan.psm1'
 if (Test-Path -LiteralPath $powerModule -PathType Leaf) {
     try { Import-Module $powerModule -Force; if (Remove-BakaPowerPlan -Confirm:$false) { $messages.Add('Power: switched to Balanced and removed the BAKA Gaming plan.') } } catch { $messages.Add("Power: $($_.Exception.Message)") }
