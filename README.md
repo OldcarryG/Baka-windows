@@ -6,6 +6,8 @@ PowerShell-driven Windows 11 Pro x64 deployment project with Explorer as the she
 
 ## Progress
 
+**Your requests checklist: [docs/CHECKLIST.md](docs/CHECKLIST.md)** — 4 of 26 verified, 13 built and waiting for VM proof, 2 in progress, 7 open or blocked.
+
 **Acceptance checklist: 20 of 37 checks passed (54%).** This counts the tracked verification rows in `docs/ACCEPTANCE_MATRIX.md`, excluding its final release-summary row. The image is **not release accepted**.
 
 `â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘` 54%
