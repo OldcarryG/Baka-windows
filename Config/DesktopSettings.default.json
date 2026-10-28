@@ -9,7 +9,7 @@
   },
   "wallpaper": {
     "mode": "Image",
-    "path": "%ProgramData%\\BAKA\\Assets\\BAKA-Aurora-4K.png",
+    "path": "%ProgramData%\\BAKA\\Assets\\BAKA-Stealth-4K.png",
     "fit": "Fill",
     "color": "#05060A",
     "muted": true,
@@ -21,7 +21,7 @@
     "showStartButton": true
   },
   "dock": {
-    "alignment": "Center",
+    "alignment": "Left",
     "iconSize": 52,
     "spacing": 8,
     "autoHide": false,

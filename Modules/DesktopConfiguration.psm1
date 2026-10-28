@@ -4,7 +4,7 @@ function Get-BakaDefaultDesktopConfiguration {
     [pscustomobject]@{
         SchemaVersion=1
         Appearance=[pscustomobject]@{ Theme='BAKA Carbon'; AccentColor='#FAFAFA'; GlassIntensity=40; AnimationIntensity='Full'; ReducedMotion=$false }
-        Dock=[pscustomobject]@{ Alignment='Center'; IconSize=52; Spacing=9; AutoHide=$false; Magnification=$true; Monitor='Primary' }
+        Dock=[pscustomobject]@{ Alignment='Left'; IconSize=52; Spacing=9; AutoHide=$false; Magnification=$true; Monitor='Primary' }
         TopBar=[pscustomobject]@{ Enabled=$true; ShowProfile=$true; ShowDate=$true; Monitor='Primary' }
         Widgets=[pscustomobject]@{
             Enabled=$false; RefreshSeconds=3
@@ -28,7 +28,7 @@ function Get-BakaDefaultDesktopConfiguration {
 
 function Get-BakaDefaultWallpaperSettings {
     # Default keeps the shipped BAKA image. Users may choose any image, video, or solid color.
-    [pscustomobject]@{ Mode='Image'; Path='%ProgramData%\BAKA\Assets\BAKA-Aurora-4K.png'; Fit='Fill'; Color='#05060A'; Muted=$true; PauseInGames=$true }
+    [pscustomobject]@{ Mode='Image'; Path='%ProgramData%\BAKA\Assets\BAKA-Stealth-4K.png'; Fit='Fill'; Color='#05060A'; Muted=$true; PauseInGames=$true }
 }
 
 function Get-BakaDefaultTaskbarSettings {

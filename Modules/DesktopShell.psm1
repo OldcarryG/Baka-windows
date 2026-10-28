@@ -57,9 +57,10 @@ public static class BakaDesktopShellNative {
     SHAppBarMessage(0, ref data);            // ABM_NEW (FALSE when already registered; harmless)
     data.uEdge = edge;
     data.rc.Left = left; data.rc.Right = right; data.rc.Top = top; data.rc.Bottom = bottom;
-    if (edge == 1) { data.rc.Bottom = top + thickness; } else { data.rc.Top = bottom - thickness; }
+    // Edge: 0 = left, 1 = top, 2 = right, 3 = bottom.
+    if (edge == 0) { data.rc.Right = left + thickness; } else if (edge == 1) { data.rc.Bottom = top + thickness; } else if (edge == 2) { data.rc.Left = right - thickness; } else { data.rc.Top = bottom - thickness; }
     SHAppBarMessage(2, ref data);            // ABM_QUERYPOS
-    if (edge == 1) { data.rc.Bottom = data.rc.Top + thickness; } else { data.rc.Top = data.rc.Bottom - thickness; }
+    if (edge == 0) { data.rc.Right = data.rc.Left + thickness; } else if (edge == 1) { data.rc.Bottom = data.rc.Top + thickness; } else if (edge == 2) { data.rc.Left = data.rc.Right - thickness; } else { data.rc.Top = data.rc.Bottom - thickness; }
     SHAppBarMessage(3, ref data);            // ABM_SETPOS
     return data.rc;
   }
@@ -279,9 +280,9 @@ function Test-BakaTaskbarVisible {
 
 function Register-BakaAppBar {
     # Reserves a screen edge for a BAKA bar so maximized windows stop at it. Values are physical pixels.
-    param([Parameter(Mandatory)][IntPtr]$Handle,[Parameter(Mandatory)][ValidateSet('Top','Bottom')][string]$Edge,[Parameter(Mandatory)][int]$Left,[Parameter(Mandatory)][int]$Top,[Parameter(Mandatory)][int]$Right,[Parameter(Mandatory)][int]$Bottom,[Parameter(Mandatory)][int]$Thickness)
+    param([Parameter(Mandatory)][IntPtr]$Handle,[Parameter(Mandatory)][ValidateSet('Left','Top','Right','Bottom')][string]$Edge,[Parameter(Mandatory)][int]$Left,[Parameter(Mandatory)][int]$Top,[Parameter(Mandatory)][int]$Right,[Parameter(Mandatory)][int]$Bottom,[Parameter(Mandatory)][int]$Thickness)
     Initialize-BakaDesktopShellNative
-    $code=if($Edge -eq 'Top'){1}else{3}
+    $code=switch($Edge){'Left'{0}'Top'{1}'Right'{2}default{3}}
     return [BakaDesktopShellNative]::SetAppBar($Handle,[uint32]$code,$Left,$Top,$Right,$Bottom,$Thickness)
 }
 

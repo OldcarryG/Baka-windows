@@ -19,7 +19,13 @@ $sourceGuards=@(
     [pscustomobject]@{Name='menu bar and dock reserve their screen edges';Pattern='Register-BakaAppBar -Handle \$handle -Edge Top'},
     [pscustomobject]@{Name='app bars are released on exit';Pattern='Remove-BakaTopBarReservation'},
     [pscustomobject]@{Name='BAKA windows are per-pixel transparent';Pattern='\$window\.AllowsTransparency=\$true'},
-    [pscustomobject]@{Name='preview never changes the real power plan';Pattern="power-plan-preview"}
+    [pscustomobject]@{Name='preview never changes the real power plan';Pattern="power-plan-preview"},
+    [pscustomobject]@{Name='shell mode draws its own desktop';Pattern='function New-BakaDesktopWindow'},
+    [pscustomobject]@{Name='shell mode starts Run-key and Startup apps once per session';Pattern='function Invoke-BakaStartupApps'},
+    [pscustomobject]@{Name='Windows key opens the BAKA launcher in shell mode';Pattern='\[BakaShellKeys\]::Install\(\)'},
+    [pscustomobject]@{Name='Ctrl+Alt+Shift+E recovery hotkey restores Explorer';Pattern='RegisterHotKey\(\$source\.Handle,0xBA6A,7,0x45\)'},
+    [pscustomobject]@{Name='exiting the shell hands the session back to Explorer';Pattern='if\(\$script:shellMode\)\{Restore-BakaWindowsShell -Quiet;return\}'},
+    [pscustomobject]@{Name='preview never changes the real shell';Pattern='shell-restore-preview'}
 )
 foreach($guard in $sourceGuards){if($source -notmatch $guard.Pattern){throw "Companion reliability guard failed: $($guard.Name)"}}
 $engine=Get-Command powershell.exe -ErrorAction SilentlyContinue

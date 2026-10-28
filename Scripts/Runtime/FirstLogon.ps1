@@ -45,6 +45,16 @@ if (Test-Path -LiteralPath $installer -PathType Leaf) {
     if ($install.WaitForExit(240000)) { Write-FirstLogonLog ('silent-app-install-finished exitCode={0}' -f $install.ExitCode) }
     else { Write-FirstLogonLog 'silent-app-install-still-running; the BAKA desktop will finish it in the background' }
 }
+# BAKA is this user's Windows shell (per-user Winlogon override): Explorer's taskbar, Start, and desktop
+# no longer load. The BAKA desktop takes over on this first sign-in. Ctrl+Alt+Shift+E restores Explorer.
+$winlogonUser = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon'
+$companionPath = Join-Path $root 'Scripts\BakaCompanion.ps1'
+if (Test-Path -LiteralPath $companionPath -PathType Leaf) {
+    if (-not (Test-Path -LiteralPath $winlogonUser)) { New-Item -Path $winlogonUser -Force | Out-Null }
+    $shellCommand = '"{0}" -NoProfile -STA -WindowStyle Hidden -ExecutionPolicy Bypass -File "{1}"' -f $powershell, $companionPath
+    New-ItemProperty -LiteralPath $winlogonUser -Name 'Shell' -PropertyType String -Value $shellCommand -Force | Out-Null
+    Write-FirstLogonLog 'baka-shell-enabled'
+}
 # No Edge shortcut on this user's desktop (Baka Browser is the browser).
 $edgeLink = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Microsoft Edge.lnk'
 if (Test-Path -LiteralPath $edgeLink -PathType Leaf) { Remove-Item -LiteralPath $edgeLink -Force -ErrorAction SilentlyContinue }
@@ -59,7 +69,7 @@ if (Test-Path -LiteralPath $companion -PathType Leaf) {
     Write-FirstLogonLog 'companion-started'
 }
 
-$wallpaper = Join-Path $root 'Assets\BAKA-Aurora-4K.png'
+$wallpaper = Join-Path $root 'Assets\BAKA-Stealth-4K.png'
 if (-not (Test-Path -LiteralPath $wallpaper -PathType Leaf)) { $wallpaper = Join-Path $root 'Assets\BAKA-Liquid-Ribbon.png' }
 if (-not (Test-Path -LiteralPath $wallpaper -PathType Leaf)) { return }
 $signature = @'

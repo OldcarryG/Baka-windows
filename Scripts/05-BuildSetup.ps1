@@ -29,7 +29,7 @@ foreach ($wallpaper in $wallpapers) {
     Copy-Item -LiteralPath $wallpaper.Source -Destination (Join-Path $targetAssets $wallpaper.Name) -Force
 }
 # The BAKA wallpaper gallery: every original wallpaper in Assets\Wallpapers (Aurora is the default).
-if (-not (Test-Path -LiteralPath (Join-Path $root 'Assets\Wallpapers\BAKA-Aurora-4K.png') -PathType Leaf)) { throw 'Default BAKA wallpaper BAKA-Aurora-4K.png is missing; run Tools\New-BakaWallpapers.ps1.' }
+if (-not (Test-Path -LiteralPath (Join-Path $root 'Assets\Wallpapers\BAKA-Stealth-4K.png') -PathType Leaf)) { throw 'Default BAKA wallpaper BAKA-Stealth-4K.png is missing; run Tools\New-BakaWallpapers.ps1.' }
 foreach ($extra in @(Get-ChildItem -LiteralPath (Join-Path $root 'Assets\Wallpapers') -File | Where-Object { $_.Extension -in @('.png','.jpg','.jpeg') })) {
     Copy-Item -LiteralPath $extra.FullName -Destination (Join-Path $targetAssets $extra.Name) -Force
 }

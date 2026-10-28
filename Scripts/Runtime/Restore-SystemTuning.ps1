@@ -27,6 +27,7 @@ foreach ($state in @(@{Label='System';Path=(Join-Path $dataRoot 'SystemTuningBac
         $messages.Add("$($state.Label): restored $(@($result.Changed).Count) item(s).")
     } catch { $messages.Add("$($state.Label): $($_.Exception.Message)") }
 }
+try { Remove-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name 'Shell' -ErrorAction Stop; $messages.Add('Shell: Explorer is the Windows shell again from the next sign-in.') } catch { }
 $powerModule = Join-Path $dataRoot 'Modules\PowerPlan.psm1'
 if (Test-Path -LiteralPath $powerModule -PathType Leaf) {
     try { Import-Module $powerModule -Force; if (Remove-BakaPowerPlan -Confirm:$false) { $messages.Add('Power: switched to Balanced and removed the BAKA Gaming plan.') } } catch { $messages.Add("Power: $($_.Exception.Message)") }

@@ -778,17 +778,22 @@ function Set-BakaDockPosition {
         $bounds=$screen.Bounds;$scale=Get-BakaScreenScale
         $left=$bounds.Left/$scale;$right=$bounds.Right/$scale;$bottom=$bounds.Bottom/$scale;$width=$right-$left
         $dock=$script:windows.Dock
-        $dock.Left=if($script:config.dock.alignment -eq 'Left'){$left+14}elseif($script:config.dock.alignment -eq 'Right'){$right-$dock.ActualWidth-14}else{$left+($width-$dock.ActualWidth)/2}
-        $dock.Top=$bottom-$dock.ActualHeight-8
+        $top=$bounds.Top/$scale;$height=$bottom-$top
+        # Carbon layout: dock on the left edge, vertically centered. Bottom stays available as an option.
+        $edge=switch([string]$script:config.dock.alignment){'Left'{'Left'}'Right'{'Right'}default{'Bottom'}}
+        if($edge -eq 'Left'){$dock.Left=$left+10;$dock.Top=$top+[math]::Max(0,($height-$dock.ActualHeight)/2)}
+        elseif($edge -eq 'Right'){$dock.Left=$right-$dock.ActualWidth-10;$dock.Top=$top+[math]::Max(0,($height-$dock.ActualHeight)/2)}
+        else{$dock.Left=$left+($width-$dock.ActualWidth)/2;$dock.Top=$bottom-$dock.ActualHeight-8}
         if($script:previewMode){return}
         $handle=[System.Windows.Interop.WindowInteropHelper]::new($dock).Handle
         if($handle -eq [IntPtr]::Zero){return}
         if($script:config.dock.autoHide -or $script:activeProfile -ne 'Desktop'){Remove-BakaDockReservation;return}
-        # Maximized windows end above the dock instead of sliding underneath it (macOS behaviour).
-        $thickness=[int][math]::Ceiling(($dock.ActualHeight+12)*$scale)
-        $signature='{0}|{1}|{2}' -f $screen.DeviceName,$thickness,$bounds.Bottom
+        # Maximized windows stop at the dock instead of sliding underneath it.
+        $thickness=if($edge -eq 'Bottom'){[int][math]::Ceiling(($dock.ActualHeight+12)*$scale)}else{[int][math]::Ceiling(($dock.ActualWidth+14)*$scale)}
+        $signature='{0}|{1}|{2}|{3}' -f $screen.DeviceName,$thickness,$bounds.Bottom,$edge
         if($script:dockReserved -and $script:dockReservationSignature -eq $signature){return}
-        [void](Register-BakaAppBar -Handle $handle -Edge Bottom -Left $bounds.Left -Top $bounds.Top -Right $bounds.Right -Bottom $bounds.Bottom -Thickness $thickness)
+        if($script:dockReserved){Remove-BakaDockReservation}
+        [void](Register-BakaAppBar -Handle $handle -Edge $edge -Left $bounds.Left -Top $bounds.Top -Right $bounds.Right -Bottom $bounds.Bottom -Thickness $thickness)
         $script:dockReserved=$true;$script:dockReservationSignature=$signature
     }catch{Write-BakaUiLog ('dock-position-failed error="{0}" stack="{1}"' -f $_.Exception.ToString(),$_.ScriptStackTrace);throw}
 }
@@ -884,7 +889,7 @@ function Update-BakaDockRunningApps {
         $icon=if($app.Path){$shellIcon=Get-BakaShellIconSource $app.Path 96;if($shellIcon){$shellIcon}else{Get-BakaExecutableIconSource $app.Path}}else{$null}
         $button=New-BakaButton $label {param($sender,$eventArgs)$info=$sender.Tag;$process=Get-Process -Id $info.ProcessId -ErrorAction SilentlyContinue;if(-not $process -or $process.MainWindowHandle -eq [IntPtr]::Zero){$process=Get-Process -Name $info.ProcessName -ErrorAction SilentlyContinue|Where-Object {$_.MainWindowHandle -ne [IntPtr]::Zero}|Select-Object -First 1};if($process){Switch-BakaWindowFocus $process.MainWindowHandle}} '' ('Switch to {0}' -f $app.Title) -ShowIndicator -IconSource $icon
         $button.Tag=$app;$button.ToolTip=$app.Title
-        $button.Width=[double]$script:config.dock.iconSize+15;$button.Height=[double]$script:config.dock.iconSize+8;$button.Margin=[System.Windows.Thickness]::new([double]$script:config.dock.spacing/2,0,[double]$script:config.dock.spacing/2,0)
+        $button.Width=[double]$script:config.dock.iconSize+15;$button.Height=[double]$script:config.dock.iconSize+8;$button.Margin=if($script:dockVertical){[System.Windows.Thickness]::new(0,[double]$script:config.dock.spacing/2,0,[double]$script:config.dock.spacing/2)}else{[System.Windows.Thickness]::new([double]$script:config.dock.spacing/2,0,[double]$script:config.dock.spacing/2,0)}
         if($button.Resources.Contains('BAKA.RunningIndicator')){$button.Resources['BAKA.RunningIndicator'].Opacity=1}
         $panel.Children.Add($button)|Out-Null
     }
@@ -921,7 +926,7 @@ function Restore-BakaTaskbarMode {
 
 # ---- Wallpaper: Windows default, any image, a solid color, or a looping video behind the desktop icons ----
 function Get-BakaShippedWallpaperPath {
-    foreach($candidate in @((Join-Path $dataRoot 'Assets\BAKA-Aurora-4K.png'),(Join-Path $dataRoot 'Assets\Wallpapers\BAKA-Aurora-4K.png'),(Join-Path $dataRoot 'Assets\BAKA-BlackGlass-4K.png'),(Join-Path $dataRoot 'Assets\Wallpapers\BAKA-BlackGlass-4K.png'),(Join-Path $dataRoot 'Assets\BAKA-Liquid-Ribbon.png'),(Join-Path $dataRoot 'Assets\Wallpapers\BAKA-Liquid-Ribbon.png'))){if(Test-Path -LiteralPath $candidate -PathType Leaf){return $candidate}}
+    foreach($candidate in @((Join-Path $dataRoot 'Assets\BAKA-Stealth-4K.png'),(Join-Path $dataRoot 'Assets\Wallpapers\BAKA-Stealth-4K.png'),(Join-Path $dataRoot 'Assets\BAKA-BlackGlass-4K.png'),(Join-Path $dataRoot 'Assets\Wallpapers\BAKA-BlackGlass-4K.png'),(Join-Path $dataRoot 'Assets\BAKA-Liquid-Ribbon.png'),(Join-Path $dataRoot 'Assets\Wallpapers\BAKA-Liquid-Ribbon.png'))){if(Test-Path -LiteralPath $candidate -PathType Leaf){return $candidate}}
     return $null
 }
 function Stop-BakaVideoWallpaper {
@@ -983,6 +988,7 @@ function Invoke-BakaWallpaper([switch]$Force){
         Write-BakaUiLog ('wallpaper-apply-failed mode={0} error="{1}"' -f $mode,$_.Exception.Message)
         if($Force){[System.Windows.Forms.MessageBox]::Show(('BAKA could not apply this wallpaper. Your previous desktop background was kept.`r`n`r`n{0}' -f $_.Exception.Message),'BAKA wallpaper',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Warning)|Out-Null}
     }
+    if($script:shellMode){try{Update-BakaDesktopBackground}catch{Write-BakaUiLog ('desktop-background-failed error="{0}"' -f $_.Exception.Message)}}
     $script:wallpaperDirty=$false
 }
 
@@ -1101,9 +1107,10 @@ function New-BakaDashboard {
     $heroActions=[System.Windows.Controls.WrapPanel]::new();$launch=New-BakaArenaButton 'Launch Gaming Mode' {try{[void](Set-BakaUiProfile 'CompetitiveGaming' 'Manual')}catch{[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'BAKA profile',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}} ([string][char]0xE7FC) -Primary;$heroActions.Children.Add($launch)|Out-Null;$control=New-BakaArenaButton 'Control center' {Show-BakaQuickPanel} ([string][char]0xE713);$heroActions.Children.Add($control)|Out-Null;[System.Windows.Controls.Grid]::SetColumn($heroCopy,0);$heroGrid.Children.Add($heroCopy)|Out-Null
     $heroBadge=New-BakaArenaCard 204 0 125;$heroBadge.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$heroBadge.Margin=[System.Windows.Thickness]::new(12,6,0,6);$badgeStack=[System.Windows.Controls.StackPanel]::new();$badge=New-BakaText 'ACTIVE PROFILE' 10 'Bold' $script:mutedBrush;$badgeStack.Children.Add($badge)|Out-Null;$active=New-BakaText 'DESKTOP' 28 'Bold' $script:accentBrush;$active.Name='DashActiveProfile';$script:windows.DashActiveProfile=$active;$badgeStack.Children.Add($active)|Out-Null;$badgeLine=New-BakaText 'BAKA Gaming power plan  ·  Native scheduler' 10 'Normal' $script:mutedBrush;$badgeLine.TextWrapping=[System.Windows.TextWrapping]::Wrap;$badgeStack.Children.Add($badgeLine)|Out-Null;$heroBadge.Child=$badgeStack;[System.Windows.Controls.Grid]::SetColumn($heroBadge,1);$heroGrid.Children.Add($heroBadge)|Out-Null;$hero.Child=$heroGrid;$left.Children.Add($hero)|Out-Null
     $profiles=[System.Windows.Controls.WrapPanel]::new();$profiles.Margin=[System.Windows.Thickness]::new(0,5,0,5);$profileData=@([pscustomobject]@{Name='Desktop';Label='DESKTOP';Glyph=[string][char]0xE80F;Copy='Glass + widgets + motion';Color='#7CE7FF'},[pscustomobject]@{Name='CompetitiveGaming';Label='COMPETITIVE';Glyph=[string][char]0xE7FC;Copy='Game Mode + low overhead';Color='#66F2C5'},[pscustomobject]@{Name='Benchmark';Label='BENCHMARK';Glyph=[string][char]0xE9D2;Copy='Clean, repeatable capture';Color='#C59BFF'})
-    foreach($data in $profileData){$card=New-BakaArenaCard 205 0 200;$card.MinHeight=118;$card.Tag=$data.Name;$stack=[System.Windows.Controls.StackPanel]::new();$tag=New-BakaText $data.Label 11 'Bold' (New-BakaBrush $data.Color 255);$stack.Children.Add($tag)|Out-Null;$stack.Children.Add((New-BakaText $data.Copy 11 'Normal' $script:mutedBrush))|Out-Null;$button=New-BakaArenaButton 'Activate' {param($sender,$eventArgs)try{[void](Set-BakaUiProfile ([string]$sender.Tag) 'Manual')}catch{[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'BAKA profile',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}} $data.Glyph;$button.Tag=$data.Name;$button.Margin=[System.Windows.Thickness]::new(-4,8,0,0);$stack.Children.Add($button)|Out-Null;$card.Child=$stack;$profiles.Children.Add($card)|Out-Null}
+    foreach($data in $profileData){$card=New-BakaArenaCard 205 0 200;$card.MinHeight=118;$card.Tag=$data.Name;$stack=[System.Windows.Controls.StackPanel]::new();$tag=New-BakaText $data.Label 11 'Bold' $script:accentBrush;$stack.Children.Add($tag)|Out-Null;$stack.Children.Add((New-BakaText $data.Copy 11 'Normal' $script:mutedBrush))|Out-Null;$button=New-BakaArenaButton 'Activate' {param($sender,$eventArgs)try{[void](Set-BakaUiProfile ([string]$sender.Tag) 'Manual')}catch{[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'BAKA profile',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}} $data.Glyph;$button.Tag=$data.Name;$button.Margin=[System.Windows.Thickness]::new(-4,8,0,0);$stack.Children.Add($button)|Out-Null;$card.Child=$stack;$profiles.Children.Add($card)|Out-Null}
     [System.Windows.Controls.Grid]::SetRow($profiles,1);$left.Children.Add($profiles)|Out-Null
-    $metrics=[System.Windows.Controls.Primitives.UniformGrid]::new();$metrics.Columns=4;$metrics.Margin=[System.Windows.Thickness]::new(0,0,0,2);$metricData=@([pscustomobject]@{Name='DashCpu';Label='CPU LOAD';Value='--';Color='#7CE7FF'},[pscustomobject]@{Name='DashMemory';Label='MEMORY';Value='--';Color='#66F2C5'},[pscustomobject]@{Name='DashGpu';Label='GPU ENGINE';Value='N/A';Color='#C59BFF'},[pscustomobject]@{Name='DashDisk';Label='SYSTEM FREE';Value='--';Color='#FFCF70'})
+    $metrics=[System.Windows.Controls.Primitives.UniformGrid]::new();$metrics.Columns=4;$metrics.Margin=[System.Windows.Thickness]::new(0,0,0,2);$metricColor=[string]$script:theme.text
+$metricData=@([pscustomobject]@{Name='DashCpu';Label='CPU LOAD';Value='--';Color=$metricColor},[pscustomobject]@{Name='DashMemory';Label='MEMORY';Value='--';Color=$metricColor},[pscustomobject]@{Name='DashGpu';Label='GPU ENGINE';Value='N/A';Color=$metricColor},[pscustomobject]@{Name='DashDisk';Label='SYSTEM FREE';Value='--';Color=$metricColor})
     foreach($item in $metricData){$card=New-BakaArenaCard 0 0 190;$card.MinHeight=82;$card.Margin=[System.Windows.Thickness]::new(6);$stack=[System.Windows.Controls.StackPanel]::new();$stack.Children.Add((New-BakaText $item.Label 9 'Bold' $script:mutedBrush))|Out-Null;$value=New-BakaText $item.Value 24 'Bold' (New-BakaBrush $item.Color 255);$value.Name=$item.Name;$script:windows[$item.Name]=$value;$stack.Children.Add($value)|Out-Null;$card.Child=$stack;$metrics.Children.Add($card)|Out-Null};[System.Windows.Controls.Grid]::SetRow($metrics,2);$left.Children.Add($metrics)|Out-Null
     $session=New-BakaArenaCard 0 112 190;$sessionStack=[System.Windows.Controls.StackPanel]::new();$sessionStack.Children.Add((New-BakaText 'BAKA FOUNDATION' 10 'Bold' $script:accentBrush))|Out-Null;$sessionStack.Children.Add((New-BakaText 'A native Windows base with a BAKA control layer on top.' 12 'Bold'))|Out-Null;$sessionStack.Children.Add((New-BakaText 'BAKA menu bar + dock  ·  BAKA Gaming power plan  ·  Security preserved  ·  Every game detected automatically' 10 'Normal' $script:mutedBrush))|Out-Null;$sessionButton=New-BakaArenaButton 'Open BAKA Files workspace' {Show-BakaFiles} ([string][char]0xE8B7);$sessionButton.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Left;$sessionStack.Children.Add($sessionButton)|Out-Null;$session.Child=$sessionStack;[System.Windows.Controls.Grid]::SetRow($session,3);$left.Children.Add($session)|Out-Null
     $rightPanel=[System.Windows.Controls.StackPanel]::new();$rightPanel.Margin=[System.Windows.Thickness]::new(5,6,5,6);[System.Windows.Controls.Grid]::SetColumn($rightPanel,1);$body.Children.Add($rightPanel)|Out-Null
@@ -1197,8 +1204,10 @@ function New-BakaDock {
     $window=New-BakaWindow 820 82 'BAKA Arena Dock' $true
     $window.Tag.Padding=[System.Windows.Thickness]::new(10,5,10,3);$window.Tag.CornerRadius=[System.Windows.CornerRadius]::new(22)
     if($window.Tag.Tag.Rim){$window.Tag.Tag.Rim.CornerRadius=[System.Windows.CornerRadius]::new(21);$window.Tag.Tag.Rim.Margin=[System.Windows.Thickness]::new(-9,-4,-9,-2)}
-    $window.MinWidth=380;$window.MaxWidth=[math]::Max(760,[System.Windows.SystemParameters]::WorkArea.Width-36);$window.add_KeyDown({param($sender,$eventArgs) if($eventArgs.Key -eq [System.Windows.Input.Key]::Escape){$sender.Hide()}})
-    $row=[System.Windows.Controls.StackPanel]::new();$row.Orientation=[System.Windows.Controls.Orientation]::Horizontal;$row.VerticalAlignment=[System.Windows.VerticalAlignment]::Center
+    if(([string]$script:config.dock.alignment) -notin @('Left','Right')){$window.MinWidth=380;$window.MaxWidth=[math]::Max(760,[System.Windows.SystemParameters]::WorkArea.Width-36)};$window.add_KeyDown({param($sender,$eventArgs) if($eventArgs.Key -eq [System.Windows.Input.Key]::Escape){$sender.Hide()}})
+    $script:dockVertical=([string]$script:config.dock.alignment -in @('Left','Right'))
+    $dockOrientation=if($script:dockVertical){[System.Windows.Controls.Orientation]::Vertical}else{[System.Windows.Controls.Orientation]::Horizontal}
+    $row=[System.Windows.Controls.StackPanel]::new();$row.Orientation=$dockOrientation;$row.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$row.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Center
     $brand=[System.Windows.Controls.StackPanel]::new();$brand.Width=154;$brand.Margin=[System.Windows.Thickness]::new(8,0,9,0)
     $brand.Children.Add((New-BakaText 'BAKA  /  ARENA' 17 'Bold'))|Out-Null
     $status=New-BakaText 'DESKTOP  ·  BALANCED' 9 'Normal' $script:accentBrush;$status.Name='DockStatus';$script:windows.DockStatus=$status;$brand.Children.Add($status)|Out-Null
@@ -1207,28 +1216,28 @@ function New-BakaDock {
     $start.Visibility=if([bool]$script:config.taskbar.showStartButton){[System.Windows.Visibility]::Visible}else{[System.Windows.Visibility]::Collapsed}
     $script:windows.DockStartButton=$start;$row.Children.Add($start)|Out-Null
     $row.Children.Add($brand)|Out-Null
-    $separator=[System.Windows.Controls.Border]::new();$separator.Width=1;$separator.Height=48;$separator.Background=$script:borderBrush;$separator.Margin=[System.Windows.Thickness]::new(4,0,8,0);$row.Children.Add($separator)|Out-Null
+    $separator=[System.Windows.Controls.Border]::new();if($script:dockVertical){$separator.Height=1;$separator.Width=40}else{$separator.Width=1;$separator.Height=48};$separator.Background=$script:borderBrush;$separator.Margin=if($script:dockVertical){[System.Windows.Thickness]::new(0,6,0,6)}else{[System.Windows.Thickness]::new(4,0,8,0)};$row.Children.Add($separator)|Out-Null
     # Pop Glass keeps the dock clean like macOS: icons only, no wordmark.
     $brand.Visibility=[System.Windows.Visibility]::Collapsed
-    $appPanel=[System.Windows.Controls.StackPanel]::new();$appPanel.Orientation=[System.Windows.Controls.Orientation]::Horizontal
+    $appPanel=[System.Windows.Controls.StackPanel]::new();$appPanel.Orientation=$dockOrientation
     foreach($app in @($script:config.pinnedApps|Where-Object {Test-BakaPinnedAppAvailable $_})){
         $button=New-BakaButton ([string]$app.name) ({param($sender,$eventArgs)Start-BakaPinnedApp $sender.Tag}) ([string]$app.glyph) ("Launch or focus {0}" -f $app.name) -ShowIndicator -IconSource (Get-BakaAppIconSource $app)
         $button.Tag=$app
-        $button.Width=[double]$script:config.dock.iconSize+15;$button.Height=[double]$script:config.dock.iconSize+8;$button.Margin=[System.Windows.Thickness]::new([double]$script:config.dock.spacing/2,0,[double]$script:config.dock.spacing/2,0)
+        $button.Width=[double]$script:config.dock.iconSize+15;$button.Height=[double]$script:config.dock.iconSize+8;$button.Margin=if($script:dockVertical){[System.Windows.Thickness]::new(0,[double]$script:config.dock.spacing/2,0,[double]$script:config.dock.spacing/2)}else{[System.Windows.Thickness]::new([double]$script:config.dock.spacing/2,0,[double]$script:config.dock.spacing/2,0)}
         $script:dockButtons[[string]$app.id]=$button;$appPanel.Children.Add($button)|Out-Null
     }
     $row.Children.Add($appPanel)|Out-Null
-    $runningSeparator=[System.Windows.Controls.Border]::new();$runningSeparator.Width=1;$runningSeparator.Height=36;$runningSeparator.Background=$script:borderBrush;$runningSeparator.Margin=[System.Windows.Thickness]::new(6,0,6,0);$runningSeparator.Visibility=[System.Windows.Visibility]::Collapsed;$row.Children.Add($runningSeparator)|Out-Null
-    $runningPanel=[System.Windows.Controls.StackPanel]::new();$runningPanel.Orientation=[System.Windows.Controls.Orientation]::Horizontal;$row.Children.Add($runningPanel)|Out-Null
+    $runningSeparator=[System.Windows.Controls.Border]::new();if($script:dockVertical){$runningSeparator.Height=1;$runningSeparator.Width=32}else{$runningSeparator.Width=1;$runningSeparator.Height=36};$runningSeparator.Background=$script:borderBrush;$runningSeparator.Margin=[System.Windows.Thickness]::new(6,0,6,0);$runningSeparator.Visibility=[System.Windows.Visibility]::Collapsed;$row.Children.Add($runningSeparator)|Out-Null
+    $runningPanel=[System.Windows.Controls.StackPanel]::new();$runningPanel.Orientation=$dockOrientation;$row.Children.Add($runningPanel)|Out-Null
     $script:windows.DockRunningPanel=$runningPanel;$script:windows.DockRunningSeparator=$runningSeparator
-    $separator2=[System.Windows.Controls.Border]::new();$separator2.Width=1;$separator2.Height=48;$separator2.Background=$script:borderBrush;$separator2.Margin=[System.Windows.Thickness]::new(6,0,7,0);$row.Children.Add($separator2)|Out-Null
+    $separator2=[System.Windows.Controls.Border]::new();if($script:dockVertical){$separator2.Height=1;$separator2.Width=40}else{$separator2.Width=1;$separator2.Height=48};$separator2.Background=$script:borderBrush;$separator2.Margin=if($script:dockVertical){[System.Windows.Thickness]::new(0,6,0,6)}else{[System.Windows.Thickness]::new(6,0,7,0)};$row.Children.Add($separator2)|Out-Null
     $utilityWidth=[double]$script:config.dock.iconSize+15
     $arena=New-BakaButton 'Arena' {Show-BakaDashboard} ([string][char]0xE7FC) 'BAKA Arena: gaming dashboard';$arena.Width=$utilityWidth;$arena.Height=[double]$script:config.dock.iconSize+8;$row.Children.Add($arena)|Out-Null
     $files=New-BakaButton 'Files' {Show-BakaFiles} ([string][char]0xE8B7) 'BAKA Files';$files.Width=$utilityWidth;$files.Height=[double]$script:config.dock.iconSize+8;$row.Children.Add($files)|Out-Null
     $quick=New-BakaButton 'Control Center' {Show-BakaQuickPanel} ([string][char]0xE9E9) 'Control Center: volume, power plan, profiles, wallpaper';$quick.Width=$utilityWidth;$quick.Height=[double]$script:config.dock.iconSize+8;$row.Children.Add($quick)|Out-Null
     $edit=New-BakaButton 'BAKA Settings' {Show-BakaSettings} ([string][char]0xE771) 'BAKA Settings: theme, wallpaper, dock, power, tools';$edit.Width=$utilityWidth;$edit.Height=[double]$script:config.dock.iconSize+8;$row.Children.Add($edit)|Out-Null
     Set-BakaWindowContent $window $row
-    $window.SizeToContent=[System.Windows.SizeToContent]::Width
+    $window.SizeToContent=if($script:dockVertical){[System.Windows.SizeToContent]::Height}else{[System.Windows.SizeToContent]::Width}
     $script:windows.DockAppPanel=$appPanel
     $script:windows.DockUtilityButtons=@($start,$arena,$files,$quick,$edit)
     $window.add_SourceInitialized({try{Set-BakaDockPosition}catch{Write-BakaUiLog ('dock-sourceinit-failed error="{0}" stack="{1}"' -f $_.Exception.ToString(),$_.ScriptStackTrace)}})
@@ -1307,7 +1316,7 @@ function Get-BakaWallpaperGallery {
     $seen=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach($folder in @((Join-Path $dataRoot 'Assets'),(Join-Path $dataRoot 'Assets\Wallpapers'))){
         if(-not (Test-Path -LiteralPath $folder -PathType Container)){continue}
-        foreach($file in @(Get-ChildItem -LiteralPath $folder -File -ErrorAction SilentlyContinue|Where-Object {$_.Extension -in @('.png','.jpg','.jpeg','.bmp','.webp')}|Sort-Object @{Expression={$_.Name -notlike 'BAKA-Aurora*'}},Name)){
+        foreach($file in @(Get-ChildItem -LiteralPath $folder -File -ErrorAction SilentlyContinue|Where-Object {$_.Extension -in @('.png','.jpg','.jpeg','.bmp','.webp')}|Sort-Object @{Expression={$_.Name -notlike 'BAKA-Stealth*'}},Name)){
             if($seen.Add($file.Name)){[pscustomobject]@{Name=($file.BaseName -replace '^BAKA-','' -replace '-4K$','' -replace '-',' ');Path=$file.FullName}}
         }
     }
@@ -1490,7 +1499,7 @@ function New-BakaTopBar {
         @{Label='Shut down…';Glyph=[string][char]0xE7E8;Action={Invoke-BakaPowerAction 'Shutdown'}},
         @{Label='Sign out…';Glyph=[string][char]0xE748;Action={Invoke-BakaPowerAction 'SignOut'}},
         '-',
-        @{Label='Exit BAKA desktop (show Windows taskbar)';Glyph=[string][char]0xE711;Action={Exit-BakaCompanion}}
+        @{Label='Return to the Windows shell';Glyph=[string][char]0xE711;Action={Restore-BakaWindowsShell}}
     )})
     $left.Children.Add($logo)|Out-Null
     $app=New-BakaText 'Desktop' 12 'Bold' $script:textBrush;$app.Name='BarApp';$app.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$app.Margin=[System.Windows.Thickness]::new(8,0,10,0);$app.TextWrapping=[System.Windows.TextWrapping]::NoWrap;$app.MaxWidth=320;$app.TextTrimming=[System.Windows.TextTrimming]::CharacterEllipsis;$script:windows.BarApp=$app;$left.Children.Add($app)|Out-Null
@@ -1498,7 +1507,7 @@ function New-BakaTopBar {
         $left.Children.Add((New-BakaBarButton $menuItem.Text $menuItem.Glyph $menuItem.Action $menuItem.Tip))|Out-Null
     }
     $grid.Children.Add($left)|Out-Null
-    $status=New-BakaText 'DESKTOP  ·  BAKA GAMING' 10 'Normal' $script:mutedBrush;$status.Name='BarStatus';$script:windows.BarStatus=$status;$status.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Center;$status.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$status.TextWrapping=[System.Windows.TextWrapping]::NoWrap;[System.Windows.Controls.Grid]::SetColumn($status,1);$grid.Children.Add($status)|Out-Null
+    $status=New-BakaText 'DESKTOP  ·  BAKA GAMING' 10 'Normal' $script:mutedBrush;$status.Name='BarStatus';$script:windows.BarStatus=$status;$status.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Center;$status.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$status.TextWrapping=[System.Windows.TextWrapping]::NoWrap;$status.Visibility=[System.Windows.Visibility]::Collapsed;[System.Windows.Controls.Grid]::SetColumn($status,1);$grid.Children.Add($status)|Out-Null
     $rightStack=[System.Windows.Controls.StackPanel]::new();$rightStack.Orientation=[System.Windows.Controls.Orientation]::Horizontal;$rightStack.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Right;$rightStack.VerticalAlignment=[System.Windows.VerticalAlignment]::Center
     $tray=New-BakaBarButton '' ([string][char]0xE70E) {Show-BakaTaskbarPeek} 'Show the Windows tray icons (Discord, Steam, …) for a few seconds';$rightStack.Children.Add($tray)|Out-Null
     $network=New-BakaBarButton '' ([string][char]0xE774) {Open-BakaSystemSettings 'ms-settings:network-status'} 'Network';$network.Name='BarNetworkButton';$script:windows.BarNetworkGlyph=$network.Content.Children[0];$rightStack.Children.Add($network)|Out-Null
@@ -1530,7 +1539,7 @@ function Update-BakaForegroundApp {
                 $name=try{[string]$process.MainModule.FileVersionInfo.FileDescription}catch{''}
                 if([string]::IsNullOrWhiteSpace($name)){$name=$process.ProcessName}
             }
-        }elseif($processId -eq $PID){$name='BAKA'}
+        }elseif($processId -eq $PID){$name='Desktop'}
         if($script:windows.BarApp.Text -ne $name){$script:windows.BarApp.Text=$name}
     }catch{}
 }
@@ -1876,7 +1885,8 @@ function Close-BakaSettings {
 }
 function Set-BakaDockAppearance {
     if(-not $script:windows.Dock){return}
-    $script:windows.Dock.Height=[double]$script:config.dock.iconSize+$(if($script:activeProfile -eq 'Desktop'){30}else{24})
+    if($script:dockVertical){$script:windows.Dock.Width=[double]$script:config.dock.iconSize+$(if($script:activeProfile -eq 'Desktop'){34}else{28})}
+    else{$script:windows.Dock.Height=[double]$script:config.dock.iconSize+$(if($script:activeProfile -eq 'Desktop'){30}else{24})}
     $script:windows.Dock.Tag.Background=$script:glassBrush;$script:windows.Dock.Tag.BorderBrush=$script:rimBrush
     foreach($button in @($script:windows.DockUtilityButtons)){$button.Height=[double]$script:config.dock.iconSize+8}
     if($script:windows.DockAppPanel){
@@ -1885,7 +1895,7 @@ function Set-BakaDockAppearance {
         foreach($app in @($script:config.pinnedApps|Where-Object {Test-BakaPinnedAppAvailable $_})){
             $button=New-BakaButton ([string]$app.name) ({param($sender,$eventArgs)Start-BakaPinnedApp $sender.Tag}) ([string]$app.glyph) ("Launch or focus {0}" -f $app.name) -ShowIndicator -IconSource (Get-BakaAppIconSource $app)
             $button.Tag=$app
-            $button.Width=[double]$script:config.dock.iconSize+15;$button.Height=[double]$script:config.dock.iconSize+8;$button.Margin=[System.Windows.Thickness]::new([double]$script:config.dock.spacing/2,0,[double]$script:config.dock.spacing/2,0)
+            $button.Width=[double]$script:config.dock.iconSize+15;$button.Height=[double]$script:config.dock.iconSize+8;$button.Margin=if($script:dockVertical){[System.Windows.Thickness]::new(0,[double]$script:config.dock.spacing/2,0,[double]$script:config.dock.spacing/2)}else{[System.Windows.Thickness]::new([double]$script:config.dock.spacing/2,0,[double]$script:config.dock.spacing/2,0)}
             if(Get-BakaProcessForApp $app){$button.BorderBrush=$script:accentBrush;$button.BorderThickness=[System.Windows.Thickness]::new(0,0,0,2)}
             $script:dockButtons[[string]$app.id]=$button;$script:windows.DockAppPanel.Children.Add($button)|Out-Null
         }
@@ -2057,7 +2067,12 @@ function New-BakaSettings {
         $button=New-BakaActionButton $tool.Label {param($sender,$eventArgs)[void](Invoke-BakaTool ([string]$sender.Tag))} $tool.Glyph;$button.Tag=$tool.Script;$button.MinWidth=230;$button.HorizontalContentAlignment=[System.Windows.HorizontalAlignment]::Left
         $systemContent.Children.Add((New-BakaRow $tool.Label $tool.Copy $button))|Out-Null
     }
-    $systemContent.Children.Add((New-BakaText 'Exiting the BAKA desktop (BAKA menu > Exit) shows the Windows taskbar again. It comes back at the next sign-in.' 10 'Normal' $script:mutedBrush))|Out-Null
+    $systemContent.Children.Add((New-BakaText 'Windows shell' 12 'Bold'))|Out-Null
+    $shellButtons=[System.Windows.Controls.WrapPanel]::new()
+    $shellButtons.Children.Add((New-BakaActionButton 'Use BAKA as the Windows shell' {Enable-BakaShellReplacement} ([string][char]0xE7F4)))|Out-Null
+    $shellButtons.Children.Add((New-BakaActionButton 'Return to the Windows shell' {Restore-BakaWindowsShell} ([string][char]0xE777)))|Out-Null
+    $systemContent.Children.Add($shellButtons)|Out-Null
+    $systemContent.Children.Add((New-BakaText 'As the shell, BAKA replaces the Windows taskbar, Start menu, and desktop completely; Explorer does not run. Recovery: Ctrl+Alt+Shift+E, or Ctrl+Alt+Del > Task Manager > Run "explorer".' 10 'Normal' $script:mutedBrush))|Out-Null
     $systemScroll.Content=$systemContent;$systemTab.Content=$systemScroll;$tabs.Items.Add($systemTab)|Out-Null
 
     $footer=[System.Windows.Controls.WrapPanel]::new();$footer.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Right
@@ -2095,7 +2110,10 @@ function Show-BakaQuickPanel {
     # Drops down from the menu bar on the right, like Control Center.
     $area=(Get-BakaActiveScreen).WorkingArea;$scale=Get-BakaScreenScale
     $window.Height=[math]::Min(720,$area.Height/$scale-24)
-    $window.Left=$area.Right/$scale-$window.Width-10;$window.Top=$area.Top/$scale+8
+    # Always below the menu bar, even when the bar's edge reservation is not active (preview, first frame).
+    $barBottom=if($script:windows.TopBar -and $script:windows.TopBar.IsVisible){$script:windows.TopBar.Top+$script:windows.TopBar.ActualHeight}else{$area.Top/$scale}
+    $window.Height=[math]::Min(720,$area.Bottom/$scale-$barBottom-20)
+    $window.Left=$area.Right/$scale-$window.Width-10;$window.Top=[math]::Max($area.Top/$scale,$barBottom)+8
     Update-BakaVolumeControls;Update-BakaPowerPlanState
     try{Show-BakaWindow $window -Activate}catch{Write-BakaUiLog ('quick-panel-show-failed windowType="{0}" error="{1}" stack="{2}"' -f $window.GetType().FullName,$_.Exception.ToString(),$_.ScriptStackTrace);throw}
 }
@@ -2154,11 +2172,166 @@ function Exit-BakaCompanion {
         [void](Set-BakaCompanionProfile 'Desktop')
         $script:activeProfile='Desktop';$script:allowShutdown=$true
         $script:smokeTestMode=$false
+        # As the shell, exiting would leave an empty screen: hand the session back to Explorer instead.
+        if($script:shellMode){Restore-BakaWindowsShell -Quiet;return}
         $script:app.Shutdown(0)
     } catch {
         Write-BakaUiLog ('exit-blocked profile-restore-failed error="{0}"' -f $_.Exception.Message)
         [System.Windows.Forms.MessageBox]::Show(('BAKA kept running because it could not restore your prior desktop settings.`r`n`r`n{0}' -f $_.Exception.Message),'BAKA safe exit',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null
     }
+}
+# ---- Shell mode: BAKA is the Windows shell (Explorer's taskbar, Start, and desktop never load) ----
+$script:shellRegistryPath='HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon'
+function Test-BakaShellMode {
+    # True when BAKA runs as the shell: no Explorer process owns the desktop or taskbar in this session.
+    if($script:previewMode){return $false}
+    $session=(Get-Process -Id $PID).SessionId
+    return (@(Get-Process -Name explorer -ErrorAction SilentlyContinue|Where-Object {$_.SessionId -eq $session}).Count -eq 0)
+}
+function Get-BakaShellCommand {
+    $powershell=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    return ('"{0}" -NoProfile -STA -WindowStyle Hidden -ExecutionPolicy Bypass -File "{1}"' -f $powershell,(Join-Path $dataRoot 'Scripts\BakaCompanion.ps1'))
+}
+function Restore-BakaWindowsShell([switch]$Quiet){
+    # Recovery (Ctrl+Alt+Shift+E or BAKA menu): Explorer becomes the shell again, now and at every sign-in.
+    if($script:previewMode){Write-BakaUiLog 'shell-restore-preview';return}
+    try{Remove-ItemProperty -LiteralPath $script:shellRegistryPath -Name 'Shell' -ErrorAction SilentlyContinue}catch{}
+    try{$script:config.taskbar.autoHideWindowsTaskbar=$false;Save-BakaDesktopConfiguration -Path $script:settingsPath -Configuration $script:config|Out-Null}catch{}
+    Write-BakaUiLog 'shell-restored-to-explorer'
+    if(Test-BakaShellMode){Start-Process -FilePath (Join-Path $env:WINDIR 'explorer.exe')|Out-Null}
+    if(-not $Quiet){[System.Windows.Forms.MessageBox]::Show('The Windows shell (Explorer, taskbar, Start) is back. Turn BAKA shell on again in BAKA Settings > System.','BAKA','OK','Information')|Out-Null}
+    $script:allowShutdown=$true;$script:app.Shutdown(0)
+}
+function Enable-BakaShellReplacement {
+    if($script:previewMode){Write-BakaUiLog 'shell-enable-preview';return}
+    if(-not (Test-Path -LiteralPath $script:shellRegistryPath)){New-Item -Path $script:shellRegistryPath -Force|Out-Null}
+    New-ItemProperty -LiteralPath $script:shellRegistryPath -Name 'Shell' -PropertyType String -Value (Get-BakaShellCommand) -Force|Out-Null
+    Write-BakaUiLog 'shell-replacement-enabled'
+    [System.Windows.Forms.MessageBox]::Show('BAKA will be the Windows shell from the next sign-in. Recovery: Ctrl+Alt+Shift+E brings Explorer back.','BAKA','OK','Information')|Out-Null
+}
+function Invoke-BakaStartupApps {
+    # Without Explorer nobody runs the Run keys and Startup folders (Discord, Steam, drivers). BAKA does,
+    # once per sign-in; HKCU\Volatile Environment is cleared at sign-out, so it is the per-session marker.
+    if($script:previewMode){return}
+    $volatile='HKCU:\Volatile Environment'
+    if((Get-ItemProperty -LiteralPath $volatile -Name 'BakaStartupDone' -ErrorAction SilentlyContinue).BakaStartupDone){return}
+    New-ItemProperty -LiteralPath $volatile -Name 'BakaStartupDone' -PropertyType String -Value '1' -Force|Out-Null
+    $started=0
+    foreach($key in @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run','HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run','HKCU:\Software\Microsoft\Windows\CurrentVersion\Run')){
+        $item=Get-ItemProperty -LiteralPath $key -ErrorAction SilentlyContinue
+        if(-not $item){continue}
+        foreach($property in @($item.PSObject.Properties|Where-Object {$_.Name -notlike 'PS*'})){
+            $command=[Environment]::ExpandEnvironmentVariables([string]$property.Value)
+            if([string]::IsNullOrWhiteSpace($command) -or $command -match 'BakaCompanion\.ps1'){continue}
+            try{Start-Process -FilePath (Join-Path $env:WINDIR 'System32\cmd.exe') -ArgumentList ('/c start "" '+$command) -WindowStyle Hidden|Out-Null;$started++}catch{Write-BakaUiLog ('startup-run-failed name="{0}" error="{1}"' -f $property.Name,$_.Exception.Message)}
+        }
+    }
+    foreach($folder in @([Environment]::GetFolderPath('Startup'),[Environment]::GetFolderPath('CommonStartup'))){
+        foreach($entry in @(Get-ChildItem -LiteralPath $folder -File -ErrorAction SilentlyContinue|Where-Object {$_.Name -ne 'BAKA Liquid Desktop.lnk' -and $_.Extension -ne '.ini'})){
+            try{Start-Process -FilePath $entry.FullName|Out-Null;$started++}catch{Write-BakaUiLog ('startup-item-failed name="{0}" error="{1}"' -f $entry.Name,$_.Exception.Message)}
+        }
+    }
+    Write-BakaUiLog ('shell-startup-apps started={0}' -f $started)
+}
+function Update-BakaDesktopBackground {
+    # In shell mode there is no Explorer desktop, so BAKA draws the wallpaper (image, color, or video).
+    $window=$script:windows.Desktop
+    if(-not $window){return}
+    $settings=$script:config.wallpaper
+    $path=[Environment]::ExpandEnvironmentVariables([string]$settings.path)
+    $stretch=switch([string]$settings.fit){'Fit'{[System.Windows.Media.Stretch]::Uniform}'Stretch'{[System.Windows.Media.Stretch]::Fill}'Center'{[System.Windows.Media.Stretch]::None}default{[System.Windows.Media.Stretch]::UniformToFill}}
+    $mode=[string]$settings.mode
+    if($mode -eq 'Default' -or ($mode -in @('Image','Video') -and -not (Test-Path -LiteralPath $path -PathType Leaf))){$mode='Image';$path=Get-BakaShippedWallpaperPath}
+    if($mode -eq 'Color'){$window.Content=$null;$window.Background=New-BakaBrush ([string]$settings.color) 255}
+    elseif($mode -eq 'Video'){
+        $media=[System.Windows.Controls.MediaElement]::new();$media.LoadedBehavior=[System.Windows.Controls.MediaState]::Manual;$media.IsMuted=[bool]$settings.muted;$media.Stretch=$stretch;$media.Source=[Uri]::new($path)
+        $media.Add_MediaEnded({param($sender,$eventArgs)$sender.Position=[TimeSpan]::Zero;$sender.Play()})
+        $window.Background=[System.Windows.Media.Brushes]::Black;$window.Content=$media;$media.Play()
+        $script:videoWallpaper=@{Window=$null;Media=$media;Path=$path}
+    }else{
+        $image=[System.Windows.Controls.Image]::new();$image.Stretch=$stretch
+        if($path){try{$bitmap=[System.Windows.Media.Imaging.BitmapImage]::new();$bitmap.BeginInit();$bitmap.CacheOption=[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad;$bitmap.UriSource=[Uri]::new($path);$bitmap.EndInit();$bitmap.Freeze();$image.Source=$bitmap}catch{Write-BakaUiLog ('desktop-image-failed error="{0}"' -f $_.Exception.Message)}}
+        $window.Background=New-BakaBrush ([string]$settings.color) 255;$window.Content=$image
+    }
+    Write-BakaUiLog ('desktop-background mode={0}' -f $mode)
+}
+function New-BakaDesktopWindow {
+    $screen=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds;$scale=Get-BakaScreenScale
+    $window=[System.Windows.Window]::new();$window.Title='BAKA Desktop';$window.WindowStyle=[System.Windows.WindowStyle]::None;$window.ResizeMode=[System.Windows.ResizeMode]::NoResize
+    $window.ShowInTaskbar=$false;$window.ShowActivated=$false;$window.Left=$screen.Left/$scale;$window.Top=$screen.Top/$scale;$window.Width=$screen.Width/$scale;$window.Height=$screen.Height/$scale
+    $window.add_SourceInitialized({param($sender,$eventArgs)Set-BakaWindowBottom $sender})
+    $window.add_Activated({param($sender,$eventArgs)Set-BakaWindowBottom $sender})
+    $window.add_MouseRightButtonUp({param($sender,$eventArgs)Show-BakaMenu $sender @(
+        @{Label='Change wallpaper…';Glyph=[string][char]0xE771;Action={Show-BakaSettings 'Wallpaper'}},
+        @{Label='Open Files';Glyph=[string][char]0xE8B7;Action={Show-BakaFiles}},
+        @{Label='All apps';Glyph=[string][char]0xE71D;Action={Show-BakaLaunchpad}},
+        '-',
+        @{Label='Windows Settings';Glyph=[string][char]0xE713;Action={Open-BakaSystemSettings 'ms-settings:'}}
+    )})
+    $window.add_Closing({param($sender,$eventArgs)if(-not $script:allowShutdown){$eventArgs.Cancel=$true}})
+    $script:windows.Desktop=$window
+    Update-BakaDesktopBackground
+    $window.Show()
+    return $window
+}
+function Set-BakaWindowBottom($Window){
+    try{$handle=[System.Windows.Interop.WindowInteropHelper]::new($Window).Handle;if($handle -ne [IntPtr]::Zero){[void][BakaShellKeys]::SetWindowPos($handle,[IntPtr]::new(1),0,0,0,0,0x0013)}}catch{}
+}
+if(-not ('BakaShellKeys' -as [type])){
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class BakaShellKeys {
+  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+  [DllImport("user32.dll", SetLastError=true)] static extern IntPtr SetWindowsHookEx(int id, HookProc proc, IntPtr module, uint thread);
+  [DllImport("user32.dll")] static extern IntPtr CallNextHookEx(IntPtr hook, int code, IntPtr wParam, IntPtr lParam);
+  [DllImport("user32.dll")] static extern bool UnhookWindowsHookEx(IntPtr hook);
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern IntPtr GetModuleHandle(string name);
+  delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
+  static HookProc proc; static IntPtr hook = IntPtr.Zero; static bool winDown, winUsed;
+  public static volatile int Pending; // incremented when the Windows key is tapped alone
+  // Low-level keyboard hook: a lone tap of the Windows key opens the BAKA launcher in shell mode.
+  public static bool Install() {
+    if (hook != IntPtr.Zero) return true;
+    proc = Callback; hook = SetWindowsHookEx(13, proc, GetModuleHandle(null), 0);
+    return hook != IntPtr.Zero;
+  }
+  public static void Remove() { if (hook != IntPtr.Zero) { UnhookWindowsHookEx(hook); hook = IntPtr.Zero; } }
+  static IntPtr Callback(int code, IntPtr wParam, IntPtr lParam) {
+    if (code >= 0) {
+      int vk = Marshal.ReadInt32(lParam); int msg = wParam.ToInt32(); bool down = msg == 0x100 || msg == 0x104; bool up = msg == 0x101 || msg == 0x105;
+      if (vk == 0x5B || vk == 0x5C) {
+        if (down) { if (!winDown) { winDown = true; winUsed = false; } }
+        else if (up) { bool lone = winDown && !winUsed; winDown = false; if (lone) { Pending++; return new IntPtr(1); } }
+      } else if (down && winDown) { winUsed = true; }
+    }
+    return CallNextHookEx(hook, code, wParam, lParam);
+  }
+}
+'@ -ErrorAction Stop
+}
+function Initialize-BakaShellMode {
+    $script:shellMode=Test-BakaShellMode
+    if(-not $script:shellMode){return}
+    Write-BakaUiLog 'shell-mode=active (Explorer is not running)'
+    [void](New-BakaDesktopWindow)
+    if([BakaShellKeys]::Install()){
+        $script:winKeyTimer=[System.Windows.Threading.DispatcherTimer]::new();$script:winKeyTimer.Interval=[TimeSpan]::FromMilliseconds(120);$script:winKeySeen=0
+        $script:winKeyTimer.Add_Tick({if([BakaShellKeys]::Pending -ne $script:winKeySeen){$script:winKeySeen=[BakaShellKeys]::Pending;Show-BakaLaunchpad}})
+        $script:winKeyTimer.Start()
+    }else{Write-BakaUiLog 'win-key-hook-unavailable'}
+    Invoke-BakaStartupApps
+}
+function Register-BakaRecoveryHotkey($Window){
+    # Ctrl+Alt+Shift+E: always returns to the normal Windows shell, even if BAKA's UI is broken.
+    try{
+        $source=[System.Windows.Interop.HwndSource]::FromVisual($Window)
+        if(-not $source){return}
+        if([BakaLiquidNative]::RegisterHotKey($source.Handle,0xBA6A,7,0x45)){
+            $source.AddHook([System.Windows.Interop.HwndSourceHook]{param($hwnd,$msg,$wParam,$lParam,[ref]$handled)if($msg -eq 0x0312 -and $wParam.ToInt32() -eq 0xBA6A){$handled.Value=$true;Restore-BakaWindowsShell};[IntPtr]::Zero})
+            Write-BakaUiLog 'recovery-hotkey=Ctrl+Alt+Shift+E'
+        }
+    }catch{Write-BakaUiLog ('recovery-hotkey-failed error="{0}"' -f $_.Exception.Message)}
 }
 function New-BakaTrayIcon {
     $icon=[System.Windows.Forms.NotifyIcon]::new();$icon.Text='BAKA Liquid Desktop';$icon.Icon=[System.Drawing.SystemIcons]::Application;$icon.Visible=$true
@@ -2234,6 +2407,8 @@ $script:app.add_Exit({
     Write-BakaUiLog 'companion-exit-cleanup-start'
     foreach($timer in @($script:dockHideTimer,$script:clockTimer,$script:systemMetricsTimer,$script:profileTimer,$script:runningAppsTimer,$script:smokeTimer)){if($timer){$timer.Stop()}}
     Stop-BakaMetricWorker
+    if($script:winKeyTimer){$script:winKeyTimer.Stop()}
+    try{[BakaShellKeys]::Remove()}catch{}
     Stop-BakaVideoWallpaper
     Remove-BakaTopBarReservation
     Remove-BakaDockReservation
@@ -2244,6 +2419,21 @@ $script:app.add_Exit({
     Write-BakaUiLog 'companion-exit-cleanup-complete'
 })
 $script:windows.Dock.add_Loaded({
+    # First sign-in: Explorer started as the shell before BAKA was configured. If BAKA is now the
+    # configured shell, Explorer is closed once so this session already runs on the BAKA shell.
+    if(-not $script:previewMode){
+        try{
+            $configured=[string](Get-ItemProperty -LiteralPath $script:shellRegistryPath -Name 'Shell' -ErrorAction SilentlyContinue).Shell
+            if($configured -match 'BakaCompanion\.ps1' -and -not (Test-BakaShellMode)){
+                $session=(Get-Process -Id $PID).SessionId
+                Get-Process -Name explorer -ErrorAction SilentlyContinue|Where-Object {$_.SessionId -eq $session}|Stop-Process -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Milliseconds 800
+                Write-BakaUiLog 'shell-takeover explorer-stopped'
+            }
+        }catch{Write-BakaUiLog ('shell-takeover-failed error="{0}"' -f $_.Exception.Message)}
+    }
+    Initialize-BakaShellMode
+    Register-BakaRecoveryHotkey $script:windows.Dock
     Start-BakaWindowEntrance $script:windows.Dock
     # Show the Arena welcome once (first run); afterwards it opens only from the dock's Arena button.
     $arenaSeen=Join-Path $settingsDirectory 'arena-welcome-shown'
