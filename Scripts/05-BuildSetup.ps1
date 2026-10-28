@@ -39,6 +39,14 @@ foreach ($file in $runtimeFiles) {
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime script missing: $source" }
     Copy-Item -LiteralPath $source -Destination (Join-Path $targetScripts $file) -Force
 }
+# BAKA shell launcher: compiled from source at build time with the C# compiler that ships with Windows,
+# so the image never carries a prebuilt binary that does not match the repository.
+$csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+if (-not (Test-Path -LiteralPath $csc -PathType Leaf)) { throw "C# compiler not found: $csc" }
+$shellSource = Join-Path $PSScriptRoot 'Runtime\BakaShell.cs'
+$shellExe = Join-Path $targetScripts 'BakaShell.exe'
+$compile = & $csc /nologo /optimize+ /target:winexe "/out:$shellExe" $shellSource 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $shellExe -PathType Leaf)) { throw "BAKA shell launcher did not compile: $compile" }
 foreach ($modulePath in @('UpdateControl\UpdateControl.psm1','GamingProfiles\GamingProfiles.psm1','Recovery\Recovery.psm1','HardwareDetection\HardwareDetection.psm1','DesktopConfiguration.psm1','DesktopShell.psm1','SystemTuning.psm1','CompanionInstance.psm1','SystemMonitoring.psm1','PowerPlan.psm1')) {
     $source = Join-Path $root "Modules\$modulePath"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime module missing: $source" }

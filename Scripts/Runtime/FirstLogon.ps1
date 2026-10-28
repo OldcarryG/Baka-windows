@@ -48,10 +48,11 @@ if (Test-Path -LiteralPath $installer -PathType Leaf) {
 # BAKA is this user's Windows shell (per-user Winlogon override): Explorer's taskbar, Start, and desktop
 # no longer load. The BAKA desktop takes over on this first sign-in. Ctrl+Alt+Shift+E restores Explorer.
 $winlogonUser = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon'
-$companionPath = Join-Path $root 'Scripts\BakaCompanion.ps1'
-if (Test-Path -LiteralPath $companionPath -PathType Leaf) {
+$shellLauncher = Join-Path $root 'Scripts\BakaShell.exe'
+if ((Test-Path -LiteralPath $shellLauncher -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $root 'Scripts\BakaCompanion.ps1') -PathType Leaf)) {
     if (-not (Test-Path -LiteralPath $winlogonUser)) { New-Item -Path $winlogonUser -Force | Out-Null }
-    $shellCommand = '"{0}" -NoProfile -STA -WindowStyle Hidden -ExecutionPolicy Bypass -File "{1}"' -f $powershell, $companionPath
+    # A windowless native launcher (never powershell.exe directly, which opens a Terminal window on Windows 11).
+    $shellCommand = '"{0}"' -f $shellLauncher
     New-ItemProperty -LiteralPath $winlogonUser -Name 'Shell' -PropertyType String -Value $shellCommand -Force | Out-Null
     Write-FirstLogonLog 'baka-shell-enabled'
 }
@@ -64,7 +65,10 @@ if (-not (Test-Path -LiteralPath $wallpapersKey)) { New-Item -Path $wallpapersKe
 New-ItemProperty -LiteralPath $wallpapersKey -Name 'BackgroundType' -PropertyType DWord -Value 0 -Force | Out-Null
 # Start the BAKA desktop now; the Startup shortcut takes over from the next sign-in (single instance).
 $companion = Join-Path $root 'Scripts\BakaCompanion.ps1'
-if (Test-Path -LiteralPath $companion -PathType Leaf) {
+if (Test-Path -LiteralPath $shellLauncher -PathType Leaf) {
+    Start-Process -FilePath $shellLauncher -WorkingDirectory (Join-Path $root 'Scripts')
+    Write-FirstLogonLog 'companion-started via BakaShell.exe'
+} elseif (Test-Path -LiteralPath $companion -PathType Leaf) {
     Start-Process -FilePath $powershell -ArgumentList @('-NoProfile','-STA','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $companion)) -WindowStyle Hidden
     Write-FirstLogonLog 'companion-started'
 }

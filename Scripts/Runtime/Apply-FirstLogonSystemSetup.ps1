@@ -90,12 +90,18 @@ try{
         @{Folder=$menuFolder;Name='Install Hardware Drivers.lnk';Script='Install-SelectedDrivers.ps1';Description='Detect hardware and install only approved matching vendor drivers.';Icon="$imageres,27"},
         @{Folder=$menuFolder;Name='Restore Windows Update.lnk';Script='Restore-WindowsUpdate.ps1';Description='Turn Windows Update back on (asks for administrator approval).';Icon="$imageres,1401"},
         @{Folder=$menuFolder;Name='Restore BAKA System Tuning.lnk';Script='Restore-SystemTuning.ps1';Description='Undo BAKA service, scheduled-task, privacy, power plan, and default-browser policy changes.';Icon="$imageres,5364"},
-        @{Folder=[Environment]::GetFolderPath('CommonStartup');Name='BAKA Liquid Desktop.lnk';Script='BakaCompanion.ps1';Description='BAKA Liquid desktop: top bar, dock, launcher, Quick Panel, widgets, wallpaper, and gaming profiles.';Sta=$true;Icon="$imageres,109"}
+        @{Folder=[Environment]::GetFolderPath('CommonStartup');Name='BAKA Liquid Desktop.lnk';Script='BakaCompanion.ps1';Description='BAKA Liquid desktop: top bar, dock, launcher, Quick Panel, widgets, wallpaper, and gaming profiles.';Sta=$true;Icon="$imageres,109";Launcher='BakaShell.exe'}
     )
     $legacyDock=Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'BAKA Gaming Dock.lnk'
     if(Test-Path -LiteralPath $legacyDock -PathType Leaf){Remove-Item -LiteralPath $legacyDock -Force}
     foreach($spec in $shortcutSpecs){
         $link=$shell.CreateShortcut((Join-Path $spec.Folder $spec.Name))
+        $launcherPath=if($spec.Launcher){Join-Path $root ('Scripts\'+$spec.Launcher)}else{$null}
+        if($launcherPath -and (Test-Path -LiteralPath $launcherPath -PathType Leaf)){
+            # Windowless native launcher: no console or Windows Terminal window, restarts BAKA if it stops.
+            $link.TargetPath=$launcherPath;$link.Arguments='';$link.WorkingDirectory=Join-Path $root 'Scripts';$link.Description=$spec.Description
+            if($spec.Icon){$link.IconLocation=$spec.Icon};$link.Save();continue
+        }
         $link.TargetPath=$powershell
         $arguments='-NoProfile'
         if($spec.Sta){$arguments+=' -STA'}

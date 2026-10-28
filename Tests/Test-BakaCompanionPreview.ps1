@@ -25,8 +25,18 @@ $sourceGuards=@(
     [pscustomobject]@{Name='Windows key opens the BAKA launcher in shell mode';Pattern='\[BakaShellKeys\]::Install\(\)'},
     [pscustomobject]@{Name='Ctrl+Alt+Shift+E recovery hotkey restores Explorer';Pattern='RegisterHotKey\(\$source\.Handle,0xBA6A,7,0x45\)'},
     [pscustomobject]@{Name='exiting the shell hands the session back to Explorer';Pattern='if\(\$script:shellMode\)\{Restore-BakaWindowsShell -Quiet;return\}'},
-    [pscustomobject]@{Name='preview never changes the real shell';Pattern='shell-restore-preview'}
+    [pscustomobject]@{Name='preview never changes the real shell';Pattern='shell-restore-preview'},
+    [pscustomobject]@{Name='Arena is built on first use, not at startup';Pattern='\$script:windows\.Dashboard=\$null'},
+    [pscustomobject]@{Name='desktop memory is trimmed after startup and at game start';Pattern="Optimize-BakaFootprint 'game-start'"},
+    [pscustomobject]@{Name='desktop drops below normal priority during games';Pattern='ProcessPriorityClass\]::BelowNormal'},
+    [pscustomobject]@{Name='foreground app lookup only runs when the window changes';Pattern='\$script:lastForegroundWindow=\$foreground'},
+    [pscustomobject]@{Name='the Windows shell is the windowless launcher, never powershell.exe';Pattern="Scripts\\BakaShell\.exe"},
+    [pscustomobject]@{Name='a rejected second launch exits with code 3 for the launcher';Pattern="second-launch-rejected';exit 3"}
 )
+$launcherSource=Get-Content -LiteralPath (Join-Path $root 'Scripts\Runtime\BakaShell.cs') -Raw
+foreach($needle in @('CreateNoWindow = true','UseShellExecute = false','failures.Count >= 3','StartExplorer("repeated-failures")','code == 3')){if(-not $launcherSource.Contains($needle)){throw "BAKA shell launcher guard failed: $needle"}}
+$firstLogonSource=Get-Content -LiteralPath (Join-Path $root 'Scripts\Runtime\FirstLogon.ps1') -Raw
+if($firstLogonSource -match "Name 'Shell'[^\r\n]*powershell" -or $firstLogonSource -notmatch "shellCommand = '`"\{0\}`"' -f \`$shellLauncher"){throw 'First logon must register the native launcher as the shell.'}
 foreach($guard in $sourceGuards){if($source -notmatch $guard.Pattern){throw "Companion reliability guard failed: $($guard.Name)"}}
 $engine=Get-Command powershell.exe -ErrorAction SilentlyContinue
 if(-not $engine){$engine=Get-Command pwsh.exe -ErrorAction Stop}

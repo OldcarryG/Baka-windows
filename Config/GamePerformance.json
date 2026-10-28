@@ -8,14 +8,25 @@
     { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "GPU Priority", "type": "DWord", "value": 8, "purpose": "MMCSS Games task GPU priority" },
     { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "Priority", "type": "DWord", "value": 6, "purpose": "MMCSS Games task priority" },
     { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "Scheduling Category", "type": "String", "value": "High", "purpose": "MMCSS Games task scheduling category" },
-    { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "SFIO Priority", "type": "String", "value": "High", "purpose": "MMCSS Games task storage I/O priority" }
+    { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "SFIO Priority", "type": "String", "value": "High", "purpose": "MMCSS Games task storage I/O priority" },
+    { "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "name": "Background Only", "type": "String", "value": "False", "purpose": "MMCSS Games task applies to the foreground game" },
+    { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\PriorityControl", "name": "Win32PrioritySeparation", "type": "DWord", "value": 38, "purpose": "Short, variable quantums with a 3x boost for the foreground app (the game) instead of the background (Windows default 2)" },
+    { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling", "name": "PowerThrottlingOff", "type": "DWord", "value": 1, "purpose": "Windows does not power-throttle games and their helper processes (EcoQoS) on AC power" },
+    { "path": "HKLM:\\SOFTWARE\\Microsoft\\PolicyManager\\default\\ApplicationManagement\\AllowGameDVR", "name": "value", "type": "DWord", "value": 0, "purpose": "Game DVR is also off through the MDM policy path Windows 11 checks" },
+    { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\mouclass\\Parameters", "name": "MouseDataQueueSize", "type": "DWord", "value": 100, "purpose": "Windows default mouse input buffer (explicit, restorable; guards against bad tweak tools)" }
   ],
   "userPolicies": [
     { "path": "HKCU:\\Software\\Microsoft\\GameBar", "name": "AutoGameModeEnabled", "type": "DWord", "value": 1, "purpose": "Windows Game Mode on for every game" },
     { "path": "HKCU:\\Software\\Microsoft\\GameBar", "name": "AllowAutoGameMode", "type": "DWord", "value": 1, "purpose": "Windows Game Mode on for every game" },
     { "path": "HKCU:\\System\\GameConfigStore", "name": "GameDVR_Enabled", "type": "DWord", "value": 0, "purpose": "No background capture while any game runs" },
     { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "name": "AppCaptureEnabled", "type": "DWord", "value": 0, "purpose": "No background capture while any game runs" },
-    { "path": "HKCU:\\Software\\Microsoft\\DirectX\\UserGpuPreferences", "name": "DirectXUserGlobalSettings", "type": "String", "value": "SwapEffectUpgradeEnable=1;", "purpose": "Windows 'Optimizations for windowed games' (flip-model presentation for DX10/11 windowed and borderless games)" },
+    { "path": "HKCU:\\Software\\Microsoft\\DirectX\\UserGpuPreferences", "name": "DirectXUserGlobalSettings", "type": "String", "value": "SwapEffectUpgradeEnable=1;VRROptimizeEnable=1;", "purpose": "Windows 'Optimizations for windowed games' (flip-model for DX10/11 windowed/borderless) and 'Variable refresh rate' for games without native VRR support" },
+    { "path": "HKCU:\\System\\GameConfigStore", "name": "GameDVR_HonorUserFSEBehaviorMode", "type": "DWord", "value": 0, "purpose": "Keep Windows fullscreen optimizations at the Windows default (fast Alt+Tab, flip-model)" },
+    { "path": "HKCU:\\Control Panel\\Accessibility\\StickyKeys", "name": "Flags", "type": "String", "value": "506", "purpose": "Pressing Shift five times in a game no longer opens the Sticky Keys prompt" },
+    { "path": "HKCU:\\Control Panel\\Accessibility\\ToggleKeys", "name": "Flags", "type": "String", "value": "58", "purpose": "Holding Num Lock no longer opens the Toggle Keys prompt" },
+    { "path": "HKCU:\\Control Panel\\Accessibility\\Keyboard Response", "name": "Flags", "type": "String", "value": "122", "purpose": "Holding Shift for 8 seconds no longer opens the Filter Keys prompt mid-game" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings", "name": "NOC_GLOBAL_SETTING_TOASTS_ENABLED", "type": "DWord", "value": 1, "purpose": "Notifications stay on; Windows Do Not Disturb hides them during fullscreen games" },
+    { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings", "name": "NOC_GLOBAL_SETTING_ALLOW_CRITICAL_TOASTS_ABOVE_LOCK", "type": "DWord", "value": 0, "purpose": "No toasts over the lock screen" },
     { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseSpeed", "type": "String", "value": "0", "purpose": "Turn off 'Enhance pointer precision' so aim follows raw mouse movement" },
     { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseThreshold1", "type": "String", "value": "0", "purpose": "Turn off pointer acceleration threshold 1" },
     { "path": "HKCU:\\Control Panel\\Mouse", "name": "MouseThreshold2", "type": "String", "value": "0", "purpose": "Turn off pointer acceleration threshold 2" }

@@ -25,6 +25,16 @@ function Get-BakaPowerPlanTweaks {
         [pscustomobject]@{Sub='238c9fa8-0aad-41ed-83f4-97be242c8f20';Setting='29f6c1db-86da-48c5-9fdb-f2b67b1f44da';Ac=0;Dc=900;Purpose='Never sleep on AC (games and downloads are not interrupted)'}
         [pscustomobject]@{Sub='238c9fa8-0aad-41ed-83f4-97be242c8f20';Setting='9d7815a6-7ee4-497e-8888-515a05f02364';Ac=0;Dc=0;Purpose='Never hibernate on idle'}
         [pscustomobject]@{Sub='7516b95f-f776-4464-8c53-06167f40cc99';Setting='3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e';Ac=900;Dc=300;Purpose='Turn the display off after 15 minutes on AC'}
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='36687f9e-e3a5-4dbf-b1dc-15eb381c6863';Ac=0;Dc=50;Purpose='Energy performance preference 0 (maximum performance) on AC for Intel/AMD hardware P-states'}
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='45bcc044-d885-43e2-8605-ee0ec6e96b59';Ac=100;Dc=25;Purpose='Processor boost policy 100% on AC'}
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='3b04d4fd-1cc7-4f23-ab1c-d1337819c4bb';Ac=0;Dc=1;Purpose='No processor throttle states on AC'}
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='94d3a615-a899-4ac5-ae2b-e4d8f634367f';Ac=1;Dc=0;Purpose='Active cooling (fans first, not clock reduction) on AC'}
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='06cadf0e-64ed-448a-8927-ce7bf90eb35d';Ac=10;Dc=60;Purpose='Faster processor performance increase threshold (ramps up sooner)'}
+        [pscustomobject]@{Sub='54533251-82be-4824-96c1-47b60b740d00';Setting='12a0ab44-fe28-4fa9-b3bd-4b64f44960a6';Ac=8;Dc=40;Purpose='Lower decrease threshold (clocks stay up between frames)'}
+        [pscustomobject]@{Sub='0012ee47-9041-4b5d-9b77-535fba8b1442';Setting='dab60367-53fe-4fbc-825e-521d069d2456';Ac=0;Dc=3;Purpose='SATA/AHCI link power management Active on AC (no storage wake-up stalls)'}
+        [pscustomobject]@{Sub='0012ee47-9041-4b5d-9b77-535fba8b1442';Setting='d639518a-e56d-4345-8af2-b9f32fb26109';Ac=0;Dc=100;Purpose='NVMe primary idle timeout off on AC (no NVMe power-state latency)'}
+        [pscustomobject]@{Sub='9596fb26-9850-41fd-ac3e-f7c3c00afd4b';Setting='10778347-1370-4ee0-8bbd-33bdacaade49';Ac=1;Dc=0;Purpose='Video playback optimized for quality on AC'}
+        [pscustomobject]@{Sub='238c9fa8-0aad-41ed-83f4-97be242c8f20';Setting='bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d';Ac=0;Dc=1;Purpose='No wake timers on AC (no surprise wake-ups for maintenance)'}
     )
 }
 
@@ -66,6 +76,8 @@ function Install-BakaPowerPlan {
         }
         if(-not $baseUsed){throw 'Windows did not allow BAKA to create its power plan (powercfg /duplicatescheme failed).'}
     }
+    # Desktops (no battery) keep cores fully awake; laptops keep battery-friendly parking on DC.
+    $desktop=-not (Test-BakaBatteryPresent)
     [void](Invoke-BakaPowerCfg -Arguments @('/changename',$script:BakaPlanGuid,$script:BakaPlanName,'BAKA tuned plan: full CPU clocks, no core parking, no USB/PCIe power saving on AC power. Battery values stay economical.'))
     $applied=0
     foreach($tweak in Get-BakaPowerPlanTweaks){
@@ -73,8 +85,13 @@ function Install-BakaPowerPlan {
         if((Invoke-BakaPowerCfg -Arguments @('/setacvalueindex',$script:BakaPlanGuid,$tweak.Sub,$tweak.Setting,[string]$tweak.Ac)).ExitCode -eq 0){$applied++}
         [void](Invoke-BakaPowerCfg -Arguments @('/setdcvalueindex',$script:BakaPlanGuid,$tweak.Sub,$tweak.Setting,[string]$tweak.Dc))
     }
+    if($desktop){
+        # No hibernation file on desktops: frees disk space equal to ~40% of RAM and disables Fast Startup,
+        # which otherwise keeps stale driver state between boots. Laptops keep hibernate.
+        [void](Invoke-BakaPowerCfg -Arguments @('/hibernate','off'))
+    }
     if($Activate){[void](Set-BakaActivePowerScheme -Guid $script:BakaPlanGuid)}
-    [pscustomobject]@{Guid=$script:BakaPlanGuid;Name=$script:BakaPlanName;BasedOn=$baseUsed;SettingsApplied=$applied;Active=[bool]$Activate}
+    [pscustomobject]@{Guid=$script:BakaPlanGuid;Name=$script:BakaPlanName;BasedOn=$baseUsed;SettingsApplied=$applied;Active=[bool]$Activate;Desktop=$desktop}
 }
 
 function Set-BakaActivePowerScheme {
@@ -105,6 +122,7 @@ function Remove-BakaPowerPlan {
     if(-not $PSCmdlet.ShouldProcess($script:BakaPlanName,'Remove power plan')){return $false}
     $active=Get-BakaActivePowerScheme
     if($active -and $active.Guid -eq $script:BakaPlanGuid){[void](Set-BakaActivePowerScheme -Guid $script:BalancedGuid)}
+    if(-not (Test-BakaBatteryPresent)){[void](Invoke-BakaPowerCfg -Arguments @('/hibernate','on'))}
     if(@(Get-BakaPowerSchemes|Where-Object {$_.Guid -eq $script:BakaPlanGuid}).Count){return ((Invoke-BakaPowerCfg -Arguments @('/delete',$script:BakaPlanGuid)).ExitCode -eq 0)}
     return $true
 }

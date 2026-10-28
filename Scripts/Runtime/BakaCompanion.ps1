@@ -91,7 +91,8 @@ $script:instanceLock=Enter-BakaCompanionInstance
 if(-not $script:instanceLock.Acquired){
     # A second launch (Start menu "BAKA Settings", Startup shortcut) hands its request to the running desktop.
     if($OpenSettings){try{[IO.File]::WriteAllText($script:openSettingsRequest,(Get-Date).ToString('o'))}catch{}}
-    Write-BakaUiLog 'second-launch-rejected';exit 0
+    # Exit code 3 tells the BAKA shell launcher that another desktop is running (not a hand-over).
+    Write-BakaUiLog 'second-launch-rejected';exit 3
 }
 
 try {
@@ -1001,6 +1002,24 @@ function Update-BakaProfileStatus {
     if($script:windows.DashNavStatus){$script:windows.DashNavStatus.Text=('{0}  /  {1}' -f $mode,$script:activeProfile.ToUpperInvariant())}
     if($script:windows.DashActiveProfile){$script:windows.DashActiveProfile.Text=$script:activeProfile.ToUpperInvariant()}
 }
+if(-not ('BakaMemory' -as [type])){
+    Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public static class BakaMemory{[DllImport("psapi.dll")] public static extern bool EmptyWorkingSet(IntPtr process);}' -ErrorAction SilentlyContinue
+}
+function Optimize-BakaFootprint([string]$Reason='idle'){
+    # Gives memory back to Windows: full GC, then the working set is trimmed so pages the desktop is
+    # not using right now go to the standby list (they are read back only if needed).
+    try{
+        [GC]::Collect();[GC]::WaitForPendingFinalizers();[GC]::Collect()
+        $self=[Diagnostics.Process]::GetCurrentProcess()
+        if(-not $script:previewMode){[void][BakaMemory]::EmptyWorkingSet($self.Handle)}
+        Write-BakaUiLog ('footprint-trimmed reason={0} workingSetMiB={1:N0}' -f $Reason,([Diagnostics.Process]::GetCurrentProcess().WorkingSet64/1MB))
+    }catch{}
+}
+function Set-BakaGamePriority([bool]$Gaming){
+    # While a game runs, the desktop drops to below-normal priority so it never takes CPU time from it.
+    if($script:previewMode){return}
+    try{$self=[Diagnostics.Process]::GetCurrentProcess();$self.PriorityClass=if($Gaming){[Diagnostics.ProcessPriorityClass]::BelowNormal}else{[Diagnostics.ProcessPriorityClass]::Normal}}catch{}
+}
 function Switch-BakaProfilePowerPlan([string]$Profile){
     # Gaming and Benchmark run on the BAKA Gaming plan; going back to Desktop restores the plan the user had.
     if($script:previewMode -or -not $script:powerModuleAvailable){return}
@@ -1020,6 +1039,8 @@ function Set-BakaUiProfile([string]$Profile,[string]$Reason='Manual'){
         $result=Set-BakaCompanionProfile -Profile $Profile
         $script:activeProfile=$Profile
         Switch-BakaProfilePowerPlan $Profile
+        Set-BakaGamePriority ($Profile -ne 'Desktop')
+        if($Profile -ne 'Desktop'){Optimize-BakaFootprint 'game-start'}
         if($Reason -eq 'Manual'){$script:manualOverride=$Profile}elseif($Reason -eq 'Auto'){$script:manualOverride=$null}
         if($Profile -ne 'Desktop'){
             if(-not $script:widgetsVisibleBeforeProfile){$script:widgetsVisibleBeforeProfile=@($script:widgetWindows.Values|Where-Object {$_ -is [System.Windows.Window] -and $_.IsVisible}).Count -gt 0}
@@ -1082,6 +1103,8 @@ function Update-BakaDashboardMetrics($Metrics){
     if($script:windows.DashTelemetry){$script:windows.DashTelemetry.Text=('LIVE WINDOWS TELEMETRY  ·  UPDATED {0}' -f (Get-Date -Format 'HH:mm:ss'))}
 }
 function Show-BakaDashboard {
+    # Built on first use: Arena is the heaviest surface and most sessions never open it.
+    if(-not $script:windows.Dashboard){$script:windows.Dashboard=New-BakaDashboard}
     if(-not $script:windows.Dashboard){return}
     $area=(Get-BakaActiveScreen).WorkingArea;$window=$script:windows.Dashboard
     $window.Left=$area.Left+([math]::Max(20,($area.Width-$window.Width)/2));$window.Top=$area.Top+([math]::Max(24,($area.Height-$window.Height)/2-22))
@@ -1531,6 +1554,10 @@ function Remove-BakaTopBarReservation {
 function Update-BakaForegroundApp {
     if(-not $script:windows.BarApp -or -not $script:windows.TopBar.IsVisible){return}
     try{
+        # Only look the process up when the foreground window changes (this runs every second).
+        $foreground=[BakaLiquidNative]::GetForegroundWindow()
+        if($foreground -eq $script:lastForegroundWindow){return}
+        $script:lastForegroundWindow=$foreground
         $processId=[uint32]0;$title=[BakaLiquidNative]::GetForegroundTitle([ref]$processId)
         $name='Desktop'
         if($processId -and $processId -ne $PID){
@@ -1635,7 +1662,8 @@ function Show-BakaTaskbarPeek {
 }
 function Update-BakaTaskbarGuard {
     # Explorer shows the taskbar again after restarts and some shell events; keep it hidden unless peeking.
-    if($script:previewMode -or -not [bool]$script:config.taskbar.autoHideWindowsTaskbar){return}
+    # As the shell there is no Windows taskbar to guard, so skip the window lookups entirely.
+    if($script:previewMode -or $script:shellMode -or -not [bool]$script:config.taskbar.autoHideWindowsTaskbar){return}
     try{
         if($script:taskbarPeekUntil -and (Get-Date) -lt $script:taskbarPeekUntil){return}
         if($script:taskbarPeekUntil){$script:taskbarPeekUntil=$null;[void](Set-BakaTaskbarAutoHide -Enabled $true -Confirm:$false)}
@@ -2189,8 +2217,9 @@ function Test-BakaShellMode {
     return (@(Get-Process -Name explorer -ErrorAction SilentlyContinue|Where-Object {$_.SessionId -eq $session}).Count -eq 0)
 }
 function Get-BakaShellCommand {
-    $powershell=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    return ('"{0}" -NoProfile -STA -WindowStyle Hidden -ExecutionPolicy Bypass -File "{1}"' -f $powershell,(Join-Path $dataRoot 'Scripts\BakaCompanion.ps1'))
+    # The windowless native launcher, never powershell.exe directly: on Windows 11 a console program as the
+    # shell opens a visible Windows Terminal window, and nothing would restart BAKA if it stopped.
+    return ('"{0}"' -f (Join-Path $dataRoot 'Scripts\BakaShell.exe'))
 }
 function Restore-BakaWindowsShell([switch]$Quiet){
     # Recovery (Ctrl+Alt+Shift+E or BAKA menu): Explorer becomes the shell again, now and at every sign-in.
@@ -2204,6 +2233,7 @@ function Restore-BakaWindowsShell([switch]$Quiet){
 }
 function Enable-BakaShellReplacement {
     if($script:previewMode){Write-BakaUiLog 'shell-enable-preview';return}
+    if(-not (Test-Path -LiteralPath (Join-Path $dataRoot 'Scripts\BakaShell.exe') -PathType Leaf)){[System.Windows.Forms.MessageBox]::Show('The BAKA shell launcher is missing; Explorer stays the shell.','BAKA','OK','Warning')|Out-Null;return}
     if(-not (Test-Path -LiteralPath $script:shellRegistryPath)){New-Item -Path $script:shellRegistryPath -Force|Out-Null}
     New-ItemProperty -LiteralPath $script:shellRegistryPath -Name 'Shell' -PropertyType String -Value (Get-BakaShellCommand) -Force|Out-Null
     Write-BakaUiLog 'shell-replacement-enabled'
@@ -2387,7 +2417,7 @@ $script:profileTimer.Add_Tick({
     } catch {Write-BakaUiLog ('profile-poll-failed error="{0}"' -f $_.Exception.Message)}
 })
 
-$script:windows.Dashboard=New-BakaDashboard
+$script:windows.Dashboard=$null
 $script:windows.Dock=New-BakaDock
 $script:windows.Quick=$null
 $script:windows.TopBar=New-BakaTopBar
@@ -2408,6 +2438,7 @@ $script:app.add_Exit({
     foreach($timer in @($script:dockHideTimer,$script:clockTimer,$script:systemMetricsTimer,$script:profileTimer,$script:runningAppsTimer,$script:smokeTimer)){if($timer){$timer.Stop()}}
     Stop-BakaMetricWorker
     if($script:winKeyTimer){$script:winKeyTimer.Stop()}
+    if($script:trimTimer){$script:trimTimer.Stop()}
     try{[BakaShellKeys]::Remove()}catch{}
     Stop-BakaVideoWallpaper
     Remove-BakaTopBarReservation
@@ -2424,7 +2455,7 @@ $script:windows.Dock.add_Loaded({
     if(-not $script:previewMode){
         try{
             $configured=[string](Get-ItemProperty -LiteralPath $script:shellRegistryPath -Name 'Shell' -ErrorAction SilentlyContinue).Shell
-            if($configured -match 'BakaCompanion\.ps1' -and -not (Test-BakaShellMode)){
+            if($configured -match 'BakaShell\.exe' -and -not (Test-BakaShellMode)){
                 $session=(Get-Process -Id $PID).SessionId
                 Get-Process -Name explorer -ErrorAction SilentlyContinue|Where-Object {$_.SessionId -eq $session}|Stop-Process -Force -ErrorAction SilentlyContinue
                 Start-Sleep -Milliseconds 800
@@ -2449,6 +2480,15 @@ $script:windows.Dock.add_Loaded({
         if($browserApp -and -not (Test-Path -LiteralPath ([Environment]::ExpandEnvironmentVariables([string]$browserApp[0].target)) -PathType Leaf)){Start-BakaBrowserRepair}
     }
     if($OpenSettings){Show-BakaSettings}
+    # Startup allocates far more than the desktop needs afterwards; trim once it has settled, then every
+    # 10 minutes while nothing BAKA is open.
+    $script:trimTimer=[System.Windows.Threading.DispatcherTimer]::new();$script:trimTimer.Interval=[TimeSpan]::FromSeconds(20)
+    $script:trimTimer.Add_Tick({param($sender,$eventArgs)
+        $sender.Interval=[TimeSpan]::FromMinutes(10)
+        $busy=@('Dashboard','Files','Quick','Settings','Launchpad'|Where-Object {$script:windows[$_] -and $script:windows[$_].IsVisible}).Count
+        if(-not $busy){Optimize-BakaFootprint $(if($sender.Tag){'idle'}else{'startup'})};$sender.Tag='started'
+    })
+    $script:trimTimer.Start()
     Invoke-BakaTaskbarMode
     if([string]$script:config.wallpaper.mode -ne 'Default'){Invoke-BakaWallpaper}
     if($script:config.widgets.enabled -and $script:widgetUserVisible){Update-BakaWidgetPolling}
@@ -2592,4 +2632,6 @@ try {
     try{[void](Set-BakaCompanionProfile 'Desktop')}catch{}
     [System.Windows.Forms.MessageBox]::Show(('BAKA stopped safely. Explorer remains available.`r`n`r`n{0}' -f $_.Exception.Message),'BAKA Liquid',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null
     if($script:instanceLock.Acquired){Exit-BakaCompanionInstance -Lock $script:instanceLock}
+    # Non-zero: the BAKA shell launcher restarts the desktop (or falls back to Explorer after 3 tries).
+    exit 1
 }
