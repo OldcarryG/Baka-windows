@@ -54,9 +54,11 @@ try {
     $images = @($imageIndexes | ForEach-Object { Get-WindowsImage -ImagePath $imagePath -Index $_.ImageIndex })
     if ($images.Count -ne 1 -or $images[0].EditionId -ne 'Professional') { throw 'ISO must contain exactly one Windows 11 Pro image.' }
     if ($images[0].Version -ne $base.latestKnownServicing.build) { throw "ISO image build $($images[0].Version) does not match the pinned serviced build $($base.latestKnownServicing.build)." }
-    $browser = Join-Path $media 'sources\$OEM$\$1\ProgramData\BAKA\Apps\BakaBrowser-win-Setup-1.2.0.exe'
+    # The pinned browser package comes from the application manifest, so a browser update cannot drift from it.
+    $browserApp = @((Get-Content -LiteralPath (Join-Path $root 'Config\Applications.json') -Raw | ConvertFrom-Json).applications | Where-Object { $_.id -eq 'baka-browser' })[0]
+    $browser = Join-Path $media ('sources\$OEM$\$1\ProgramData\BAKA\Apps\' + (Split-Path -Leaf ([string]$browserApp.relativePath)))
     $browserHash = if (Test-Path -LiteralPath $browser) { Get-BakaSha256 -Path $browser } else { $null }
-    if ($browserHash -ne 'E381B835A0607EE2006A9A89588161DA2125518398AEBDB8FFE0CCFB1C342488') { throw 'Pinned Baka Browser package is missing or has a hash mismatch.' }
+    if (-not $browserApp -or $browserHash -ne ([string]$browserApp.sha256).ToUpperInvariant()) { throw "Pinned Baka Browser package is missing or has a hash mismatch ($browser)." }
     $gameTestScope = [pscustomobject]@{ CS2='Not run'; TeamFortress2='Not run'; VALORANT='Excluded by user instruction' }
     $result = [pscustomobject]@{ ValidatedAt=(Get-Date).ToString('o'); IsoPath=(Resolve-Path -LiteralPath $IsoPath).Path; Sha256=$isoHash; SetupSignature=$setupSignatureStatus; Edition=$images[0].ImageName; ImageBuild=$images[0].Version; BrowserPackageSha256=$browserHash; StructuralChecks='Passed'; VmBootTest='Not run'; PhysicalInstallTest='Not run'; GameTestScope=$gameTestScope }
     $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $root 'Logs\ISO-Validation.json') -Encoding UTF8

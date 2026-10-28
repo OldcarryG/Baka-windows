@@ -1,57 +1,56 @@
-# BAKA Windows — your requests checklist
+# BAKA Windows: your requests checklist
 
-Updated: 2026-10-28. A box is ticked only when it is done **and** verified. "Source done" means the code is written and the automated tests pass, but it has not been seen working on an installed BAKA system yet.
+Updated: 2026-10-28 (R8). A box is ticked only when it is done **and** verified on an installed BAKA system. "Built" means the code is written and the automated tests pass, but it has not yet been seen working in an installed VM.
 
-Legend: ✅ done and verified · 🟡 source done, not yet verified on an installed system · 🔄 in progress · ❌ not done / blocked
+Legend: ✅ done and verified · 🟡 built, waiting for VM proof · 🔄 in progress · ❌ not done / blocked
 
 ## Core OS
 
 | | Request | Status / evidence |
 |---|---|---|
-| ✅ | Remove junk apps (debloat) | 19 exact packages removed; verified in the installed R5.3 VM (Settings > Installed apps listed only Edge and Remote Desktop) |
-| 🟡 | Remove useless services and background tasks | Telemetry/feedback services and 13 tasks are disabled and restorable; tests 4/4. Service state not yet inspected in an installed VM |
-| 🟡 | Privacy, no ads, no tracking | Copilot, Recall, ads ID, tips, suggestions, Start web search, Spotlight, Edge first-run nags off. Windows Pro still keeps "required" diagnostics (Microsoft limit) |
-| ✅ | No Windows login page | Installed R5.3 VM booted straight to the desktop with no password |
-| 🟡 | Better gaming performance for all games | Game Mode, GPU scheduling, no background recording, raw mouse input, any-game detection. **No FPS gain is proven** — needs a real PC |
-| 🟡 | Gaming power plan with tweaks | "BAKA Gaming" plan (Ultimate Performance base + CPU, USB, PCIe, sleep tweaks) created at first logon; switches on in Gaming mode. Tested on this PC's powercfg reads, not yet in VM |
-| ❌ | Proven FPS / latency improvement | Blocked: needs physical gaming hardware, not a VM |
+| ✅ | Remove junk apps (debloat) | 19 exact packages removed; installed VM's Installed apps listed only Edge and Remote Desktop |
+| 🟡 | Remove useless services and background tasks | Telemetry/feedback services and 13 tasks disabled and restorable; tests 4/4 |
+| 🟡 | Privacy, no ads, no tracking | Copilot, Recall, ads ID, tips, suggestions, Start web search, Spotlight, Edge nags off. Windows Pro keeps "required" diagnostics (Microsoft limit) |
+| ✅ | No Windows login page | Installed R5.3 and R7 VMs boot straight to the desktop with no password |
+| 🟡 | Gaming tweaks for every game (improved in R8) | Game Mode, GPU scheduling, no recording, raw mouse, foreground CPU priority (Win32PrioritySeparation 38), no power throttling, VRR + windowed-game optimizations, MMCSS foreground-only, no Sticky/Filter/Toggle Keys pop-ups. All backed up and restorable. **Your PC test decides the FPS result** |
+| 🟡 | BAKA Gaming power plan (improved in R8) | 22 settings on an Ultimate Performance base: 100% min CPU, EPP 0, boost aggressive/100%, no core parking, no throttle states, active cooling, faster ramp-up, USB/PCIe/AHCI/NVMe power saving off, no sleep or wake timers on AC; hibernation off on desktops. Laptops keep battery-friendly DC values |
+| ❌ | Proven FPS / latency improvement | You are testing on your PC after the build (not tested here, by your request) |
 
 ## Browser
 
 | | Request | Status / evidence |
 |---|---|---|
-| 🟡 | Baka Browser preinstalled | Installs from the copy inside the ISO before the desktop appears, plus self-repair. **R5.3 VM showed it did not install** — fixed in R6/R7, not yet re-verified |
-| 🟡 | Baka Browser is the default browser | Default-associations policy + registration. Not yet verified in an installed VM |
+| 🟡 | Baka Browser preinstalled | Baka Browser 1.3.0 ships inside the ISO and installs before the desktop appears, plus self-repair |
+| 🟡 | Baka Browser is the default browser | Default-associations policy + registration |
+| ✅ | Baka Browser matches the BAKA theme | New **Baka** theme (graphite surfaces, white text and accent), default on new installs. Built from source; 26/26 self-checks pass, including contrast. Pushed to OldcarryG/Baka-browser `4e47a7a` (v1.3.0, not tagged as a GitHub release) |
 
 ## Desktop and UI
 
 | | Request | Status / evidence |
 |---|---|---|
-| ✅ | New design you approved: Carbon layout + Stealth Mono colors | Design capture `docs/evidence/screenshots/20261028-baka-r7-carbon-mono-design-capture.png` |
-| 🟡 | Liquid glass look like Apple, with animation | Frosted glass, glint sweep, dock bounce, window pop. Real Windows 11 glass not yet seen in the VM |
-| 🟡 | Completely replace the Windows taskbar (full shell, not a layer) | BAKA becomes the Windows shell at first sign-in; Explorer's taskbar/Start/desktop never load. Not yet seen in the VM |
-| 🟡 | Close buttons everywhere | Red close / amber hide lights on Arena, Files, Settings, Control Center; Esc closes; Launchpad has ✕ |
-| 🟡 | Custom wallpaper (image, video, color, gallery) | 5 BAKA wallpapers (Stealth default) + any image/video/color; in shell mode BAKA draws the desktop itself |
-| 🟡 | Full customisation freedom | Themes, accent, glass, motion, dock side/size, pinned apps, custom icons, widgets, menu bar |
-| 🟡 | Useful things in the UI | Launchpad (all apps), Control Center (volume, power plan, profiles, power actions), Files, Arena stats, Windows-key launcher |
-| 🟡 | No PowerShell commands to run things | Tools moved into BAKA Settings > System and a Start-menu folder; they run without a console window |
-| ❌ | Tray icons (Discord, Steam) in full shell mode | Not done: the tray needs a native tray host. Works only while Explorer runs |
-| ❌ | Native C# rewrite for speed and low memory | Not done: this PC has no .NET SDK/MSBuild. The shell is still PowerShell + WPF (~200 MB RAM) |
-| ❌ | Windows Settings / Store / Xbox work in full shell mode | Unknown risk on Windows Pro without Explorer; must be tested in the VM |
+| ✅ | Design you approved: Carbon layout + Stealth Mono colors | Seen in the installed R7 VM: left dock, menu bar, mono wallpaper, Arena |
+| 🟡 | Liquid glass look with animation | Frosted glass, glint sweep, dock bounce, window pop |
+| 🟡 | Completely replace the Windows taskbar (full shell) | **R7 VM bug found:** using powershell.exe as the shell opened a visible Windows Terminal, and nothing restarted BAKA when it stopped. **Fixed in R8:** a windowless native launcher (BakaShell.exe) is the shell, restarts BAKA, and falls back to Explorer after 3 failures |
+| 🟡 | Close buttons everywhere | Red close / amber hide lights on Arena, Files, Settings, Control Center; Esc; Launchpad ✕ |
+| 🟡 | Custom wallpaper (image, video, color, gallery) | 5 BAKA wallpapers (Stealth default) + any image/video/color |
+| 🟡 | Full customisation freedom | Themes, accent, glass, motion, dock side/size, pinned apps, icons, widgets, menu bar |
+| 🟡 | Useful things in the UI | Launchpad, Control Center (volume, power plan, profiles, power actions), Files, Arena, Windows-key launcher |
+| 🟡 | No PowerShell commands to run things | Tools in BAKA Settings > System and a Start-menu folder, no console windows; the shell itself no longer runs in a console (R8) |
+| 🟡 | Optimized UI (improved in R8) | Arena built only when opened, foreground-app lookup only when the window changes, memory trimmed after startup and when a game starts, desktop drops to below-normal CPU priority during games, taskbar guard skipped in shell mode |
+| ❌ | Tray icons (Discord, Steam) in full shell mode | Not done: needs a native tray host |
+| ❌ | Fully native C# desktop | Not done: the launcher is native now, the desktop UI is still PowerShell + WPF |
+| ❌ | Windows Settings / Store / Xbox in full shell mode | Not yet tested in the VM |
 
 ## Shipping
 
 | | Request | Status / evidence |
 |---|---|---|
-| ✅ | Source and tests uploaded to GitHub | `670babb` pushed to github.com/OldcarryG/Baka-windows; all 9 test suites pass |
-| 🔄 | Clean R7 ISO | Building now (`Output/BAKA-Windows-Gaming-Edition-26H2-x64-CarbonShell-R7-20261028.iso`) |
-| 🔄 | Test the R7 changes in VMware | Disposable test VM reinstalls automatically after the ISO build (your own VM is never touched) |
-| ❌ | Games tested (CS2 / TF2) | Blocked: needs your Steam login inside the VM |
-| ❌ | GitHub progress page updated to final numbers | Waiting for the R7 VM results so the numbers are real |
-| ❌ | 100% complete | Not honest yet: FPS proof, tray, native shell, and VM checks are still open |
+| ✅ | Source and tests on GitHub | `68bbd27` on OldcarryG/Baka-windows; all 9 test suites pass |
+| ✅ | Clean R8 ISO | `Output/BAKA-Windows-Gaming-Edition-26H2-x64-CarbonShell-R8-20261028.iso`, 11,174,055,936 bytes, SHA-256 `187EE1E10BF0A204C7F436C68648C0F458BE73298A7124B0C4CBB5B12D5AA488`. Structural validation passed: valid Microsoft Setup signature, Windows 11 Pro 26300.9711, Baka Browser 1.3.0 hash matches, BakaShell.exe present |
+| ❌ | Test R8 in VMware | Blocked: the VMware encryption password for the test VM is no longer saved in Windows Credential Manager, so the VM cannot be reinstalled automatically |
+| ➖ | Games tested | Skipped here by your request; you test on your PC |
+| ❌ | 100% complete | Not yet: VM proof for the 🟡 items, tray icons, native desktop |
 
 ## Score
 
-4 of 26 items fully verified (✅), 13 written and waiting for VM proof (🟡), 2 in progress (🔄), 7 not done or blocked (❌).
-
-I update this file each time an item changes, and push it to GitHub.
+6 of 27 verified (✅), 14 built and waiting for VM or PC proof (🟡), 6 not done, blocked, or waiting on your PC test (❌), 1 skipped by request (➖).
