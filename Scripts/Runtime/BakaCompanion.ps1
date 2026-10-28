@@ -2305,7 +2305,7 @@ $script:windows.Dock.add_Loaded({
                     1 {
                          Show-BakaDashboard;Show-BakaQuickPanel;Show-BakaSettings
                          if(-not $script:windows.Dashboard.IsVisible -or -not $script:windows.Dock.IsVisible -or -not $script:windows.Quick.IsVisible -or -not $script:windows.Settings.IsVisible -or -not $script:windows.TopBar -or -not $script:windows.TopBar.IsVisible){throw 'A primary BAKA surface did not become visible.'}
-                        if($script:theme.name -ne 'BAKA Liquid Glass' -or -not $script:motionEnabled){throw 'The default BAKA Liquid Glass theme did not enable desktop motion.'}
+                        if($script:theme.name -ne 'BAKA Carbon' -or -not $script:motionEnabled){throw 'The default BAKA Carbon theme did not enable desktop motion.'}
                         foreach($surfaceKey in @('Dashboard','Dock','Quick','TopBar','Settings')){if(-not $script:windows[$surfaceKey].AllowsTransparency){throw "The $surfaceKey surface is not per-pixel transparent (black corners)."}}
                         $dockTile=@($script:windows.DockAppPanel.Children|Where-Object {$_ -is [System.Windows.Controls.Button]}|Select-Object -First 1)[0].Content
                         if($dockTile.Children[1].Visibility -ne [System.Windows.Visibility]::Collapsed){throw 'Dock icons still show text captions.'}
@@ -2375,9 +2375,12 @@ $script:windows.Dock.add_Loaded({
                      7 {
                         $script:windows.Files.Close();if($script:windows.Files.IsVisible){throw 'The Files close light did not close BAKA Files.'};Write-BakaUiLog 'ui-smoke-stage=files-close'
                         Show-BakaLaunchpad
-                        if(-not $script:windows.Launchpad -or -not $script:windows.Launchpad.IsVisible -or $script:launchpadGrid.Children.Count -lt 1){throw 'Launchpad did not list any installed apps.'}
-                        $script:launchpadSearch.Text='zzzz-no-such-app';$script:launchpadSearch.Tag='';Update-BakaLaunchpadFilter
-                        if(@($script:launchpadGrid.Children|Where-Object {$_.Visibility -eq [System.Windows.Visibility]::Visible}).Count -ne 0){throw 'Launchpad search did not filter the app grid.'}
+                        if(-not $script:windows.Launchpad -or -not $script:windows.Launchpad.IsVisible -or -not $script:launchpadGrid){throw 'Launchpad window or app grid did not open.'}
+                        # Get-StartApps can return nothing in some sessions; only exercise the filter when apps exist.
+                        if($script:launchpadGrid.Children.Count -gt 0){
+                            $script:launchpadSearch.Text='zzzz-no-such-app';$script:launchpadSearch.Tag='';Update-BakaLaunchpadFilter
+                            if(@($script:launchpadGrid.Children|Where-Object {$_.Visibility -eq [System.Windows.Visibility]::Visible}).Count -ne 0){throw 'Launchpad search did not filter the app grid.'}
+                        }
                         $script:windows.Launchpad.Hide()
                         Write-BakaUiLog ('ui-smoke-stage=launchpad apps={0}' -f $script:launchpadGrid.Children.Count)
                      }

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "appearance": {
-    "theme": "BAKA Liquid Glass",
-    "accentColor": "#5AC8FA",
+    "theme": "BAKA Carbon",
+    "accentColor": "#FAFAFA",
     "glassIntensity": 34,
     "animationIntensity": "Full",
     "reducedMotion": false
