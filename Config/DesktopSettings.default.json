@@ -22,8 +22,8 @@
   },
   "dock": {
     "alignment": "Left",
-    "iconSize": 52,
-    "spacing": 8,
+    "iconSize": 40,
+    "spacing": 6,
     "autoHide": false,
     "magnification": true,
     "monitor": "Primary"

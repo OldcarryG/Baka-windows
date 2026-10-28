@@ -4,7 +4,7 @@ function Get-BakaDefaultDesktopConfiguration {
     [pscustomobject]@{
         SchemaVersion=1
         Appearance=[pscustomobject]@{ Theme='BAKA Carbon'; AccentColor='#FAFAFA'; GlassIntensity=40; AnimationIntensity='Full'; ReducedMotion=$false }
-        Dock=[pscustomobject]@{ Alignment='Left'; IconSize=52; Spacing=9; AutoHide=$false; Magnification=$true; Monitor='Primary' }
+        Dock=[pscustomobject]@{ Alignment='Left'; IconSize=40; Spacing=6; AutoHide=$false; Magnification=$true; Monitor='Primary' }
         TopBar=[pscustomobject]@{ Enabled=$true; ShowProfile=$true; ShowDate=$true; Monitor='Primary' }
         Widgets=[pscustomobject]@{
             Enabled=$false; RefreshSeconds=3

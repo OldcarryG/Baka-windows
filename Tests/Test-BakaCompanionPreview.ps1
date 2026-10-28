@@ -31,8 +31,15 @@ $sourceGuards=@(
     [pscustomobject]@{Name='desktop drops below normal priority during games';Pattern='ProcessPriorityClass\]::BelowNormal'},
     [pscustomobject]@{Name='foreground app lookup only runs when the window changes';Pattern='\$script:lastForegroundWindow=\$foreground'},
     [pscustomobject]@{Name='the Windows shell is the windowless launcher, never powershell.exe';Pattern="Scripts\\BakaShell\.exe"},
-    [pscustomobject]@{Name='a rejected second launch exits with code 3 for the launcher';Pattern="second-launch-rejected';exit 3"}
+    [pscustomobject]@{Name='a rejected second launch exits with code 3 for the launcher';Pattern="second-launch-rejected';exit 3"},
+    [pscustomobject]@{Name='the Windows key opens the launcher with or without Explorer';Pattern='function Initialize-BakaWindowsKey'},
+    [pscustomobject]@{Name='the Win key-up is never swallowed (Win would stay held down)';Pattern='keybd_event\(0xE8, 0, 0, UIntPtr\.Zero\)'},
+    [pscustomobject]@{Name='app icons are tinted to match monochrome themes';Pattern='\[BakaIconTint\]::Mono'},
+    [pscustomobject]@{Name='no blur-shadow effects on glass windows (lag)';Pattern='\$Window\.Tag\.Effect=\$null'},
+    [pscustomobject]@{Name='the full-screen Launchpad is opaque (no per-pixel transparency)';Pattern='\$window\.AllowsTransparency=\$false'},
+    [pscustomobject]@{Name='large windows use the compact scale';Pattern='Set-BakaCompactScale \$window 0\.8;\$script:windows\.Dashboard'}
 )
+if($source -match 'return new IntPtr\(1\); \}\s*\}\s*\} else if'){throw 'The Windows key hook must not swallow Win key-up.'}
 $launcherSource=Get-Content -LiteralPath (Join-Path $root 'Scripts\Runtime\BakaShell.cs') -Raw
 foreach($needle in @('CreateNoWindow = true','UseShellExecute = false','failures.Count >= 3','StartExplorer("repeated-failures")','code == 3')){if(-not $launcherSource.Contains($needle)){throw "BAKA shell launcher guard failed: $needle"}}
 $firstLogonSource=Get-Content -LiteralPath (Join-Path $root 'Scripts\Runtime\FirstLogon.ps1') -Raw
