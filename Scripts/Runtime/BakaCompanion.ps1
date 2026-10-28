@@ -1012,6 +1012,7 @@ function Update-BakaProfileStatus {
     if($script:windows.BarProfile -and $script:config.topBar.showProfile){$script:windows.BarProfile.Text=$script:activeProfile.ToUpperInvariant()}
     if($script:windows.DashNavStatus){$script:windows.DashNavStatus.Text=('{0}  /  {1}' -f $mode,$script:activeProfile.ToUpperInvariant())}
     if($script:windows.DashActiveProfile){$script:windows.DashActiveProfile.Text=$script:activeProfile.ToUpperInvariant()}
+    Update-BakaArenaProfileTiles
 }
 if(-not ('BakaMemory' -as [type])){
     Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public static class BakaMemory{[DllImport("psapi.dll")] public static extern bool EmptyWorkingSet(IntPtr process);}' -ErrorAction SilentlyContinue
@@ -1111,7 +1112,7 @@ function Update-BakaDashboardMetrics($Metrics){
         DashDisk=if($null -ne $Metrics.DiskFreeGiB){'{0:N0} GB' -f $Metrics.DiskFreeGiB}else{'--'}
     }
     foreach($name in $values.Keys){if($script:windows[$name]){$script:windows[$name].Text=$values[$name]}}
-    if($script:windows.DashTelemetry){$script:windows.DashTelemetry.Text=('LIVE WINDOWS TELEMETRY  ·  UPDATED {0}' -f (Get-Date -Format 'HH:mm:ss'))}
+    if($script:windows.DashTelemetry){$script:windows.DashTelemetry.Text=('Live Windows numbers  ·  updated {0}' -f (Get-Date -Format 'HH:mm:ss'))}
 }
 function Show-BakaDashboard {
     # Built on first use: Arena is the heaviest surface and most sessions never open it.
@@ -1121,38 +1122,99 @@ function Show-BakaDashboard {
     $window.Left=$area.Left+([math]::Max(20,($area.Width-$window.Width)/2));$window.Top=$area.Top+([math]::Max(24,($area.Height-$window.Height)/2-22))
     Show-BakaWindow $window -Activate;Update-BakaWidgetPolling;Start-BakaMetricRead
 }
+function New-BakaArenaTile([string]$Label,[string]$Copy,[string]$Glyph,[scriptblock]$Action){
+    # One compact tile: mono line icon, a title and one line of detail. The whole tile is the button.
+    $button=[System.Windows.Controls.Button]::new();$button.Template=Get-BakaPillTemplate 12;$button.Cursor=[System.Windows.Input.Cursors]::Hand
+    $button.Padding=[System.Windows.Thickness]::new(12,9,12,9);$button.Margin=[System.Windows.Thickness]::new(4);$button.HorizontalContentAlignment=[System.Windows.HorizontalAlignment]::Left
+    $button.Background=New-BakaBrush $script:theme.surfaceAlt 200;$button.BorderBrush=$script:borderBrush;$button.BorderThickness=[System.Windows.Thickness]::new(1);$button.Foreground=$script:textBrush
+    [System.Windows.Automation.AutomationProperties]::SetName($button,$Label)
+    $row=[System.Windows.Controls.StackPanel]::new();$row.Orientation=[System.Windows.Controls.Orientation]::Horizontal
+    $icon=New-BakaText $Glyph 15 'Normal' $script:textBrush;$icon.FontFamily=[System.Windows.Media.FontFamily]::new('Segoe Fluent Icons, Segoe MDL2 Assets');$icon.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$icon.Margin=[System.Windows.Thickness]::new(0,0,10,0);$row.Children.Add($icon)|Out-Null
+    $text=[System.Windows.Controls.StackPanel]::new();$text.Children.Add((New-BakaText $Label 11 'Bold'))|Out-Null
+    if($Copy){$detail=New-BakaText $Copy 9.5 'Normal' $script:mutedBrush;$detail.TextTrimming=[System.Windows.TextTrimming]::CharacterEllipsis;$text.Children.Add($detail)|Out-Null}
+    $row.Children.Add($text)|Out-Null;$button.Content=$row
+    $button.Add_MouseEnter({param($sender,$eventArgs)if($sender.Tag -ne 'Active'){$sender.Background=New-BakaBrush $script:theme.surfaceAlt 255}})
+    $button.Add_MouseLeave({param($sender,$eventArgs)if($sender.Tag -ne 'Active'){$sender.Background=New-BakaBrush $script:theme.surfaceAlt 200}})
+    [void]$button.Add_Click($Action);return $button
+}
+function Update-BakaArenaProfileTiles {
+    # The active profile's tile is outlined in the accent colour; the others stay plain.
+    if(-not $script:arenaProfileTiles){return}
+    foreach($pair in $script:arenaProfileTiles.GetEnumerator()){
+        $active=$pair.Key -eq $script:activeProfile;$tile=$pair.Value
+        $tile.Tag=if($active){'Active'}else{$null}
+        $tile.BorderBrush=if($active){$script:accentBrush}else{$script:borderBrush}
+        $tile.BorderThickness=[System.Windows.Thickness]::new($(if($active){1.5}else{1}))
+        $tile.Background=New-BakaBrush $script:theme.surfaceAlt $(if($active){255}else{200})
+    }
+}
+function New-BakaArenaSection([string]$Text){
+    $label=New-BakaText $Text 9 'Bold' $script:mutedBrush;$label.Margin=[System.Windows.Thickness]::new(8,10,0,2);return $label
+}
 function New-BakaDashboard {
-    $window=New-BakaWindow 1120 790 'BAKA Arena' $false $true;$window.ShowInTaskbar=$false;$window.Topmost=[bool]$ArenaSmoke
-    $layout=[System.Windows.Controls.Grid]::new();$layout.Margin=[System.Windows.Thickness]::new(4)
-    foreach($height in @([System.Windows.GridLength]::new(58,[System.Windows.GridUnitType]::Pixel),[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star))){$row=[System.Windows.Controls.RowDefinition]::new();$row.Height=$height;$layout.RowDefinitions.Add($row)}
-    $nav=[System.Windows.Controls.Grid]::new();$nav.Margin=[System.Windows.Thickness]::new(4,0,4,8);$nav.ColumnDefinitions.Add([System.Windows.Controls.ColumnDefinition]::new());$nav.ColumnDefinitions.Add([System.Windows.Controls.ColumnDefinition]::new());$nav.ColumnDefinitions.Add([System.Windows.Controls.ColumnDefinition]::new());
-    $brandStack=[System.Windows.Controls.StackPanel]::new();$brandStack.Orientation=[System.Windows.Controls.Orientation]::Horizontal
-    $brand=New-BakaText 'BAKA' 23 'Bold' $script:textBrush;$brandStack.Children.Add($brand)|Out-Null;$slash=New-BakaText '  /  ARENA' 13 'Bold' $script:accentBrush;$slash.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$brandStack.Children.Add($slash)|Out-Null
-    $subtitle=New-BakaText 'LIQUID GLASS GAMING DESKTOP' 9 'Normal' $script:mutedBrush;$subtitle.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$subtitle.Margin=[System.Windows.Thickness]::new(16,0,0,0);$brandStack.Children.Add($subtitle)|Out-Null;$nav.Children.Add($brandStack)|Out-Null
-    $navStatus=New-BakaText 'READY' 10 'Bold' $script:accentBrush;$navStatus.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Center;$navStatus.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$navStatus.Name='DashNavStatus';$script:windows.DashNavStatus=$navStatus;[System.Windows.Controls.Grid]::SetColumn($navStatus,1);$nav.Children.Add($navStatus)|Out-Null
-    $right=[System.Windows.Controls.StackPanel]::new();$right.Orientation=[System.Windows.Controls.Orientation]::Horizontal;$right.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Right
-    $clock=New-BakaText (Get-Date -Format 'HH:mm') 12 'Bold' $script:textBrush;$clock.Name='DashClock';$script:windows.DashClock=$clock;$clock.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$right.Children.Add($clock)|Out-Null
-    [System.Windows.Controls.Grid]::SetColumn($right,2);$nav.Children.Add($right)|Out-Null
-    $layout.Children.Add($nav)|Out-Null
-    $body=[System.Windows.Controls.Grid]::new();$body.ColumnDefinitions.Add([System.Windows.Controls.ColumnDefinition]::new());$body.ColumnDefinitions.Add([System.Windows.Controls.ColumnDefinition]::new());$body.ColumnDefinitions[0].Width=[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star);$body.ColumnDefinitions[1].Width=[System.Windows.GridLength]::new(350,[System.Windows.GridUnitType]::Pixel);[System.Windows.Controls.Grid]::SetRow($body,1);$layout.Children.Add($body)|Out-Null
-    $left=[System.Windows.Controls.Grid]::new();$left.RowDefinitions.Add([System.Windows.Controls.RowDefinition]::new());$left.RowDefinitions.Add([System.Windows.Controls.RowDefinition]::new());$left.RowDefinitions.Add([System.Windows.Controls.RowDefinition]::new());$left.RowDefinitions.Add([System.Windows.Controls.RowDefinition]::new());foreach($leftRow in $left.RowDefinitions){$leftRow.Height=[System.Windows.GridLength]::Auto};[System.Windows.Controls.Grid]::SetColumn($left,0);$body.Children.Add($left)|Out-Null
-    $hero=New-BakaArenaCard 0 0 224;$hero.MinHeight=210;$hero.Margin=[System.Windows.Thickness]::new(6);$heroGrid=[System.Windows.Controls.Grid]::new();$heroGrid.ColumnDefinitions.Add([System.Windows.Controls.ColumnDefinition]::new());$heroColumn=[System.Windows.Controls.ColumnDefinition]::new();$heroColumn.Width=[System.Windows.GridLength]::new(230,[System.Windows.GridUnitType]::Pixel);$heroGrid.ColumnDefinitions.Add($heroColumn);
-    $heroCopy=[System.Windows.Controls.StackPanel]::new();$eyebrow=New-BakaText 'YOUR WINDOWS. TUNED WITH INTENT.' 10 'Bold' $script:accentBrush;$heroCopy.Children.Add($eyebrow)|Out-Null;$heroTitle=New-BakaText 'Game with intent.' 34 'Bold';$heroTitle.Margin=[System.Windows.Thickness]::new(0,8,0,3);$heroCopy.Children.Add($heroTitle)|Out-Null;$heroCopy.Children.Add((New-BakaText 'A focused desktop for play, creation, and control. Safe defaults stay native; every BAKA change is visible and reversible.' 12 'Normal' $script:mutedBrush))|Out-Null
-    $heroActions=[System.Windows.Controls.WrapPanel]::new();$launch=New-BakaArenaButton 'Launch Gaming Mode' {try{[void](Set-BakaUiProfile 'CompetitiveGaming' 'Manual')}catch{[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'BAKA profile',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}} ([string][char]0xE7FC) -Primary;$heroActions.Children.Add($launch)|Out-Null;$control=New-BakaArenaButton 'Control center' {Show-BakaQuickPanel} ([string][char]0xE713);$heroActions.Children.Add($control)|Out-Null;[System.Windows.Controls.Grid]::SetColumn($heroCopy,0);$heroGrid.Children.Add($heroCopy)|Out-Null
-    $heroBadge=New-BakaArenaCard 204 0 125;$heroBadge.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$heroBadge.Margin=[System.Windows.Thickness]::new(12,6,0,6);$badgeStack=[System.Windows.Controls.StackPanel]::new();$badge=New-BakaText 'ACTIVE PROFILE' 10 'Bold' $script:mutedBrush;$badgeStack.Children.Add($badge)|Out-Null;$active=New-BakaText 'DESKTOP' 28 'Bold' $script:accentBrush;$active.Name='DashActiveProfile';$script:windows.DashActiveProfile=$active;$badgeStack.Children.Add($active)|Out-Null;$badgeLine=New-BakaText 'BAKA Gaming power plan  ·  Native scheduler' 10 'Normal' $script:mutedBrush;$badgeLine.TextWrapping=[System.Windows.TextWrapping]::Wrap;$badgeStack.Children.Add($badgeLine)|Out-Null;$heroBadge.Child=$badgeStack;[System.Windows.Controls.Grid]::SetColumn($heroBadge,1);$heroGrid.Children.Add($heroBadge)|Out-Null;$hero.Child=$heroGrid;$left.Children.Add($hero)|Out-Null
-    $profiles=[System.Windows.Controls.WrapPanel]::new();$profiles.Margin=[System.Windows.Thickness]::new(0,5,0,5);$profileData=@([pscustomobject]@{Name='Desktop';Label='DESKTOP';Glyph=[string][char]0xE80F;Copy='Glass + widgets + motion';Color='#7CE7FF'},[pscustomobject]@{Name='CompetitiveGaming';Label='COMPETITIVE';Glyph=[string][char]0xE7FC;Copy='Game Mode + low overhead';Color='#66F2C5'},[pscustomobject]@{Name='Benchmark';Label='BENCHMARK';Glyph=[string][char]0xE9D2;Copy='Clean, repeatable capture';Color='#C59BFF'})
-    foreach($data in $profileData){$card=New-BakaArenaCard 205 0 200;$card.MinHeight=118;$card.Tag=$data.Name;$stack=[System.Windows.Controls.StackPanel]::new();$tag=New-BakaText $data.Label 11 'Bold' $script:accentBrush;$stack.Children.Add($tag)|Out-Null;$stack.Children.Add((New-BakaText $data.Copy 11 'Normal' $script:mutedBrush))|Out-Null;$button=New-BakaArenaButton 'Activate' {param($sender,$eventArgs)try{[void](Set-BakaUiProfile ([string]$sender.Tag) 'Manual')}catch{[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'BAKA profile',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}} $data.Glyph;$button.Tag=$data.Name;$button.Margin=[System.Windows.Thickness]::new(-4,8,0,0);$stack.Children.Add($button)|Out-Null;$card.Child=$stack;$profiles.Children.Add($card)|Out-Null}
-    [System.Windows.Controls.Grid]::SetRow($profiles,1);$left.Children.Add($profiles)|Out-Null
-    $metrics=[System.Windows.Controls.Primitives.UniformGrid]::new();$metrics.Columns=4;$metrics.Margin=[System.Windows.Thickness]::new(0,0,0,2);$metricColor=[string]$script:theme.text
-$metricData=@([pscustomobject]@{Name='DashCpu';Label='CPU LOAD';Value='--';Color=$metricColor},[pscustomobject]@{Name='DashMemory';Label='MEMORY';Value='--';Color=$metricColor},[pscustomobject]@{Name='DashGpu';Label='GPU ENGINE';Value='N/A';Color=$metricColor},[pscustomobject]@{Name='DashDisk';Label='SYSTEM FREE';Value='--';Color=$metricColor})
-    foreach($item in $metricData){$card=New-BakaArenaCard 0 0 190;$card.MinHeight=82;$card.Margin=[System.Windows.Thickness]::new(6);$stack=[System.Windows.Controls.StackPanel]::new();$stack.Children.Add((New-BakaText $item.Label 9 'Bold' $script:mutedBrush))|Out-Null;$value=New-BakaText $item.Value 24 'Bold' (New-BakaBrush $item.Color 255);$value.Name=$item.Name;$script:windows[$item.Name]=$value;$stack.Children.Add($value)|Out-Null;$card.Child=$stack;$metrics.Children.Add($card)|Out-Null};[System.Windows.Controls.Grid]::SetRow($metrics,2);$left.Children.Add($metrics)|Out-Null
-    $session=New-BakaArenaCard 0 112 190;$sessionStack=[System.Windows.Controls.StackPanel]::new();$sessionStack.Children.Add((New-BakaText 'BAKA FOUNDATION' 10 'Bold' $script:accentBrush))|Out-Null;$sessionStack.Children.Add((New-BakaText 'A native Windows base with a BAKA control layer on top.' 12 'Bold'))|Out-Null;$sessionStack.Children.Add((New-BakaText 'BAKA menu bar + dock  ·  BAKA Gaming power plan  ·  Security preserved  ·  Every game detected automatically' 10 'Normal' $script:mutedBrush))|Out-Null;$sessionButton=New-BakaArenaButton 'Open BAKA Files workspace' {Show-BakaFiles} ([string][char]0xE8B7);$sessionButton.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Left;$sessionStack.Children.Add($sessionButton)|Out-Null;$session.Child=$sessionStack;[System.Windows.Controls.Grid]::SetRow($session,3);$left.Children.Add($session)|Out-Null
-    $rightPanel=[System.Windows.Controls.StackPanel]::new();$rightPanel.Margin=[System.Windows.Thickness]::new(5,6,5,6);[System.Windows.Controls.Grid]::SetColumn($rightPanel,1);$body.Children.Add($rightPanel)|Out-Null
-    $timeCard=New-BakaArenaCard 0 0 212;$timeStack=[System.Windows.Controls.StackPanel]::new();$timeStack.Children.Add((New-BakaText 'CLOCK  /  QUICK PANEL' 11 'Bold' $script:accentBrush))|Out-Null;$dashClockLarge=New-BakaText (Get-Date -Format 'HH:mm') 34 'Bold' $script:textBrush;$dashClockLarge.Name='DashClockLarge';$script:windows.DashClockLarge=$dashClockLarge;$timeStack.Children.Add($dashClockLarge)|Out-Null;$timeStack.Children.Add((New-BakaText (Get-Date -Format 'dddd, d MMMM yyyy') 10 'Normal' $script:mutedBrush))|Out-Null;$timeActions=[System.Windows.Controls.WrapPanel]::new();$timeActions.Children.Add((New-BakaArenaButton 'Quick Panel' {Show-BakaQuickPanel} ([string][char]0xE713)))|Out-Null;$timeActions.Children.Add((New-BakaArenaButton 'Calendar' {Show-BakaSettings 'Widgets'} ([string][char]0xE787)))|Out-Null;$timeStack.Children.Add($timeActions)|Out-Null;$timeCard.Child=$timeStack;$rightPanel.Children.Add($timeCard)|Out-Null
-    $controlCard=New-BakaArenaCard 0 0 212;$controlStack=[System.Windows.Controls.StackPanel]::new();$controlStack.Children.Add((New-BakaText 'CONTROL CENTER' 11 'Bold' $script:accentBrush))|Out-Null;$controlStack.Children.Add((New-BakaText 'Your important controls, without pretending to replace Windows.' 11 'Normal' $script:mutedBrush))|Out-Null;$quickButtons=[System.Windows.Controls.WrapPanel]::new();$quickButtons.Children.Add((New-BakaArenaButton 'Quick Panel' {Show-BakaQuickPanel} ([string][char]0xE713)))|Out-Null;$quickButtons.Children.Add((New-BakaArenaButton 'Files' {Show-BakaFiles} ([string][char]0xE8B7)))|Out-Null;$quickButtons.Children.Add((New-BakaArenaButton 'Customize' {Show-BakaSettings} ([string][char]0xE70F)))|Out-Null;$controlStack.Children.Add($quickButtons)|Out-Null;$auto=New-BakaArenaButton 'Auto-detect every game' {$script:manualOverride=$null;if($script:profileTimer -and -not $script:profileTimer.IsEnabled){$script:profileTimer.Start()};Update-BakaProfileStatus} ([string][char]0xE768);$controlStack.Children.Add($auto)|Out-Null;$controlCard.Child=$controlStack;$rightPanel.Children.Add($controlCard)|Out-Null
-    $ledger=New-BakaArenaCard 0 0 212;$ledgerStack=[System.Windows.Controls.StackPanel]::new();$ledgerStack.Children.Add((New-BakaText 'SAFE TWEAK LEDGER' 11 'Bold' $script:accentBrush))|Out-Null;$ledgerStack.Children.Add((New-BakaText 'Competitive Gaming applies only reversible user-level changes:' 10 'Normal' $script:mutedBrush))|Out-Null;foreach($line in @('✓ Windows Game Mode enabled','✓ Background apps paused','✓ Game DVR capture overhead off','✓ BAKA Gaming power plan active','✓ Security + recovery preserved')){$t=New-BakaText $line 10 'Normal' $script:textBrush;$t.Margin=[System.Windows.Thickness]::new(0,5,0,0);$ledgerStack.Children.Add($t)|Out-Null};$ledger.Child=$ledgerStack;$rightPanel.Children.Add($ledger)|Out-Null
-    $telemetry=New-BakaText 'LIVE WINDOWS TELEMETRY  ·  WAITING' 9 'Bold' $script:mutedBrush;$telemetry.Name='DashTelemetry';$script:windows.DashTelemetry=$telemetry;$telemetry.Margin=[System.Windows.Thickness]::new(12,9,0,0);$rightPanel.Children.Add($telemetry)|Out-Null
-    Set-BakaWindowContent $window $layout;Set-BakaCompactScale $window 0.8;$script:windows.Dashboard=$window;$window.add_Closing({param($sender,$eventArgs)if(-not $script:allowShutdown){$eventArgs.Cancel=$true;$sender.Hide()}});return $window
+    # Compact Arena at its real size (no scale transform): header, profile switch, live numbers, quick
+    # actions, and what Gaming mode changes. About a third of the old window's area.
+    $window=New-BakaWindow 720 470 'BAKA Arena' $false $true;$window.ShowInTaskbar=$false;$window.Topmost=[bool]$ArenaSmoke
+    $root=[System.Windows.Controls.StackPanel]::new();$root.Margin=[System.Windows.Thickness]::new(8,0,8,4)
+    $nav=[System.Windows.Controls.Grid]::new();$nav.Margin=[System.Windows.Thickness]::new(4,0,4,2)
+    foreach($w in @('Auto','*','Auto')){$col=[System.Windows.Controls.ColumnDefinition]::new();$col.Width=if($w -eq '*'){[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star)}else{[System.Windows.GridLength]::Auto};$nav.ColumnDefinitions.Add($col)}
+    $brand=[System.Windows.Controls.StackPanel]::new();$brand.Orientation=[System.Windows.Controls.Orientation]::Horizontal
+    $brand.Children.Add((New-BakaText 'BAKA' 15 'Bold'))|Out-Null;$name=New-BakaText '  Arena' 14 'Normal' $script:mutedBrush;$brand.Children.Add($name)|Out-Null;$nav.Children.Add($brand)|Out-Null
+    $chip=[System.Windows.Controls.Border]::new();$chip.CornerRadius=[System.Windows.CornerRadius]::new(10);$chip.Padding=[System.Windows.Thickness]::new(10,3,10,3);$chip.Background=New-BakaBrush $script:theme.surfaceAlt 220;$chip.BorderBrush=$script:borderBrush;$chip.BorderThickness=[System.Windows.Thickness]::new(1);$chip.HorizontalAlignment=[System.Windows.HorizontalAlignment]::Right;$chip.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;$chip.Margin=[System.Windows.Thickness]::new(0,0,12,0)
+    $navStatus=New-BakaText 'AUTO  /  DESKTOP' 9 'Bold' $script:mutedBrush;$navStatus.Name='DashNavStatus';$script:windows.DashNavStatus=$navStatus;$chip.Child=$navStatus;[System.Windows.Controls.Grid]::SetColumn($chip,1);$nav.Children.Add($chip)|Out-Null
+    $clock=New-BakaText (Get-Date -Format 'HH:mm') 13 'Bold' $script:textBrush;$clock.Name='DashClock';$script:windows.DashClock=$clock;$clock.VerticalAlignment=[System.Windows.VerticalAlignment]::Center;[System.Windows.Controls.Grid]::SetColumn($clock,2);$nav.Children.Add($clock)|Out-Null
+    $root.Children.Add($nav)|Out-Null
+
+    $root.Children.Add((New-BakaArenaSection 'PROFILE'))|Out-Null
+    $profiles=[System.Windows.Controls.Primitives.UniformGrid]::new();$profiles.Columns=3;$script:arenaProfileTiles=@{}
+    foreach($data in @(
+        [pscustomobject]@{Name='Desktop';Label='Desktop';Glyph=[string][char]0xE80F;Copy='Widgets and motion on'},
+        [pscustomobject]@{Name='CompetitiveGaming';Label='Gaming';Glyph=[string][char]0xE7FC;Copy='Game Mode, low overhead'},
+        [pscustomobject]@{Name='Benchmark';Label='Benchmark';Glyph=[string][char]0xE9D2;Copy='Clean, repeatable runs'})){
+        $profileName=$data.Name
+        $tile=New-BakaArenaTile $data.Label $data.Copy $data.Glyph ([scriptblock]::Create("try{[void](Set-BakaUiProfile '$profileName' 'Manual');Update-BakaArenaProfileTiles}catch{[System.Windows.Forms.MessageBox]::Show(`$_.Exception.Message,'BAKA profile',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)|Out-Null}"))
+        $script:arenaProfileTiles[$data.Name]=$tile;$profiles.Children.Add($tile)|Out-Null
+    }
+    $root.Children.Add($profiles)|Out-Null
+
+    $root.Children.Add((New-BakaArenaSection 'SYSTEM'))|Out-Null
+    $metrics=[System.Windows.Controls.Primitives.UniformGrid]::new();$metrics.Columns=4
+    foreach($item in @(
+        [pscustomobject]@{Name='DashCpu';Label='CPU';Glyph=[string][char]0xE9D9;Value='--'},
+        [pscustomobject]@{Name='DashMemory';Label='Memory in use';Glyph=[string][char]0xE964;Value='--'},
+        [pscustomobject]@{Name='DashGpu';Label='GPU engine';Glyph=[string][char]0xE7F4;Value='N/A'},
+        [pscustomobject]@{Name='DashDisk';Label='Free on C:';Glyph=[string][char]0xEDA2;Value='--'})){
+        $card=[System.Windows.Controls.Border]::new();$card.CornerRadius=[System.Windows.CornerRadius]::new(12);$card.Margin=[System.Windows.Thickness]::new(4);$card.Padding=[System.Windows.Thickness]::new(12,8,12,9);$card.Background=New-BakaBrush $script:theme.surfaceAlt 200;$card.BorderBrush=$script:borderBrush;$card.BorderThickness=[System.Windows.Thickness]::new(1)
+        $stack=[System.Windows.Controls.StackPanel]::new();$head=[System.Windows.Controls.StackPanel]::new();$head.Orientation=[System.Windows.Controls.Orientation]::Horizontal
+        $g=New-BakaText $item.Glyph 11 'Normal' $script:mutedBrush;$g.FontFamily=[System.Windows.Media.FontFamily]::new('Segoe Fluent Icons, Segoe MDL2 Assets');$g.Margin=[System.Windows.Thickness]::new(0,1,6,0);$head.Children.Add($g)|Out-Null;$head.Children.Add((New-BakaText $item.Label 9.5 'Normal' $script:mutedBrush))|Out-Null;$stack.Children.Add($head)|Out-Null
+        $value=New-BakaText $item.Value 18 'Bold' $script:textBrush;$value.Name=$item.Name;$script:windows[$item.Name]=$value;$stack.Children.Add($value)|Out-Null;$card.Child=$stack;$metrics.Children.Add($card)|Out-Null
+    }
+    $root.Children.Add($metrics)|Out-Null
+
+    $lower=[System.Windows.Controls.Grid]::new();$c1=[System.Windows.Controls.ColumnDefinition]::new();$c1.Width=[System.Windows.GridLength]::new(1.15,[System.Windows.GridUnitType]::Star);$c2=[System.Windows.Controls.ColumnDefinition]::new();$c2.Width=[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star);$lower.ColumnDefinitions.Add($c1);$lower.ColumnDefinitions.Add($c2)
+    $actionsStack=[System.Windows.Controls.StackPanel]::new();$actionsStack.Children.Add((New-BakaArenaSection 'QUICK ACTIONS'))|Out-Null
+    $actions=[System.Windows.Controls.Primitives.UniformGrid]::new();$actions.Columns=2
+    $actions.Children.Add((New-BakaArenaTile 'Control Center' '' ([string][char]0xE9E9) {Show-BakaQuickPanel}))|Out-Null
+    $actions.Children.Add((New-BakaArenaTile 'Files' '' ([string][char]0xE8B7) {Show-BakaFiles}))|Out-Null
+    $actions.Children.Add((New-BakaArenaTile 'All apps' '' ([string][char]0xE8A9) {Show-BakaLaunchpad}))|Out-Null
+    $actions.Children.Add((New-BakaArenaTile 'Customize' '' ([string][char]0xE771) {Show-BakaSettings}))|Out-Null
+    $actionsStack.Children.Add($actions)|Out-Null
+    $auto=New-BakaArenaTile 'Detect games automatically' 'Switches to Gaming when a game starts' ([string][char]0xE768) {$script:manualOverride=$null;if($script:profileTimer -and -not $script:profileTimer.IsEnabled){$script:profileTimer.Start()};Update-BakaProfileStatus;Update-BakaArenaProfileTiles}
+    $actionsStack.Children.Add($auto)|Out-Null
+    $lower.Children.Add($actionsStack)|Out-Null
+    $ledgerStack=[System.Windows.Controls.StackPanel]::new();$ledgerStack.Children.Add((New-BakaArenaSection 'GAMING CHANGES'))|Out-Null
+    $ledger=[System.Windows.Controls.Border]::new();$ledger.CornerRadius=[System.Windows.CornerRadius]::new(12);$ledger.Margin=[System.Windows.Thickness]::new(4);$ledger.Padding=[System.Windows.Thickness]::new(12,8,12,8);$ledger.Background=New-BakaBrush $script:theme.surfaceAlt 200;$ledger.BorderBrush=$script:borderBrush;$ledger.BorderThickness=[System.Windows.Thickness]::new(1)
+    $lines=[System.Windows.Controls.StackPanel]::new()
+    foreach($line in @('Windows Game Mode on','Background apps paused','Game DVR capture off','BAKA Gaming power plan','Security and recovery untouched')){
+        $r=[System.Windows.Controls.StackPanel]::new();$r.Orientation=[System.Windows.Controls.Orientation]::Horizontal;$r.Margin=[System.Windows.Thickness]::new(0,3,0,3)
+        $check=New-BakaText ([string][char]0xE73E) 10 'Normal' $script:textBrush;$check.FontFamily=[System.Windows.Media.FontFamily]::new('Segoe Fluent Icons, Segoe MDL2 Assets');$check.Margin=[System.Windows.Thickness]::new(0,1,8,0);$r.Children.Add($check)|Out-Null
+        $r.Children.Add((New-BakaText $line 10 'Normal' $script:textBrush))|Out-Null;$lines.Children.Add($r)|Out-Null
+    }
+    $ledger.Child=$lines;$ledgerStack.Children.Add($ledger)|Out-Null;[System.Windows.Controls.Grid]::SetColumn($ledgerStack,1);$lower.Children.Add($ledgerStack)|Out-Null
+    $root.Children.Add($lower)|Out-Null
+    $telemetry=New-BakaText 'Live Windows numbers  ·  waiting' 9 'Normal' $script:mutedBrush;$telemetry.Name='DashTelemetry';$script:windows.DashTelemetry=$telemetry;$telemetry.Margin=[System.Windows.Thickness]::new(8,6,0,0);$root.Children.Add($telemetry)|Out-Null
+    Set-BakaWindowContent $window $root;$script:windows.Dashboard=$window;Update-BakaArenaProfileTiles
+    $window.add_Closing({param($sender,$eventArgs)if(-not $script:allowShutdown){$eventArgs.Cancel=$true;$sender.Hide()}});return $window
 }
 
 function Format-BakaFileSize([long]$Bytes){
@@ -1214,22 +1276,30 @@ function New-BakaFileExplorer {
     $bodyRow=[System.Windows.Controls.RowDefinition]::new();$bodyRow.Height=[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star);$layout.RowDefinitions.Add($bodyRow)
     $statusRow=[System.Windows.Controls.RowDefinition]::new();$statusRow.Height=[System.Windows.GridLength]::new(30,[System.Windows.GridUnitType]::Pixel);$layout.RowDefinitions.Add($statusRow)
     $toolbar=[System.Windows.Controls.Grid]::new();$toolbar.Margin=[System.Windows.Thickness]::new(4,0,4,10)
-    foreach($width in @([System.Windows.GridLength]::new(48,[System.Windows.GridUnitType]::Pixel),[System.Windows.GridLength]::new(48,[System.Windows.GridUnitType]::Pixel),[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star),[System.Windows.GridLength]::new(58,[System.Windows.GridUnitType]::Pixel),[System.Windows.GridLength]::new(230,[System.Windows.GridUnitType]::Pixel),[System.Windows.GridLength]::new(84,[System.Windows.GridUnitType]::Pixel))){$column=[System.Windows.Controls.ColumnDefinition]::new();$column.Width=$width;$toolbar.ColumnDefinitions.Add($column)}
+    foreach($width in @([System.Windows.GridLength]::new(48,[System.Windows.GridUnitType]::Pixel),[System.Windows.GridLength]::new(48,[System.Windows.GridUnitType]::Pixel),[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star),[System.Windows.GridLength]::new(52,[System.Windows.GridUnitType]::Pixel),[System.Windows.GridLength]::new(230,[System.Windows.GridUnitType]::Pixel),[System.Windows.GridLength]::new(128,[System.Windows.GridUnitType]::Pixel))){$column=[System.Windows.Controls.ColumnDefinition]::new();$column.Width=$width;$toolbar.ColumnDefinitions.Add($column)}
     $back=New-BakaArenaButton '' {if($script:fileExplorerHistory.Count -gt 0){Navigate-BakaFiles $script:fileExplorerHistory.Pop()}} ([string][char]0xE72B);$back.ToolTip='Back';$back.Margin=[System.Windows.Thickness]::new(2);[System.Windows.Controls.Grid]::SetColumn($back,0);$toolbar.Children.Add($back)|Out-Null
     $up=New-BakaArenaButton '' {try{ $parent=[IO.Directory]::GetParent($script:fileExplorerCurrent);if($parent){Navigate-BakaFiles $parent.FullName -Remember}}catch{}} ([string][char]0xE74A);$up.ToolTip='Up';$up.Margin=[System.Windows.Thickness]::new(2);[System.Windows.Controls.Grid]::SetColumn($up,1);$toolbar.Children.Add($up)|Out-Null
     $address=[System.Windows.Controls.TextBox]::new();$address.Text=$script:fileExplorerCurrent;$address.Padding=[System.Windows.Thickness]::new(12,8,12,8);$address.FontSize=12;$address.Background=New-BakaBrush $script:theme.surfaceAlt 210;$address.Foreground=$script:textBrush;$address.BorderBrush=$script:borderBrush;$address.VerticalContentAlignment=[System.Windows.VerticalAlignment]::Center;$script:fileExplorerAddress=$address;[System.Windows.Controls.Grid]::SetColumn($address,2);$toolbar.Children.Add($address)|Out-Null
-    $go=New-BakaArenaButton 'Go' {Navigate-BakaFiles ([string]$script:fileExplorerAddress.Text)} ([string][char]0xE72A);$go.Margin=[System.Windows.Thickness]::new(4,2,4,2);[System.Windows.Controls.Grid]::SetColumn($go,3);$toolbar.Children.Add($go)|Out-Null
+    $go=New-BakaArenaButton '' {Navigate-BakaFiles ([string]$script:fileExplorerAddress.Text)} ([string][char]0xE72A);$go.ToolTip='Go';[System.Windows.Automation.AutomationProperties]::SetName($go,'Go');$go.Margin=[System.Windows.Thickness]::new(4,2,4,2);[System.Windows.Controls.Grid]::SetColumn($go,3);$toolbar.Children.Add($go)|Out-Null
     $search=[System.Windows.Controls.TextBox]::new();$search.Text='Search this folder';$search.Padding=[System.Windows.Thickness]::new(12,8,12,8);$search.FontSize=11;$search.Background=New-BakaBrush $script:theme.surfaceAlt 210;$search.Foreground=$script:mutedBrush;$search.BorderBrush=$script:borderBrush;$search.VerticalContentAlignment=[System.Windows.VerticalAlignment]::Center;$search.Tag='Placeholder';$script:fileExplorerSearch=$search;$search.Add_GotFocus({param($sender,$eventArgs)if($sender.Tag -eq 'Placeholder'){$sender.Text='';$sender.Tag=''}});$search.Add_LostFocus({param($sender,$eventArgs)if([string]::IsNullOrWhiteSpace($sender.Text)){$sender.Text='Search this folder';$sender.Tag='Placeholder'}});$search.Add_KeyDown({param($sender,$eventArgs)if($eventArgs.Key -eq [System.Windows.Input.Key]::Enter){$query=if($sender.Tag -eq 'Placeholder'){''}else{[string]$sender.Text};Load-BakaFilesDirectory $script:fileExplorerCurrent $query}});[System.Windows.Controls.Grid]::SetColumn($search,4);$toolbar.Children.Add($search)|Out-Null
     $explorerButton=New-BakaArenaButton 'Explorer' {try{Start-Process -FilePath (Join-Path $env:WINDIR 'explorer.exe') -ArgumentList ('"{0}"' -f $script:fileExplorerCurrent)|Out-Null}catch{}} ([string][char]0xE8DA);$explorerButton.ToolTip='Open this folder in Windows File Explorer';$explorerButton.Margin=[System.Windows.Thickness]::new(4,2,0,2);[System.Windows.Controls.Grid]::SetColumn($explorerButton,5);$toolbar.Children.Add($explorerButton)|Out-Null;$layout.Children.Add($toolbar)|Out-Null
-    $body=[System.Windows.Controls.Grid]::new();$body.ColumnDefinitions.Add([System.Windows.Controls.ColumnDefinition]::new());$mainColumn=[System.Windows.Controls.ColumnDefinition]::new();$mainColumn.Width=[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star);$body.ColumnDefinitions.Add($mainColumn);[System.Windows.Controls.Grid]::SetRow($body,1);$layout.Children.Add($body)|Out-Null
+    # Sidebar column sizes to the sidebar; with a default (star) column it floated in the middle of the window.
+    $body=[System.Windows.Controls.Grid]::new();$sideColumn=[System.Windows.Controls.ColumnDefinition]::new();$sideColumn.Width=[System.Windows.GridLength]::Auto;$body.ColumnDefinitions.Add($sideColumn);$mainColumn=[System.Windows.Controls.ColumnDefinition]::new();$mainColumn.Width=[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star);$body.ColumnDefinitions.Add($mainColumn);[System.Windows.Controls.Grid]::SetRow($body,1);$layout.Children.Add($body)|Out-Null
     $sidebar=[System.Windows.Controls.Border]::new();$sidebar.Width=210;$sidebar.Margin=[System.Windows.Thickness]::new(4,0,8,0);$sidebar.Padding=[System.Windows.Thickness]::new(8);$sidebar.Background=New-BakaBrush $script:theme.surface 178;$sidebar.BorderBrush=$script:borderBrush;$sidebar.BorderThickness=[System.Windows.Thickness]::new(1);$sideStack=[System.Windows.Controls.StackPanel]::new();$sideStack.Children.Add((New-BakaText 'BAKA FILES' 17 'Bold' $script:accentBrush))|Out-Null;$sideStack.Children.Add((New-BakaText 'Your Windows workspace' 10 'Normal' $script:mutedBrush))|Out-Null
     foreach($entry in @([pscustomobject]@{Name='Home';Glyph=[string][char]0xE80F},[pscustomobject]@{Name='Desktop';Glyph=[string][char]0xE7F4},[pscustomobject]@{Name='Downloads';Glyph=[string][char]0xE896},[pscustomobject]@{Name='Documents';Glyph=[string][char]0xE8A5},[pscustomobject]@{Name='Pictures';Glyph=[string][char]0xEB9F})){$button=New-BakaArenaButton $entry.Name {param($sender,$eventArgs)$path=Get-BakaKnownFolderPath ([string]$sender.Tag);if($path){Navigate-BakaFiles $path -Remember}} $entry.Glyph;$button.Tag=$entry.Name;$button.HorizontalContentAlignment=[System.Windows.HorizontalAlignment]::Left;$button.Margin=[System.Windows.Thickness]::new(0,5,0,0);$sideStack.Children.Add($button)|Out-Null}
     $sideStack.Children.Add((New-BakaText 'DRIVES' 10 'Bold' $script:mutedBrush))|Out-Null
     foreach($drive in @(Get-PSDrive -PSProvider FileSystem|Where-Object {$_.Root}|Sort-Object Name)){$button=New-BakaArenaButton ('{0}  {1}' -f $drive.Name,$drive.Root) {param($sender,$eventArgs)Navigate-BakaFiles ([string]$sender.Tag) -Remember} ([string][char]0xE7F4);$button.Tag=$drive.Root;$button.HorizontalContentAlignment=[System.Windows.HorizontalAlignment]::Left;$button.Margin=[System.Windows.Thickness]::new(0,5,0,0);$sideStack.Children.Add($button)|Out-Null}
     $sidebar.Child=$sideStack;[System.Windows.Controls.Grid]::SetColumn($sidebar,0);$body.Children.Add($sidebar)|Out-Null
     $main=[System.Windows.Controls.Grid]::new();$main.RowDefinitions.Add([System.Windows.Controls.RowDefinition]::new());$main.RowDefinitions.Add([System.Windows.Controls.RowDefinition]::new());$main.RowDefinitions[0].Height=[System.Windows.GridLength]::new(52,[System.Windows.GridUnitType]::Pixel);$main.RowDefinitions[1].Height=[System.Windows.GridLength]::new(1,[System.Windows.GridUnitType]::Star);[System.Windows.Controls.Grid]::SetColumn($main,1);$body.Children.Add($main)|Out-Null
-    $heading=[System.Windows.Controls.StackPanel]::new();$heading.Orientation=[System.Windows.Controls.Orientation]::Horizontal;$heading.Children.Add((New-BakaText 'WORKSPACE' 13 'Bold'))|Out-Null;$heading.Children.Add((New-BakaText '  /  FILES' 13 'Bold' $script:accentBrush))|Out-Null;$heading.Children.Add((New-BakaText '  Native folders, BAKA command surface' 10 'Normal' $script:mutedBrush))|Out-Null;[System.Windows.Controls.Grid]::SetRow($heading,0);$main.Children.Add($heading)|Out-Null
-    $list=[System.Windows.Controls.ListView]::new();$list.Background=New-BakaBrush $script:theme.surface 138;$list.Foreground=$script:textBrush;$list.BorderBrush=$script:borderBrush;$list.BorderThickness=[System.Windows.Thickness]::new(1);$list.Padding=[System.Windows.Thickness]::new(8);$view=[System.Windows.Controls.GridView]::new();foreach($column in @([pscustomobject]@{Header='NAME';Path='Name';Width=390},[pscustomobject]@{Header='TYPE';Path='Type';Width=120},[pscustomobject]@{Header='MODIFIED';Path='Modified';Width=180},[pscustomobject]@{Header='SIZE';Path='Size';Width=110})){$gridColumn=[System.Windows.Controls.GridViewColumn]::new();$gridColumn.Header=$column.Header;$gridColumn.Width=$column.Width;$gridColumn.DisplayMemberBinding=[System.Windows.Data.Binding]::new($column.Path);$view.Columns.Add($gridColumn)|Out-Null};$list.View=$view;$script:fileExplorerList=$list;$list.Add_MouseDoubleClick({param($sender,$eventArgs)Open-BakaFileSelection $sender.SelectedItem});[System.Windows.Controls.Grid]::SetRow($list,1);$main.Children.Add($list)|Out-Null
+    $heading=[System.Windows.Controls.StackPanel]::new();$heading.Orientation=[System.Windows.Controls.Orientation]::Horizontal;$heading.Children.Add((New-BakaText 'WORKSPACE' 13 'Bold'))|Out-Null;$heading.Children.Add((New-BakaText '  /  FILES' 13 'Bold' $script:accentBrush))|Out-Null;[System.Windows.Controls.Grid]::SetRow($heading,0);$main.Children.Add($heading)|Out-Null
+    $list=[System.Windows.Controls.ListView]::new();$list.Background=New-BakaBrush $script:theme.surface 138;$list.Foreground=$script:textBrush;$list.BorderBrush=$script:borderBrush;$list.BorderThickness=[System.Windows.Thickness]::new(1);$list.Padding=[System.Windows.Thickness]::new(8);$view=[System.Windows.Controls.GridView]::new()
+    # Column headers in the theme colours (the stock header is a white Win32-style bar).
+    $headerStyle=[System.Windows.Style]::new([System.Windows.Controls.GridViewColumnHeader])
+    foreach($setter in @(@([System.Windows.Controls.Control]::BackgroundProperty,(New-BakaBrush $script:theme.surface 255)),@([System.Windows.Controls.Control]::ForegroundProperty,$script:mutedBrush),@([System.Windows.Controls.Control]::BorderBrushProperty,$script:borderBrush),@([System.Windows.Controls.Control]::BorderThicknessProperty,[System.Windows.Thickness]::new(0,0,0,1)),@([System.Windows.Controls.Control]::PaddingProperty,[System.Windows.Thickness]::new(8,5,8,5)),@([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty,[System.Windows.HorizontalAlignment]::Left),@([System.Windows.Controls.Control]::FontSizeProperty,[double]10))){$headerStyle.Setters.Add([System.Windows.Setter]::new($setter[0],$setter[1]))}
+    $headerTemplate=[System.Windows.Markup.XamlReader]::Parse('<ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" TargetType="GridViewColumnHeader"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/></Border></ControlTemplate>')
+    $headerStyle.Setters.Add([System.Windows.Setter]::new([System.Windows.Controls.Control]::TemplateProperty,$headerTemplate))
+    $view.ColumnHeaderContainerStyle=$headerStyle
+    foreach($column in @([pscustomobject]@{Header='NAME';Path='Name';Width=390},[pscustomobject]@{Header='TYPE';Path='Type';Width=120},[pscustomobject]@{Header='MODIFIED';Path='Modified';Width=180},[pscustomobject]@{Header='SIZE';Path='Size';Width=110})){$gridColumn=[System.Windows.Controls.GridViewColumn]::new();$gridColumn.Header=$column.Header;$gridColumn.Width=$column.Width;$gridColumn.DisplayMemberBinding=[System.Windows.Data.Binding]::new($column.Path);$view.Columns.Add($gridColumn)|Out-Null};$list.View=$view;$script:fileExplorerList=$list;$list.Add_MouseDoubleClick({param($sender,$eventArgs)Open-BakaFileSelection $sender.SelectedItem});[System.Windows.Controls.Grid]::SetRow($list,1);$main.Children.Add($list)|Out-Null
     $status=New-BakaText 'Loading BAKA Files…' 10 'Normal' $script:mutedBrush;$status.Margin=[System.Windows.Thickness]::new(14,4,0,0);$script:fileExplorerStatus=$status;[System.Windows.Controls.Grid]::SetRow($status,2);$layout.RowDefinitions[2].Height=[System.Windows.GridLength]::new(30,[System.Windows.GridUnitType]::Pixel);$layout.Children.Add($status)|Out-Null
     Set-BakaSettingsControlTheme $layout;Set-BakaWindowContent $window $layout;Set-BakaCompactScale $window 0.8;$script:windows.Files=$window;$window.add_Closing({param($sender,$eventArgs)if(-not $script:allowShutdown){$eventArgs.Cancel=$true;$sender.Hide()}});return $window
 }
@@ -2578,17 +2648,15 @@ $script:windows.Dock.add_Loaded({
     Write-BakaUiLog ('companion-ready release="{0}" profile={1} theme="{2}" widgets={3}' -f $script:uiRelease,$script:activeProfile,$script:config.appearance.theme,$script:config.widgets.enabled)
     if($script:previewMode -and $CapturePath){
         # Design capture: renders only BAKA surfaces over the BAKA wallpaper (never the user's real desktop).
-        $script:captureTimer=[System.Windows.Threading.DispatcherTimer]::new();$script:captureTimer.Interval=[TimeSpan]::FromSeconds(4);$script:captureStep=0
-        $script:captureTimer.Add_Tick({param($sender,$eventArgs)
-            $script:captureStep++
-            if($script:captureStep -eq 1){Show-BakaQuickPanel;return}
-            $sender.Stop()
+        # The main file shows Arena and Control Center; -desktop, -launchpad, -settings and -files sit next to it.
+        # script: scope, because the timer ticks after the startup code that defines them has returned.
+        function script:Save-BakaDesignCapture([string]$Path,[string[]]$Keys){
             try{
                 $screen=[System.Windows.SystemParameters]::PrimaryScreenWidth;$screenH=[System.Windows.SystemParameters]::PrimaryScreenHeight
                 $visual=[System.Windows.Media.DrawingVisual]::new();$context=$visual.RenderOpen()
                 $wallpaper=Get-BakaShippedWallpaperPath
                 if($wallpaper){$image=[System.Windows.Media.Imaging.BitmapImage]::new([Uri]::new($wallpaper));$context.DrawImage($image,[System.Windows.Rect]::new(0,0,$screen,$screenH))}
-                foreach($key in @('Dashboard','Dock','TopBar','Quick')){
+                foreach($key in $Keys){
                     $window=$script:windows[$key]
                     if(-not $window -or -not $window.IsVisible){continue}
                     $surface=$window.Content;$width=[int][math]::Ceiling($window.ActualWidth);$height=[int][math]::Ceiling($window.ActualHeight)
@@ -2599,10 +2667,28 @@ $script:windows.Dock.add_Loaded({
                 $context.Close()
                 $output=[System.Windows.Media.Imaging.RenderTargetBitmap]::new([int]$screen,[int]$screenH,96,96,[System.Windows.Media.PixelFormats]::Pbgra32);$output.Render($visual)
                 $encoder=[System.Windows.Media.Imaging.PngBitmapEncoder]::new();$encoder.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($output))
-                $stream=[IO.File]::Create($CapturePath);try{$encoder.Save($stream)}finally{$stream.Dispose()}
-                Write-BakaUiLog ('design-capture-saved path="{0}"' -f $CapturePath)
-            }catch{Write-BakaUiLog ('design-capture-failed error="{0}"' -f $_.Exception.Message)}
-            Exit-BakaCompanion
+                $stream=[IO.File]::Create($Path);try{$encoder.Save($stream)}finally{$stream.Dispose()}
+                Write-BakaUiLog ('design-capture-saved path="{0}"' -f $Path)
+            }catch{Write-BakaUiLog ('design-capture-failed path="{0}" error="{1}"' -f $Path,$_.Exception.Message)}
+        }
+        function script:Get-BakaCapturePath([string]$Suffix){
+            $folder=Split-Path -Parent $script:capturePathValue;$name=[IO.Path]::GetFileNameWithoutExtension($script:capturePathValue)
+            return (Join-Path $folder ('{0}-{1}.png' -f $name,$Suffix))
+        }
+        $script:capturePathValue=$CapturePath
+        $script:captureTimer=[System.Windows.Threading.DispatcherTimer]::new();$script:captureTimer.Interval=[TimeSpan]::FromSeconds(3);$script:captureStep=0
+        $script:captureTimer.Add_Tick({param($sender,$eventArgs)
+            $script:captureStep++
+            # Any failure ends the capture run instead of leaving a preview desktop open.
+            trap {Write-BakaUiLog ('design-capture-step-failed step={0} error="{1}"' -f $script:captureStep,$_.Exception.Message);$sender.Stop();Exit-BakaCompanion;break}
+            switch($script:captureStep){
+                1 {Show-BakaQuickPanel}
+                2 {Save-BakaDesignCapture $script:capturePathValue @('Dashboard','Dock','TopBar','Quick');foreach($k in 'Quick','Dashboard'){if($script:windows[$k]){$script:windows[$k].Hide()}}}
+                3 {Save-BakaDesignCapture (Get-BakaCapturePath 'desktop') @('Dock','TopBar');Show-BakaLaunchpad}
+                4 {Save-BakaDesignCapture (Get-BakaCapturePath 'launchpad') @('Dock','TopBar','Launchpad');if($script:windows.Launchpad){$script:windows.Launchpad.Hide()};Show-BakaSettings}
+                5 {Save-BakaDesignCapture (Get-BakaCapturePath 'settings') @('Dock','TopBar','Settings');$script:allowSettingsClose=$true;if($script:windows.Settings){$script:windows.Settings.Hide()};Show-BakaFiles}
+                6 {Save-BakaDesignCapture (Get-BakaCapturePath 'files') @('Dock','TopBar','Files');$sender.Stop();Exit-BakaCompanion}
+            }
         })
         $script:captureTimer.Start()
     }

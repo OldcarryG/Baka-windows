@@ -37,7 +37,9 @@ $sourceGuards=@(
     [pscustomobject]@{Name='app icons are tinted to match monochrome themes';Pattern='\[BakaIconTint\]::Mono'},
     [pscustomobject]@{Name='no blur-shadow effects on glass windows (lag)';Pattern='\$Window\.Tag\.Effect=\$null'},
     [pscustomobject]@{Name='the full-screen Launchpad is opaque (no per-pixel transparency)';Pattern='\$window\.AllowsTransparency=\$false'},
-    [pscustomobject]@{Name='large windows use the compact scale';Pattern='Set-BakaCompactScale \$window 0\.8;\$script:windows\.Dashboard'}
+    [pscustomobject]@{Name='Files uses the compact scale';Pattern='Set-BakaCompactScale \$window 0\.8;\$script:windows\.Files'},
+    [pscustomobject]@{Name='Arena is laid out compact at its real size';Pattern="New-BakaWindow 720 470 'BAKA Arena'"},
+    [pscustomobject]@{Name='Arena profile tiles follow profile changes';Pattern='Update-BakaArenaProfileTiles'}
 )
 if($source -match 'return new IntPtr\(1\); \}\s*\}\s*\} else if'){throw 'The Windows key hook must not swallow Win key-up.'}
 $launcherSource=Get-Content -LiteralPath (Join-Path $root 'Scripts\Runtime\BakaShell.cs') -Raw
