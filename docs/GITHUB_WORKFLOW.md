@@ -11,9 +11,9 @@ Run the isolated checks from the project root in Windows PowerShell or PowerShel
 ./Tests/Test-DockContrast.ps1
 ./Tests/Test-GameDetection.ps1
 ./Tests/Test-GamingProfiles.ps1
-./Tests/Test-SystemMonitoring.ps1
+./Tests/Test-SystemTuning.ps1
 ./Tests/Test-ReleasePipelineGuards.ps1
-./Tests/Test-BakaCompanionPreview.ps1
+./Tests/Test-BakaDesktop.ps1
 ./Tests/Test-ProjectConfiguration.ps1
 ```
 

@@ -27,6 +27,4 @@ foreach($theme in $manifest.themes){
 $checks|Format-Table Theme,Element,@{Label='Contrast';Expression={[math]::Round($_.Contrast,2)}},Minimum -AutoSize
 $failed=@($checks|Where-Object {$_.Contrast -lt $_.Minimum})
 if($failed.Count){throw ('Theme contrast failed: '+(($failed|ForEach-Object {'{0}/{1}={2:N2}' -f $_.Theme,$_.Element,$_.Contrast}) -join ', '))}
-$companion=Get-Content -LiteralPath (Join-Path $root 'Scripts\Runtime\BakaCompanion.ps1') -Raw
-if($companion -match 'BakaDock\.ps1'){throw 'The WPF companion must not launch the legacy dock.'}
 Write-Output ('PASS: {0} BAKA theme contrast checks passed; four required presets are present.' -f $checks.Count)

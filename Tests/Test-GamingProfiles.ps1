@@ -3,7 +3,6 @@ param([switch]$KeepTestData)
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 Import-Module (Join-Path $root 'Modules\GamingProfiles\GamingProfiles.psm1') -Force
-Import-Module (Join-Path $root 'Modules\CompanionInstance.psm1') -Force
 $testRoot=Join-Path $env:TEMP ('BAKA-ProfileTests-'+[Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $testRoot -Force|Out-Null
 $passed=[System.Collections.Generic.List[string]]::new()
@@ -84,22 +83,9 @@ try {
     Assert-True ((Get-Content (Join-Path $dir 'active-profile.json') -Raw|ConvertFrom-Json).Profile -eq 'Benchmark') 'Benchmark marker was not recorded.'
     $passed.Add('Benchmark profile records its state while leaving Windows settings unchanged.')
 
-    $lockName='Local\BAKA.Companion.Test.'+[Guid]::NewGuid().ToString('N')
-    $lock=Enter-BakaCompanionInstance -Name $lockName
-    Assert-True $lock.Acquired 'First companion launch did not acquire the instance lock.'
-    try {
-        $runspace=[System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
-        $runspace.Open()
-        $powershell=[PowerShell]::Create();$powershell.Runspace=$runspace
-        [void]$powershell.AddScript({param($modulePath,$name) Import-Module -Name $modulePath -Force; Test-BakaCompanionInstanceAvailable -Name $name}.GetNewClosure()).AddArgument((Join-Path $root 'Modules\CompanionInstance.psm1')).AddArgument($lockName)
-        $available=$powershell.Invoke()
-        $powershell.Dispose();$runspace.Dispose()
-        Assert-True (-not [bool]$available[-1]) 'Second companion launch was not blocked by the named mutex.'
-    } finally { Exit-BakaCompanionInstance -Lock $lock }
-    $passed.Add('A second companion instance on another runspace is rejected.')
 
     $passed|ForEach-Object { Write-Output ('PASS: '+$_) }
-    Write-Output ('RESULT: {0}/{0} profile and instance-lock regression checks passed.' -f $passed.Count)
+    Write-Output ('RESULT: {0}/{0} profile regression checks passed.' -f $passed.Count)
 } finally {
     $fullRoot=[IO.Path]::GetFullPath($testRoot)
     $tempRoot=[IO.Path]::GetFullPath($env:TEMP)

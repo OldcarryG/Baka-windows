@@ -51,17 +51,22 @@ if (Test-Path -LiteralPath $codecInstaller -PathType Leaf) {
     Start-Process -FilePath $powershell -ArgumentList @('-NoProfile','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $codecInstaller)) -WindowStyle Hidden
     Write-FirstLogonLog 'media-codec-install-started'
 }
-# BAKA is this user's Windows shell (per-user Winlogon override): Explorer's taskbar, Start, and desktop
-# no longer load. The BAKA desktop takes over on this first sign-in. Ctrl+Alt+Shift+E restores Explorer.
+# Explorer stays this user's Windows shell and runs in the background (tray, notifications, file dialogs);
+# BAKA Desktop replaces its taskbar, Start, desktop icons and folder windows. Earlier releases replaced the
+# shell itself, which is undone here.
 $winlogonUser = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon'
-$shellLauncher = Join-Path $root 'Scripts\BakaShell.exe'
-if ((Test-Path -LiteralPath $shellLauncher -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $root 'Scripts\BakaCompanion.ps1') -PathType Leaf)) {
-    if (-not (Test-Path -LiteralPath $winlogonUser)) { New-Item -Path $winlogonUser -Force | Out-Null }
-    # A windowless native launcher (never powershell.exe directly, which opens a Terminal window on Windows 11).
-    $shellCommand = '"{0}"' -f $shellLauncher
-    New-ItemProperty -LiteralPath $winlogonUser -Name 'Shell' -PropertyType String -Value $shellCommand -Force | Out-Null
-    Write-FirstLogonLog 'baka-shell-enabled'
-}
+$oldShell = (Get-ItemProperty -LiteralPath $winlogonUser -Name 'Shell' -ErrorAction SilentlyContinue).Shell
+if ($oldShell -and $oldShell -match 'Baka') { Remove-ItemProperty -LiteralPath $winlogonUser -Name 'Shell' -ErrorAction SilentlyContinue; Write-FirstLogonLog 'old-baka-shell-override-removed' }
+# Startup apps run right away instead of after Explorer's 10-second delay, and the taskbar starts hidden
+# so it does not flash before BAKA Desktop appears.
+$serialize = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize'
+New-Item -Path $serialize -Force | Out-Null
+New-ItemProperty -LiteralPath $serialize -Name 'StartupDelayInMSec' -PropertyType DWord -Value 0 -Force | Out-Null
+New-ItemProperty -LiteralPath $serialize -Name 'WaitForIdleState' -PropertyType DWord -Value 0 -Force | Out-Null
+$stuck = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3'
+$settings = (Get-ItemProperty -LiteralPath $stuck -Name 'Settings' -ErrorAction SilentlyContinue).Settings
+if ($settings -and $settings.Length -gt 8) { $settings[8] = $settings[8] -bor 1; New-ItemProperty -LiteralPath $stuck -Name 'Settings' -PropertyType Binary -Value $settings -Force | Out-Null }
+$desktopExe = Join-Path $root 'Desktop\BakaDesktop.exe'
 # No Edge shortcut on this user's desktop (Baka Browser is the browser).
 $edgeLink = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Microsoft Edge.lnk'
 if (Test-Path -LiteralPath $edgeLink -PathType Leaf) { Remove-Item -LiteralPath $edgeLink -Force -ErrorAction SilentlyContinue }
@@ -69,14 +74,10 @@ if (Test-Path -LiteralPath $edgeLink -PathType Leaf) { Remove-Item -LiteralPath 
 $wallpapersKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers'
 if (-not (Test-Path -LiteralPath $wallpapersKey)) { New-Item -Path $wallpapersKey -Force | Out-Null }
 New-ItemProperty -LiteralPath $wallpapersKey -Name 'BackgroundType' -PropertyType DWord -Value 0 -Force | Out-Null
-# Start the BAKA desktop now; the Startup shortcut takes over from the next sign-in (single instance).
-$companion = Join-Path $root 'Scripts\BakaCompanion.ps1'
-if (Test-Path -LiteralPath $shellLauncher -PathType Leaf) {
-    Start-Process -FilePath $shellLauncher -WorkingDirectory (Join-Path $root 'Scripts')
-    Write-FirstLogonLog 'companion-started via BakaShell.exe'
-} elseif (Test-Path -LiteralPath $companion -PathType Leaf) {
-    Start-Process -FilePath $powershell -ArgumentList @('-NoProfile','-STA','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $companion)) -WindowStyle Hidden
-    Write-FirstLogonLog 'companion-started'
+# Start BAKA Desktop now; the HKLM Run entry starts it at every later sign-in (single instance).
+if (Test-Path -LiteralPath $desktopExe -PathType Leaf) {
+    Start-Process -FilePath $desktopExe -WorkingDirectory (Split-Path -Parent $desktopExe)
+    Write-FirstLogonLog 'baka-desktop-started'
 }
 
 $wallpaper = Join-Path $root 'Assets\BAKA-Stealth-4K.png'

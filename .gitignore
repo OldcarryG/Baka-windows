@@ -52,3 +52,6 @@ desktop-settings.json
 desktop-settings.json.bak
 desktop-settings.json.invalid-*
 notes.txt
+# .NET build output for Shell/BakaDesktop
+Shell/**/bin/
+Shell/**/obj/

@@ -33,21 +33,24 @@ if (-not (Test-Path -LiteralPath (Join-Path $root 'Assets\Wallpapers\BAKA-Stealt
 foreach ($extra in @(Get-ChildItem -LiteralPath (Join-Path $root 'Assets\Wallpapers') -File | Where-Object { $_.Extension -in @('.png','.jpg','.jpeg') })) {
     Copy-Item -LiteralPath $extra.FullName -Destination (Join-Path $targetAssets $extra.Name) -Force
 }
-$runtimeFiles = @('Install-SelectedApps.ps1','Install-SelectedDrivers.ps1','Restore-WindowsUpdate.ps1','Set-GamingProfile.ps1','BakaCompanion.ps1','FirstLogon.ps1','SetupComplete.ps1','Register-FirstLogonTask.ps1','Apply-FirstLogonSystemSetup.ps1','Restore-SystemTuning.ps1','Enable-AutoSignIn.ps1','Measure-Benchmark.ps1','Set-BakaAdBlockDns.ps1','Install-MediaCodecs.ps1')
+$runtimeFiles = @('Install-SelectedApps.ps1','Install-SelectedDrivers.ps1','Restore-WindowsUpdate.ps1','FirstLogon.ps1','SetupComplete.ps1','Register-FirstLogonTask.ps1','Apply-FirstLogonSystemSetup.ps1','Restore-SystemTuning.ps1','Enable-AutoSignIn.ps1','Measure-Benchmark.ps1','Install-MediaCodecs.ps1')
 foreach ($file in $runtimeFiles) {
     $source = Join-Path $PSScriptRoot "Runtime\$file"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime script missing: $source" }
     Copy-Item -LiteralPath $source -Destination (Join-Path $targetScripts $file) -Force
 }
-# BAKA shell launcher: compiled from source at build time with the C# compiler that ships with Windows,
-# so the image never carries a prebuilt binary that does not match the repository.
-$csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-if (-not (Test-Path -LiteralPath $csc -PathType Leaf)) { throw "C# compiler not found: $csc" }
-$shellSource = Join-Path $PSScriptRoot 'Runtime\BakaShell.cs'
-$shellExe = Join-Path $targetScripts 'BakaShell.exe'
-$compile = & $csc /nologo /optimize+ /target:winexe "/out:$shellExe" $shellSource 2>&1 | Out-String
-if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $shellExe -PathType Leaf)) { throw "BAKA shell launcher did not compile: $compile" }
-foreach ($modulePath in @('UpdateControl\UpdateControl.psm1','GamingProfiles\GamingProfiles.psm1','Recovery\Recovery.psm1','HardwareDetection\HardwareDetection.psm1','DesktopConfiguration.psm1','DesktopShell.psm1','SystemTuning.psm1','CompanionInstance.psm1','SystemMonitoring.psm1','PowerPlan.psm1','AdBlockDns.psm1')) {
+# BAKA Desktop (menu bar, dock, Launchpad, Files, Settings, widgets): compiled from Shell\BakaDesktop at
+# build time, so the image never carries a binary that does not match the repository. It targets
+# .NET Framework 4.8, which every Windows 11 includes, so nothing extra is installed.
+$dotnet = @((Join-Path $root 'Work\dotnet\dotnet.exe'), (Get-Command dotnet.exe -ErrorAction SilentlyContinue | ForEach-Object Source)) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+if (-not $dotnet) { throw 'The .NET SDK (dotnet.exe) is needed to build BAKA Desktop.' }
+$desktopProject = Join-Path $root 'Shell\BakaDesktop\BakaDesktop.csproj'
+$targetDesktop = Join-Path $targetRoot 'Desktop'
+New-Item -ItemType Directory -Path $targetDesktop -Force | Out-Null
+$build = & $dotnet build $desktopProject -c Release -o $targetDesktop --nologo 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $targetDesktop 'BakaDesktop.exe') -PathType Leaf)) { throw "BAKA Desktop did not build: $build" }
+Get-ChildItem -LiteralPath $targetDesktop -File | Where-Object { $_.Extension -in @('.pdb','.xml') } | Remove-Item -Force
+foreach ($modulePath in @('UpdateControl\UpdateControl.psm1','GamingProfiles\GamingProfiles.psm1','Recovery\Recovery.psm1','HardwareDetection\HardwareDetection.psm1','SystemTuning.psm1','PowerPlan.psm1')) {
     $source = Join-Path $root "Modules\$modulePath"
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Runtime module missing: $source" }
     $destination = Join-Path $targetModules (Split-Path -Leaf $modulePath)
@@ -60,7 +63,7 @@ Copy-Item -LiteralPath (Join-Path $root 'Config\Drivers.json') -Destination (Joi
 Copy-Item -LiteralPath (Join-Path $root 'Config\PerformanceProfiles.json') -Destination (Join-Path $targetRoot 'PerformanceProfiles.json') -Force
 Copy-Item -LiteralPath (Join-Path $root 'Config\DesktopSettings.default.json') -Destination (Join-Path $targetRoot 'DesktopSettings.default.json') -Force
 Copy-Item -LiteralPath (Join-Path $root 'Config\DesktopThemes.json') -Destination (Join-Path $targetRoot 'DesktopThemes.json') -Force
-foreach ($runtimeConfig in @('SystemTuning.json','GamePerformance.json','Debloat.json','AccountSetup.json','DefaultAssociations.xml')) {
+foreach ($runtimeConfig in @('SystemTuning.json','GamePerformance.json','Debloat.json','AccountSetup.json','DefaultAssociations.xml','BlockedDomains.txt')) {
     Copy-Item -LiteralPath (Join-Path $root "Config\$runtimeConfig") -Destination (Join-Path $targetRoot $runtimeConfig) -Force
 }
 foreach ($app in @($applications.applications | Where-Object selected)) {

@@ -1,63 +1,77 @@
-﻿# BAKA Windows Gaming Edition
+# BAKA Windows Gaming Edition
 
-A custom Windows 11 Pro 26H2 (x64) image for gaming: its own compact graphite desktop instead of the taskbar, gaming and privacy tuning that can be undone, and [Baka Browser](https://github.com/OldcarryG/Baka-browser) as the default browser.
+A custom Windows 11 Pro 26H2 (x64) image for gaming. It replaces the taskbar, Start menu and File Explorer windows with its own desktop, draws its own icon for each app, removes apps most people never use, blocks ads and trackers for every app, and ships [Baka Browser](https://github.com/OldcarryG/Baka-browser) as the default browser.
 
 [![Source validation](https://github.com/OldcarryG/Baka-windows/actions/workflows/source-validation.yml/badge.svg?branch=main)](https://github.com/OldcarryG/Baka-windows/actions/workflows/source-validation.yml)
 
-![BAKA desktop: left dock, menu bar, Arena and Control Center](docs/evidence/screenshots/20261028-baka-r10-arena-control-center.png)
+![BAKA desktop on an installed R12 system (Hyper-V VM)](docs/screenshots/installed-desktop.png)
 
-| BAKA Settings: app icon style | BAKA Settings: power plan and ad blocking | Baka Browser 1.5 with uBlock Origin Lite |
+*The installed R12 image in a Hyper-V VM right after first sign-in: BAKA menu bar on top, dock on the left, no Windows taskbar.*
+
+| Launchpad (Windows key) | Search | BAKA Files |
 |---|---|---|
-| ![BAKA Settings Appearance tab with the App icons style picker](docs/evidence/screenshots/20261028-baka-r11-settings.png) | ![BAKA Settings System tab with the power plan and ad and tracker blocking](docs/evidence/screenshots/20261028-baka-r11-settings-system.png) | ![Baka Browser Settings > Extensions with uBlock Origin Lite](https://raw.githubusercontent.com/OldcarryG/Baka-browser/main/docs/screenshots/settings-extensions.png) |
+| ![Launchpad](docs/screenshots/launchpad.png) | ![Search](docs/screenshots/search.png) | ![BAKA Files](docs/screenshots/files.png) |
+| **Control Center** | **BAKA Settings** | **BAKA Arena** |
+| ![Control Center](docs/screenshots/control-center.png) | ![BAKA Settings](docs/screenshots/settings.png) | ![BAKA Arena](docs/screenshots/arena.png) |
 
-App icon styles (BAKA Settings > Appearance > App icons, or Control Center > Look):
+*These six were captured inside the installed VM by BAKA Desktop's own capture mode.*
 
-| Themed (default) | Tinted (accent colour, here Carbon Red) | Clear (see-through glass) | Wallpaper (tiles cut from the wallpaper) | Original |
-|---|---|---|---|---|
-| ![Themed icons](docs/evidence/screenshots/20261028-baka-r11-icons-themed.png) | ![Tinted icons](docs/evidence/screenshots/20261028-baka-r11-icons-tinted.png) | ![Clear icons](docs/evidence/screenshots/20261028-baka-r11-icons-clear.png) | ![Wallpaper icons](docs/evidence/screenshots/20261028-baka-r11-icons-wallpaper.png) | ![Original icons](docs/evidence/screenshots/20261028-baka-r11-icons-original.png) |
-
-These are design captures of the real desktop code rendered on the development PC, not photos of an installed system.
+![125 BAKA icons in the Carbon Red theme](docs/screenshots/icons-carbon-red.png)
 
 ## What you get
 
-**Desktop (replaces the Windows taskbar)**
-- Left dock with your apps and open windows, a slim menu bar with clock, network, volume and Control Center.
-- **Arena**: switch between Desktop, Gaming and Benchmark profiles, live CPU, memory, GPU and disk numbers, quick actions.
-- **Control Center**: Wi-Fi, Bluetooth, display, sound, power plan, profile, theme and wallpaper.
-- **Launchpad** with every installed app, **BAKA Files**, and **BAKA Settings** for theme, wallpaper, dock, menu bar and widgets.
-- The **Windows key** opens the BAKA launcher; Win+key shortcuts still work and Ctrl+Esc still opens Start.
-- **App icon styles** that follow the theme: Themed (each icon on a rounded tile in the theme's colours), Tinted (accent-coloured), Clear (transparent glass tiles), Wallpaper (tiles cut from your current wallpaper, redrawn when it changes) and Original. Changing the theme or accent redraws them.
-- It runs as the Windows shell through a small native launcher (`BakaShell.exe`) that restarts it if it stops and falls back to Explorer after three failures. Recovery shortcut: Ctrl+Alt+Shift+E.
-- System numbers (CPU, GPU, memory, disk, network) are read by a small native reader instead of PowerShell/WMI queries.
-- Measured on the development PC (R11): the everyday desktop (dock and menu bar) averages 97 MB of memory and 0.5% CPU; with Arena open, 224 MB and 0.7% CPU.
+**BAKA Desktop** replaces the taskbar, Start, desktop icons and File Explorer windows.
+- A compiled app (C#/WPF on .NET Framework 4.8, which ships with Windows). No PowerShell runs for the desktop.
+- File Explorer keeps running in the background only because Windows needs it for tray icons, notifications and file dialogs. You never see it: Win+E and folders opened from any app open in BAKA Files.
+- It restarts itself after a crash. After three crashes in two minutes it gives back the normal Windows taskbar and desktop.
+- **Menu bar** on top and **dock** on the left (or bottom or right). They reserve their screen edge like the Windows taskbar, so maximized windows never hide their close, minimize and maximize buttons under them. Fullscreen video and games cover them.
+- **Launchpad** (Windows key) lists every installed app. One search finds apps, Windows settings pages and your files. It tolerates a typo ("setings"), knows program names ("cmd", "regedit") and initials ("vsc").
+- **BAKA Files**: places and drives with free space, sorting, search in subfolders, copy/cut/paste with the Windows clipboard, drag and drop, Recycle Bin, rename, new folder, ZIP, Open with, Properties, Terminal here.
+- **125 hand-drawn app icons** in the style of each theme (metal squircles, neon hexagons, glass bubbles, candy keycaps and more). An app without one shows its own icon on a theme tile. "Original" shows icons as the apps ship them.
+- **Control Center**, **BAKA Settings**, **BAKA Arena** (profiles, live performance numbers, every Steam and Epic game) and desktop **widgets** (clock, calendar, system monitor, notes, media controls, focus timer). 12 themes, accent colours, glass and motion levels.
 
 **Gaming**
-- Game Mode, hardware GPU scheduling, no background recording, raw mouse input, foreground CPU priority, no power throttling, optimizations for windowed games, no Sticky/Filter/Toggle Keys pop-ups.
-- Network throttling for multimedia off, long paths on, faster menus, full-quality JPEG wallpapers, file extensions shown.
-- **4K video:** the free AV1, VP9, HEIF and HEVC (Device Manufacturer) codecs are installed from Microsoft Store in the background at first sign-in.
-- **BAKA Gaming power plan** (26 settings on an Ultimate Performance base, including hybrid-CPU scheduling that keeps games on performance cores, no E-core parking, a 15 ms CPU re-evaluation interval and no USB hub suspend). Settings a CPU does not have are skipped. Gaming and Benchmark profiles switch to it; Desktop switches back.
-- Any game is detected automatically (Steam, Epic, GOG, EA, Ubisoft, Xbox, Riot, Battle.net, itch, or any fullscreen app), and the desktop steps back to below-normal priority while you play.
+- A running game (Steam, Epic, GOG, EA, Ubisoft, Xbox, Riot, Battle.net, itch or any fullscreen app) switches to the Competitive Gaming profile: BAKA surfaces hide, transparency and animations go off, background apps pause, Game DVR is off. Everything comes back when the game closes.
+- BAKA Gaming power plan, Game Mode, hardware GPU scheduling, raw mouse input, no Sticky/Filter/Toggle Keys pop-ups, optimizations for windowed games.
+- Free AV1, VP9, HEIF and HEVC codecs from Microsoft Store for 4K video.
 
-**Privacy and clean-up**
-- 19 junk packages removed; telemetry services and tasks off; Copilot, Recall, ads ID, tips, suggestions, Start web search and Spotlight ads off.
-- **Ad and tracker blocking for every app:** Windows uses encrypted AdGuard DNS (DNS-over-HTTPS, free). Your previous DNS is saved; BAKA Settings > System > "Use my normal DNS" or the restore shortcut puts it back.
-- More privacy policies adopted from [Chris Titus Tech's winutil](https://github.com/ChrisTitusTech/winutil) (MIT): Edge telemetry and shopping off, device metadata downloads off, WPBT execution off, Notepad AI off, map auto-update off, speech/inking personalisation off.
-- Boots straight to the desktop with no sign-in screen (set a password in Windows to get it back).
-- Every change is backed up and undone with the "Restore BAKA System Tuning" shortcut.
+**Privacy, ads and clean-up**
+- Ads and trackers blocked for every app: encrypted AdGuard DNS plus a BAKA block list in the Windows hosts file. BAKA Settings > Privacy & ads turns both off and restores your DNS.
+- Telemetry services and tasks off. Copilot, Recall, advertising ID, tips, suggestions, Start web search and Spotlight off.
+- Microsoft Edge: BAKA uninstalls it and blocks its reinstall by policy, but on Windows 11 26H2 this is not reliable yet (in one of two VM tests Windows installed Edge again). WebView2 is kept.
+- Removed: Internet Explorer, the legacy Windows Media Player, Movies & TV, WordPad, Steps Recorder, Math Input Panel, Fax and Scan, PowerShell ISE, Clipchamp, Copilot, Maps, People, Family and 19 more consumer apps. Kept: Microsoft Store, Media Player, Photos, Paint, Notepad, Calculator, Snipping Tool, Terminal, Windows Security.
+- Boots straight to the desktop with a passwordless local account (set a password in Windows to get the sign-in screen back). The "Restore BAKA System Tuning" shortcut undoes the tuning.
 
-**Baka Browser 1.5.0** is preinstalled and the default browser, with Chrome Web Store extensions, uBlock Origin Lite added on first start, and the same BAKA look.
+**Baka Browser 1.6.1** is preinstalled and the default browser: tab menu, drag tabs to reorder or into a new window, mute button, Chrome Web Store extensions and uBlock Origin Lite.
 
-## Status
+## Tested in virtual machines
 
-The image builds and passes structural validation (Microsoft Setup signature, Windows 11 Pro 26300.9711, pinned Baka Browser hash, BAKA payload present). The latest build (R11) has **not** yet been installed in a VM; earlier builds (R5.3 and R7) were. Game performance has not been measured here. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for every request and its verified status.
+Stock Windows 11 and BAKA were installed into identical Hyper-V VMs (Gen 2, Secure Boot, virtual TPM, 4 vCPU, 6 GB) and measured the same way. Final ISO, round 2:
+
+| | Stock Windows 11 | BAKA R12 |
+|---|---:|---:|
+| Ads and trackers blocked (d3ward list, 131 domains) | 2 (1.5%) | **131 (100%)** |
+| Privacy checks passed | 0 of 10 | 8 of 10 |
+| Store apps installed | 50 | 32 |
+| CPU (SHA-256, MB/s) / memory copy (MB/s) | 1862 / 17881 | 1838 / 17640 |
+| Disk write (MB/s) | 1301 | 1450 |
+| Memory in use at idle | 2005 MB | 2451 MB |
+| Idle CPU | 3.4% | 14.2% |
+| BAKA Desktop's own memory | – | 43 MB |
+
+Performance and footprint score **80.6** (round 1: 90.7), where 100 means the same as stock. BAKA is as fast for CPU and memory work and faster for disk writes, but uses more memory and CPU at idle, and it does not yet keep Microsoft Edge off this Windows build. Game FPS cannot be measured in a VM. BAKA Desktop's own feature test passed every check inside the installed VM, 4 runs out of 4.
+
+The full comparison with stock Windows is in [docs/BAKA_VS_WINDOWS.md](docs/BAKA_VS_WINDOWS.md). What changed in this release, the bugs the tests found and what is still not verified are in [docs/RELEASE_NOTES_R12.md](docs/RELEASE_NOTES_R12.md).
 
 ## Download
 
-The ISO is about 11 GB and contains Microsoft's Windows media, so it is not attached to GitHub Releases (GitHub limits files to 2 GB, and Windows media is Microsoft's to distribute). Releases contain the BAKA payload, checksums and build instructions. To make the ISO yourself:
+The ISO is about 11 GB and contains Microsoft's Windows media, so it is not attached to GitHub Releases (GitHub limits files to 2 GB, and Windows media is Microsoft's to distribute). Each [release](https://github.com/OldcarryG/Baka-windows/releases) lists the SHA-256 of the ISO it describes. To build the ISO yourself:
 
 1. Download the official Windows 11 26H2 x64 ISO from Microsoft.
-2. Install the Windows ADK Deployment Tools.
+2. Install the Windows ADK Deployment Tools and the .NET SDK (BAKA Desktop is compiled during the build).
 3. Follow [docs/GITHUB_WORKFLOW.md](docs/GITHUB_WORKFLOW.md) and run the build scripts in `Scripts/` (01 to 08). The pipeline refuses to overwrite an existing workspace or ISO.
+
+Setup keeps disk selection interactive, so the image never erases a disk on its own. TPM 2.0 and Secure Boot are required, as on stock Windows 11.
 
 ## Source checks
 
@@ -68,18 +82,17 @@ The ISO is about 11 GB and contains Microsoft's Windows media, so it is not atta
 ./Tests/Test-GamingProfiles.ps1
 ./Tests/Test-GameDetection.ps1
 ./Tests/Test-ReleasePipelineGuards.ps1
-./Tests/Test-SystemMonitoring.ps1
 ./Tests/Test-DockContrast.ps1
-./Tests/Test-BakaCompanionPreview.ps1        # opens the desktop in a throwaway preview and runs 25 UI stages
-./Scripts/Diagnostics/Measure-CompanionPreview.ps1 -IdleDesktop   # memory and CPU of the everyday desktop
+./Tests/Test-BakaDesktop.ps1     # builds BAKA Desktop and clicks through every surface in a throwaway preview (48 checks)
 ```
 
-Preview mode (`Scripts/Runtime/BakaCompanion.ps1 -Preview`) uses a temporary profile and never changes the PC's real shell, taskbar or settings.
+`BakaDesktop.exe --preview` runs the desktop with a temporary profile and never changes the PC's taskbar, settings, registry or wallpaper. `--capture <folder>` saves design screenshots, `--icon-sheet <folder>` renders the icon set in every theme, `--status <file>` writes what the desktop looks like as JSON, and `--restore-windows` puts the normal Windows desktop back.
 
 ## Project layout
 
-- `Scripts/` build pipeline, first-logon setup, runtime desktop (`Runtime/BakaCompanion.ps1`, `Runtime/BakaShell.cs`)
-- `Modules/` desktop configuration, shell, power plan, tuning, monitoring
-- `Config/` debloat, privacy, performance profiles, themes, applications (pinned Baka Browser installer)
+- `Shell/BakaDesktop/` the desktop (C#): menu bar, dock, Launchpad, Files, Settings, Control Center, Arena, widgets, icons, Explorer integration, ad blocking
+- `Scripts/` build pipeline and first sign-in setup
+- `Modules/` power plan, system tuning, update control, gaming profile rules (used by the setup scripts and tests)
+- `Config/` answer file, debloat, privacy, block list, performance profiles, themes, applications (pinned Baka Browser installer)
 - `Tests/` the checks above
-- `docs/` checklist, decisions, design notes and evidence
+- `docs/` comparison with stock Windows, release notes, checklist, decisions, screenshots

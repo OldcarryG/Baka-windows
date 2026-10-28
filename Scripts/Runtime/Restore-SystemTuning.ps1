@@ -28,9 +28,9 @@ foreach ($state in @(@{Label='System';Path=(Join-Path $dataRoot 'SystemTuningBac
     } catch { $messages.Add("$($state.Label): $($_.Exception.Message)") }
 }
 try { Remove-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name 'Shell' -ErrorAction Stop; $messages.Add('Shell: Explorer is the Windows shell again from the next sign-in.') } catch { }
-$dnsModule = Join-Path $dataRoot 'Modules\AdBlockDns.psm1'
-if (Test-Path -LiteralPath $dnsModule -PathType Leaf) {
-    try { Import-Module $dnsModule -Force; $dns = Disable-BakaAdBlockDns -Confirm:$false; if (@($dns.Restored).Count) { $messages.Add('DNS: previous DNS servers restored (ad-blocking DNS off).') } } catch { $messages.Add("DNS: $($_.Exception.Message)") }
+$desktopExe = Join-Path $dataRoot 'Desktop\BakaDesktop.exe'
+if ((Test-Path -LiteralPath $desktopExe -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $dataRoot 'AdBlockDnsBackup.json'))) {
+    try { Start-Process -FilePath $desktopExe -ArgumentList '--adblock','off' -Wait -WindowStyle Hidden; $messages.Add('DNS: previous DNS servers restored (ad-blocking DNS off).') } catch { $messages.Add("DNS: $($_.Exception.Message)") }
 }
 $powerModule = Join-Path $dataRoot 'Modules\PowerPlan.psm1'
 if (Test-Path -LiteralPath $powerModule -PathType Leaf) {

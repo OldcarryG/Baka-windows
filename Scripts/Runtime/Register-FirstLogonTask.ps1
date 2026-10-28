@@ -6,7 +6,7 @@ $arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$scriptPath+'"'
 $action=New-ScheduledTaskAction -Execute $powershell -Argument $arguments
 $trigger=New-ScheduledTaskTrigger -AtLogOn
 $principal=New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
-$settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 20) -StartWhenAvailable
+$settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 60) -StartWhenAvailable
 Register-ScheduledTask -TaskName 'BAKA-InitializeAfterOobe' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force|Out-Null
 # Register the per-user first-logon step now, so it already runs during the very first sign-in
 # instead of waiting for the SYSTEM task to create it.

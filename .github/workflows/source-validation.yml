@@ -20,7 +20,7 @@ jobs:
         shell: pwsh
         run: ./Tests/Test-ProjectConfiguration.ps1 -SkipExternalArtifactChecks
 
-      - name: Run isolated configuration, theme, profile, game, monitoring, release-guard, and UI checks
+      - name: Run isolated configuration, theme, profile, game, release-guard checks and the BAKA Desktop self test
         shell: pwsh
         run: |
           $tests = @(
@@ -28,10 +28,9 @@ jobs:
             './Tests/Test-DockContrast.ps1',
             './Tests/Test-GameDetection.ps1',
             './Tests/Test-GamingProfiles.ps1',
-            './Tests/Test-SystemMonitoring.ps1',
             './Tests/Test-SystemTuning.ps1',
             './Tests/Test-ReleasePipelineGuards.ps1',
-            './Tests/Test-BakaCompanionPreview.ps1'
+            './Tests/Test-BakaDesktop.ps1'
           )
           foreach ($test in $tests) {
             Write-Host "Running $test"

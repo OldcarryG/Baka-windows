@@ -23,10 +23,31 @@
     { "category": "Help, feedback, and developer hub", "packageNames": ["Microsoft.GetHelp", "Microsoft.WindowsFeedbackHub", "Microsoft.Windows.DevHome"], "approved": true },
     { "category": "Phone Link, cross-device, and remote assistance", "packageNames": ["Microsoft.YourPhone", "MicrosoftWindows.CrossDevice", "MicrosoftCorporationII.QuickAssist"], "approved": true },
     { "category": "Game Bar speech overlay (Xbox sign-in components are kept for games)", "packageNames": ["Microsoft.XboxSpeechToTextOverlay"], "approved": true },
+    { "category": "Duplicate video player (Movies & TV); Media Player plays music and video", "packageNames": ["Microsoft.ZuneVideo"], "approved": true },
+    { "category": "Copilot, Maps, People and Family promotions", "packageNames": ["Microsoft.Copilot", "Microsoft.WindowsMaps", "Microsoft.People", "MicrosoftCorporationII.MicrosoftFamily"], "approved": true },
+    { "category": "Microsoft Edge Store stub (Baka Browser is the browser; WebView2 stays)", "packageNames": ["Microsoft.MicrosoftEdge.Stable"], "approved": true },
     { "category": "Cortana or obsolete assistant components", "packageNames": [], "approved": false },
     { "category": "Unused language packs, fonts, and legacy media components", "packageNames": [], "approved": false },
     { "category": "Printing or scanning capabilities", "packageNames": [], "approved": false }
   ],
+  "legacyCapabilities": {
+    "approved": true,
+    "note": "Old Windows tools that newer built-in apps replace. Removed online at first sign-in; each can be added back in Settings > System > Optional features.",
+    "names": [
+      { "name": "Browser.InternetExplorer", "replacedBy": "Baka Browser" },
+      { "name": "Media.WindowsMediaPlayer", "replacedBy": "Media Player (the new one, kept)" },
+      { "name": "Microsoft.Windows.WordPad", "replacedBy": "Notepad" },
+      { "name": "App.StepsRecorder", "replacedBy": "Snipping Tool screen recording" },
+      { "name": "MathRecognizer", "replacedBy": "nothing; rarely used handwriting math input" },
+      { "name": "Print.Fax.Scan", "replacedBy": "Printers & scanners in Settings" },
+      { "name": "Microsoft.Windows.PowerShell.ISE", "replacedBy": "Terminal" }
+    ]
+  },
+  "removeEdge": {
+    "approved": true,
+    "keepWebView2": true,
+    "note": "Microsoft Edge (the browser) is uninstalled with its own setup.exe; the WebView2 runtime that Baka Browser and many apps use is a separate install and stays. Edge Update is told not to put Edge back while still updating WebView2."
+  },
   "blockedPackagePatterns": [
     "*WindowsStore*",
     "*WebView2*",

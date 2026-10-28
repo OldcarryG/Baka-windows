@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([switch]$CreateAccount,[switch]$RegisterTask,[switch]$WaitForOobe)
+param([switch]$RegisterTask,[switch]$WaitForOobe)
 $ErrorActionPreference='Stop'
 # Boot straight to the desktop for the passwordless BAKA account.
 # Windows 11 26H2 left the answer-file AutoLogon at the lock screen in VMware testing, and writing the
@@ -19,24 +19,17 @@ if(-not (Test-Path -LiteralPath $accountPath -PathType Leaf)){Write-AutoSignInLo
 $account=Get-Content -LiteralPath $accountPath -Raw|ConvertFrom-Json
 if(-not $account.autoLogon){Write-AutoSignInLog 'autoLogon disabled in AccountSetup.json; skipped.';return}
 $userName=[string]$account.localAccount.name
-if($CreateAccount){
-    # specialize: create the local administrator with NO password. VMware testing showed the answer-file
-    # LocalAccount with an empty <Password> produced an account whose blank password was rejected, so BAKA
-    # creates it directly. OOBE then skips account creation because an administrator already exists.
-    $existing=Get-LocalUser -Name $userName -ErrorAction SilentlyContinue
-    if(-not $existing){
-        New-LocalUser -Name $userName -FullName ([string]$account.localAccount.displayName) -NoPassword -AccountNeverExpires -Description 'BAKA desktop account (no password; set one in Settings > Accounts to require sign-in).'|Out-Null
-        Write-AutoSignInLog "Created passwordless local account '$userName'."
-    }else{
-        Set-LocalUser -Name $userName -Password ([securestring]::new())
-        Write-AutoSignInLog "Account '$userName' already existed; password cleared."
-    }
-    Set-LocalUser -Name $userName -PasswordNeverExpires $true
-    Enable-LocalUser -Name $userName
-    # S-1-5-32-544 is the built-in Administrators group in every language.
-    if(-not (Get-LocalGroupMember -SID 'S-1-5-32-544' -ErrorAction SilentlyContinue|Where-Object {$_.Name -match ('\\'+[regex]::Escape($userName)+'$')})){Add-LocalGroupMember -SID 'S-1-5-32-544' -Member $userName}
-    Write-AutoSignInLog "Account '$userName' is a member of Administrators."
-    return
+# The answer file's oobeSystem UserAccounts creates the account (that is what makes OOBE skip its account page).
+# After OOBE this makes sure it really has an empty password that never expires and is an enabled administrator,
+# because VMware testing once showed an answer-file account whose empty password was rejected.
+function Set-BakaAccountPasswordless{
+    try{
+        Set-LocalUser -Name $userName -Password ([securestring]::new()) -PasswordNeverExpires $true -ErrorAction Stop
+        Enable-LocalUser -Name $userName -ErrorAction Stop
+        # S-1-5-32-544 is the built-in Administrators group in every language.
+        if(-not (Get-LocalGroupMember -SID 'S-1-5-32-544' -ErrorAction SilentlyContinue|Where-Object {$_.Name -match ('\\'+[regex]::Escape($userName)+'$')})){Add-LocalGroupMember -SID 'S-1-5-32-544' -Member $userName -ErrorAction Stop}
+        Write-AutoSignInLog "Account '$userName': empty password, never expires, enabled administrator."
+    }catch{Write-AutoSignInLog "Account '$userName' could not be normalized: $($_.Exception.Message)"}
 }
 if($RegisterTask){
     $powershell=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -58,6 +51,7 @@ if($WaitForOobe){
         Start-Sleep -Seconds 10
     }
     if(-not $userReady){Write-AutoSignInLog "Account '$userName' never appeared; automatic sign-in not configured.";return}
+    Set-BakaAccountPasswordless
 }
 $winlogon='HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
 $alreadyOn=((Get-ItemProperty -LiteralPath $winlogon -Name AutoAdminLogon -ErrorAction SilentlyContinue).AutoAdminLogon -eq '1' -and (Get-ItemProperty -LiteralPath $winlogon -Name DefaultUserName -ErrorAction SilentlyContinue).DefaultUserName -eq $userName -and $null -eq (Get-ItemProperty -LiteralPath $winlogon -Name AutoLogonCount -ErrorAction SilentlyContinue))

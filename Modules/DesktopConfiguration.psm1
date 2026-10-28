@@ -9,11 +9,11 @@ function Get-BakaDefaultDesktopConfiguration {
         Widgets=[pscustomobject]@{
             Enabled=$false; RefreshSeconds=3
             Items=@(
-                [pscustomobject]@{ Id='clock'; Enabled=$true; Left=32; Top=48; Width=260; Height=120 },
-                [pscustomobject]@{ Id='calendar'; Enabled=$true; Left=32; Top=182; Width=260; Height=250 },
-                [pscustomobject]@{ Id='system'; Enabled=$true; Left=308; Top=48; Width=300; Height=190 },
-                [pscustomobject]@{ Id='notes'; Enabled=$false; Left=308; Top=252; Width=300; Height=190 }
-            )
+                [pscustomobject]@{ Id='clock'; Enabled=$true; Left=104; Top=48; Width=260; Height=160 },
+                [pscustomobject]@{ Id='calendar'; Enabled=$true; Left=104; Top=222; Width=260; Height=250 },
+                [pscustomobject]@{ Id='system'; Enabled=$true; Left=380; Top=48; Width=300; Height=190 },
+                [pscustomobject]@{ Id='notes'; Enabled=$false; Left=380; Top=252; Width=300; Height=190 }
+            )+@(Get-BakaAddedWidgetItems)
         }
         Wallpaper=(Get-BakaDefaultWallpaperSettings)
         Taskbar=(Get-BakaDefaultTaskbarSettings)
@@ -24,6 +24,14 @@ function Get-BakaDefaultDesktopConfiguration {
             [pscustomobject]@{ Id='taskmgr'; Name='Task Manager'; Kind='Executable'; Target='%WINDIR%\System32\Taskmgr.exe'; Arguments=''; ProcessName='Taskmgr'; Glyph=[string][char]0xE9D9; IconPath='' }
         )
     }
+}
+
+function Get-BakaAddedWidgetItems {
+    # Widgets added after the first release; Complete-BakaDesktopConfiguration adds them (off) to older settings.
+    @(
+        [pscustomobject]@{ Id='media'; Enabled=$false; Left=696; Top=48; Width=280; Height=190 },
+        [pscustomobject]@{ Id='timer'; Enabled=$false; Left=696; Top=252; Width=280; Height=200 }
+    )
 }
 
 function Get-BakaDefaultWallpaperSettings {
@@ -59,6 +67,13 @@ function Complete-BakaDesktopConfiguration {
             if(-not $current.PSObject.Properties[$property.Name]){$current | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force}
         }
     }
+    $widgets=Get-BakaConfigMember $Configuration 'Widgets'
+    if($null -ne $widgets -and $widgets.PSObject.Properties['Items']){
+        $items=@($widgets.Items)
+        $known=@($items|ForEach-Object {[string]$_.Id})
+        $missing=@(Get-BakaAddedWidgetItems|Where-Object {$_.Id -notin $known})
+        if($missing.Count){$widgets.Items=@($items+$missing)}
+    }
     foreach($app in @(Get-BakaConfigMember $Configuration 'PinnedApps')){
         if($app -and -not $app.PSObject.Properties['IconPath']){$app | Add-Member -NotePropertyName IconPath -NotePropertyValue '' -Force}
     }
@@ -86,7 +101,7 @@ function Test-BakaDesktopConfiguration {
     if ([int]$Configuration.Dock.Spacing -lt 4 -or [int]$Configuration.Dock.Spacing -gt 18) { $errors.Add('Dock.Spacing must be between 4 and 18.') }
     if ([string]$Configuration.Dock.Alignment -notin @('Left','Center','Right')) { $errors.Add('Dock.Alignment must be Left, Center, or Right.') }
     if ([int]$Configuration.Widgets.RefreshSeconds -lt 2 -or [int]$Configuration.Widgets.RefreshSeconds -gt 30) { $errors.Add('Widgets.RefreshSeconds must be between 2 and 30 seconds.') }
-    $widgetIds=@('clock','calendar','system','notes')
+    $widgetIds=@('clock','calendar','system','notes','media','timer')
     foreach ($item in @($Configuration.Widgets.Items)) {
         if ([string]$item.Id -notin $widgetIds) { $errors.Add("Unsupported widget id '$($item.Id)'.") }
         if ([int]$item.Width -lt 180 -or [int]$item.Width -gt 720 -or [int]$item.Height -lt 100 -or [int]$item.Height -gt 720) { $errors.Add("Widget '$($item.Id)' dimensions are outside supported limits.") }
@@ -95,7 +110,7 @@ function Test-BakaDesktopConfiguration {
     $appIds=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($app in @($Configuration.PinnedApps)) {
         if ([string]::IsNullOrWhiteSpace([string]$app.Id) -or -not $appIds.Add([string]$app.Id)) { $errors.Add('Pinned application ids must be non-empty and unique.') }
-        if ([string]$app.Kind -notin @('Executable','Uri')) { $errors.Add("Pinned application '$($app.Name)' has an unsupported kind.") }
+        if ([string]$app.Kind -notin @('Executable','Uri','AppId','Baka')) { $errors.Add("Pinned application '$($app.Name)' has an unsupported kind.") }
         if ([string]::IsNullOrWhiteSpace([string]$app.Target)) { $errors.Add("Pinned application '$($app.Name)' has no target.") }
         if ([string]$app.Kind -eq 'Uri' -and [string]$app.Target -notmatch '^[a-z][a-z0-9+.-]*:' ) { $errors.Add("Pinned application '$($app.Name)' has an invalid URI target.") }
         $iconPath=[string](Get-BakaConfigMember $app 'IconPath')

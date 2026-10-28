@@ -39,17 +39,19 @@
     "enabled": false,
     "refreshSeconds": 3,
     "items": [
-      { "id": "clock", "enabled": true, "left": 32, "top": 48, "width": 260, "height": 120 },
-      { "id": "calendar", "enabled": false, "left": 32, "top": 182, "width": 260, "height": 250 },
-      { "id": "system", "enabled": false, "left": 308, "top": 48, "width": 300, "height": 190 },
-      { "id": "notes", "enabled": false, "left": 308, "top": 252, "width": 300, "height": 190 }
+      { "id": "clock", "enabled": true, "left": 104, "top": 48, "width": 260, "height": 160 },
+      { "id": "calendar", "enabled": false, "left": 104, "top": 222, "width": 260, "height": 250 },
+      { "id": "system", "enabled": false, "left": 380, "top": 48, "width": 300, "height": 190 },
+      { "id": "notes", "enabled": false, "left": 380, "top": 252, "width": 300, "height": 190 },
+      { "id": "media", "enabled": false, "left": 696, "top": 48, "width": 280, "height": 190 },
+      { "id": "timer", "enabled": false, "left": 696, "top": 252, "width": 280, "height": 200 }
     ]
   },
   "pinnedApps": [
     { "id": "baka-browser", "name": "Baka Browser", "kind": "Executable", "target": "%LOCALAPPDATA%\\BakaBrowser\\current\\baka.exe", "arguments": "", "processName": "baka", "glyph": "\uE774", "iconPath": "" },
-    { "id": "explorer", "name": "Files", "kind": "Executable", "target": "%WINDIR%\\explorer.exe", "arguments": "", "processName": "explorer", "glyph": "\uE8B7", "iconPath": "" },
-    { "id": "steam", "name": "Steam", "kind": "Executable", "target": "%ProgramFiles(x86)%\\Steam\\steam.exe", "arguments": "", "processName": "steam", "glyph": "\uE7FC", "iconPath": "" },
-    { "id": "terminal", "name": "Terminal", "kind": "Executable", "target": "%WINDIR%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "arguments": "", "processName": "powershell", "glyph": "\uE756", "iconPath": "" },
+    { "id": "explorer", "name": "Files", "kind": "Baka", "target": "files", "arguments": "", "processName": "", "glyph": "\uE8B7", "iconPath": "" },
+    { "id": "store", "name": "Microsoft Store", "kind": "AppId", "target": "Microsoft.WindowsStore_8wekyb3d8bbwe!App", "arguments": "", "processName": "WinStore.App", "glyph": "\uE719", "iconPath": "" },
+    { "id": "terminal", "name": "Terminal", "kind": "AppId", "target": "Microsoft.WindowsTerminal_8wekyb3d8bbwe!App", "arguments": "", "processName": "WindowsTerminal", "glyph": "\uE756", "iconPath": "" },
     { "id": "settings", "name": "Settings", "kind": "Uri", "target": "ms-settings:", "arguments": "", "processName": "SystemSettings", "glyph": "\uE713", "iconPath": "" },
     { "id": "taskmgr", "name": "Task Manager", "kind": "Executable", "target": "%WINDIR%\\System32\\Taskmgr.exe", "arguments": "", "processName": "Taskmgr", "glyph": "\uE9D9", "iconPath": "" }
   ]
