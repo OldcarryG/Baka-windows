@@ -4,7 +4,7 @@ Windows 11 Pro 26H2 x64 (build 26300.9711) with BAKA Desktop, gaming and privacy
 
 **Download:** MEGA_LINK
 
-ISO: `ISO_NAME`, ISO_SIZE bytes, SHA-256 `ISO_SHA`. Check it after downloading with `Get-FileHash <file>.iso` in PowerShell.
+ISO: `BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R15-20261029.iso`, 11,174,234,112 bytes, SHA-256 `D33C2E3900710A96347F47ABE905911E372B5D19C034AC49260B9217E1E18107`. Check it after downloading with `Get-FileHash <file>.iso` in PowerShell.
 
 ## What was wrong in R14, and what R15 changes
 
@@ -34,7 +34,7 @@ Each problem below was found by measuring, and each fix was measured again in th
 | Win+E to a file window | 175 to 258 ms (File Explorer) | not measured | **16 to 64 ms** (BAKA Files) |
 | Fast Startup on power-on | on | **off** | on |
 
-FRESH_INSTALL_NOTE
+The R15 column was measured with the R15 BAKA Desktop and start-up changes installed into the R14 test VM, after removing the Store test apps so both VMs had the same apps.
 
 What these numbers mean:
 - **Gaming mode equals stock** for key latency: BAKA has nothing in the keyboard path while a game runs.
@@ -51,7 +51,14 @@ What these numbers mean:
 
 ## Tests
 
-TESTS_TABLE
+| Test | Result |
+|---|---|
+| Project configuration (100 checks) | Passed |
+| ISO structural validation | Passed |
+| BAKA Desktop self-test on the development PC | 50 of 50 |
+| Fresh install of this ISO in a Hyper-V VM (Gen 2, Secure Boot, vTPM) | Installed, signed in automatically, BAKA desktop up; BAKA Desktop self-test in the VM passed |
+| Keyboard mode after sign-in | raw input (no keyboard hook) |
+| Shutdown / restart, 10 runs | no crash entry, taskbar stays hidden at the next sign-in |
 
 ## Not done or not verified
 
