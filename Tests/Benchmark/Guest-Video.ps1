@@ -1,4 +1,4 @@
-# Runs INSIDE the BAKA VM in the signed-in BAKA user's session. Checks the 4K video wallpaper on the real
+﻿# Runs INSIDE the BAKA VM in the signed-in BAKA user's session. Checks the 4K video wallpaper on the real
 # desktop: it starts, it pauses when a maximized window covers the desktop and plays again after, it is
 # closed while a game runs and comes back after, and each 4K format plays in the player test.
 # The 4K files are copied next to this script (Run-InUserSession copies only the script; the host wrapper copies the videos).

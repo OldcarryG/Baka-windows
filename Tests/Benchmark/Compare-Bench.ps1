@@ -1,4 +1,4 @@
-# Compares bench-Stock.json, bench-Baka.json (BAKA Desktop mode) and, if present, bench-BakaGaming.json
+﻿# Compares bench-Stock.json, bench-Baka.json (BAKA Desktop mode) and, if present, bench-BakaGaming.json
 # (the same BAKA VM after BakaDesktop.exe --profile gaming). Writes compare.md and compare.json.
 # Score: for each metric, ratio = stock/baka when lower is better, baka/stock when higher is better.
 # Performance score = 100 x geometric mean of the ratios (100 = same as stock Windows, 110 = 10% better on average).

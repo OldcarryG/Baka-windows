@@ -1,4 +1,4 @@
-# Runs INSIDE a test VM through PowerShell Direct. Measures the same things on stock Windows and BAKA:
+﻿# Runs INSIDE a test VM through PowerShell Direct. Measures the same things on stock Windows and BAKA:
 # boot time, idle memory/CPU/processes/services, disk use, WinSAT CPU/memory/disk scores, ad and tracker
 # blocking (the public d3ward test list, resolved the way the browser would), privacy settings and apps.
 param([string[]]$Domains)

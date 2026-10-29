@@ -1,4 +1,4 @@
-# Runs INSIDE a test VM in the signed-in user's session. Measures latency the user can feel:
+﻿# Runs INSIDE a test VM in the signed-in user's session. Measures latency the user can feel:
 #  - input: time from injecting a key press / mouse move (SendInput) until the focused window receives it.
 #    Every low-level keyboard or mouse hook in any process (BAKA has a keyboard hook for the Windows key)
 #    sits in this path, so this shows what BAKA adds to every key press of a game.
