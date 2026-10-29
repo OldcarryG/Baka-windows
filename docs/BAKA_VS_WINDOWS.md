@@ -78,6 +78,8 @@ Both systems were installed from their ISOs into identical Hyper-V VMs (Generati
 
 ### R14 (final build, measured 2026-10-29)
 
+The full R14 method, every score ratio, top processes, input latency and video results are in [BENCHMARK.md](BENCHMARK.md).
+
 Same method as R13 below: each VM restarted, signed in, left idle 10 minutes, then measured; BAKA in Desktop mode, then in Gaming mode.
 
 | Measurement | Stock | BAKA Desktop mode | BAKA Gaming mode |

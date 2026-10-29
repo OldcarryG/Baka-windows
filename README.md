@@ -2,9 +2,30 @@
 
 A custom Windows 11 Pro 26H2 (x64) image for gaming. It replaces the taskbar, Start menu and File Explorer windows with its own desktop, puts BAKA buttons on every app window, plays 4K video wallpapers on the graphics card, removes apps most people never use, blocks ads and trackers for every app, turns off telemetry, and ships [Baka Browser](https://github.com/OldcarryG/Baka-browser) as the default browser. When a game starts, BAKA gets out of the way: its UI, keyboard hook and video wallpaper are switched off, so it adds almost nothing while you play.
 
+Windows itself is not modified: it is Microsoft's own Windows 11 Pro 26H2 (build 26300) with Windows Security, Secure Boot, TPM, the Store, drivers and Windows Update all working. Everything BAKA changes can be undone.
+
 [![Source validation](https://github.com/OldcarryG/Baka-windows/actions/workflows/source-validation.yml/badge.svg?branch=main)](https://github.com/OldcarryG/Baka-windows/actions/workflows/source-validation.yml)
 
-**Download:** the full ISO is on MEGA, linked from the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest) together with its SHA-256.
+**Download:** the full ISO (11.2 GB) is on MEGA, linked from the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest) together with its SHA-256.
+
+- [Screenshots](#screenshots)
+- [Features](#features)
+- [BAKA vs normal Windows 11](#baka-vs-normal-windows-11)
+- [Benchmark](#benchmark)
+- [Input latency](#input-latency)
+- [4K video wallpaper](#4k-video-wallpaper)
+- [System requirements](#system-requirements)
+- [Install](#install)
+- [First start](#first-start)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Undo BAKA](#undo-baka)
+- [Known limits](#known-limits)
+- [FAQ](#faq)
+- [Releases](#releases)
+- [Command line](#command-line)
+- [Build and source checks](#build-and-source-checks)
+
+## Screenshots
 
 ![BAKA desktop on an installed system (Hyper-V VM)](docs/screenshots/installed-desktop.png)
 
@@ -25,31 +46,50 @@ BAKA buttons on other apps (Notepad, Calculator, Media Player), captured in the 
 ## Features
 
 ### Desktop
-- **BAKA Desktop**, a compiled app (C#/WPF on .NET Framework 4.8, which ships with Windows). No PowerShell runs for the desktop. It restarts itself after a crash; after three crashes in two minutes it gives back the normal Windows taskbar.
-- **Menu bar** on top and **dock** on the left (or bottom or right). They reserve their screen edge like the taskbar, so maximized windows never hide their buttons under them.
-- **BAKA buttons on every app window**: amber, green and red minimize, maximize and close on Notepad, Store apps and most desktop apps. Nothing is loaded into other apps, so anti-cheat is not affected. Apps running as administrator, dialogs and fullscreen windows keep Windows' buttons.
-- **4K video wallpaper**: MP4, MOV, MKV, WebM, WMV and AVI with H.264, HEVC, VP9 or AV1, up to 4K (higher if your graphics card decodes it). Windows' own Media Foundation player decodes it on the graphics card and draws it straight to the screen, so a 4K video costs well under 1% CPU on a PC with a GPU. It pauses when a maximized or fullscreen window covers the desktop, on battery and while the PC is locked, and it is closed completely (decoder and video memory freed) while a game runs. A video Windows cannot play falls back to the picture and Settings shows why.
-- **Launchpad** (Windows key): every installed app, and one search for apps, Windows settings pages and files. Tolerates typos ("setings"), knows program names ("cmd") and initials ("vsc").
-- **BAKA Files**: places and drives, sorting, search in subfolders, copy/cut/paste, drag and drop, Recycle Bin, rename, ZIP, Open with, Properties, Terminal here. Win+E and folders from any app open here.
-- **125 hand-drawn app icons** drawn in each theme's style; **12 themes**, accent colours, glass and motion levels.
-- **Control Center**, **BAKA Settings**, **BAKA Arena** (profiles, live performance numbers, every Steam and Epic game) and **widgets** (clock, calendar, system monitor, notes, media controls, focus timer).
+- **BAKA Desktop** is a compiled app (C#/WPF on .NET Framework 4.8, which ships with Windows). No PowerShell runs for the desktop. It restarts itself after a crash; after three crashes in two minutes it gives back the normal Windows taskbar, so you are never left without a desktop.
+- **Menu bar** on top: BAKA menu, Apps, Files, Arena, Settings, the name of the app in front, tray icons, network, volume, battery, clock, notifications and Control Center.
+- **Dock** on the left, bottom or right, with pinned and running apps. Menu bar and dock reserve their screen edge like the taskbar, so maximized windows never hide their buttons under them. Fullscreen games and video cover them as they would cover the taskbar.
+- **BAKA buttons on every app window**: amber, green and red minimize, maximize and close on Notepad, Store apps (Calculator, Media Player) and most desktop apps. They follow the window when you drag it. Nothing is loaded into other apps, so anti-cheat is not affected. Apps running as administrator, dialogs and fullscreen windows keep Windows' buttons. Can be turned off in Settings > Windows.
+- **4K video wallpaper**: MP4, MOV, MKV, WebM, WMV and AVI with H.264, HEVC, VP9 or AV1, up to 4K (higher if your graphics card decodes it). Details [below](#4k-video-wallpaper).
+- **Launchpad** (Windows key): every installed app in a grid, and one search box for apps, Windows settings pages and files. It tolerates typos ("setings", "discrod"), knows program names ("cmd", "regedit") and initials ("vsc" for Visual Studio Code). Ctrl+Esc still opens the Windows Start menu.
+- **BAKA Files**: sidebar with places and drives (with free space), sortable list, search in the folder and subfolders, copy/cut/paste with the Windows clipboard, drag and drop, delete to the Recycle Bin, rename, new folder or text file, ZIP compress and extract, Open with, Properties, Open Terminal here. Win+E and folders opened from any app open here.
+- **Control Center**: Wi-Fi, Bluetooth, focus, night light, tray icons, display, volume, brightness (laptops), media controls, profile, power plan, theme and widgets.
+- **BAKA Settings** pages: Appearance (theme, accent, glass, motion, icons), Wallpaper (BAKA wallpapers, any picture, a looping video or a colour, plus the pause options), Dock, Menu bar, Widgets, Windows (BAKA buttons, Windows key, Leave BAKA), Privacy & ads, Power (power plan, Desktop/Gaming/Benchmark profile) and About.
+- **BAKA Arena**: all installed Steam and Epic games in one grid, Desktop and Gaming profiles, live CPU, GPU, memory and network numbers.
+- **Widgets**: clock, calendar, system monitor (CPU, GPU, memory, disk, network), notes, media controls, focus timer. No news feed and no ads.
+- **125 hand-drawn app icons** (Steam, Discord, Spotify, Settings, Store, Terminal, Git, Python, NVIDIA, Riot, VALORANT, Roblox, browsers and more), each drawn in the style of the theme. Apps without a BAKA icon keep their own icon on a BAKA tile.
+- **12 themes**: Carbon, Carbon Red, Liquid Glass, four Pop themes, Obsidian, Liquid, Violet, Minimal and Gaming, with accent colours and glass and motion levels.
 - BAKA's own windows use the Mica backdrop, so they move as smoothly as Windows 11 apps.
 
 ### Gaming and latency
-- A running game (Steam, Epic, GOG, EA, Ubisoft, Xbox, Riot, Battle.net, itch or any fullscreen app) switches BAKA to **Competitive Gaming**: menu bar, dock, widgets, BAKA buttons and video wallpaper go away, BAKA's **keyboard hook is removed** (so no key press of the game passes through BAKA), transparency and animations off, background apps paused, BAKA's memory trimmed. Everything comes back when the game closes.
-- **BAKA Gaming power plan** (Ultimate Performance base, no core parking, no USB suspend), Game Mode, hardware GPU scheduling, raw mouse input (no acceleration), no Sticky/Filter/Toggle Keys pop-ups, windowed-game optimizations, no network throttling for games.
-- Free AV1, VP9, HEVC and HEIF codecs installed from the Microsoft Store at first sign-in.
-- **[Tune it for your hardware with an AI coding tool](docs/OPTIMIZE_WITH_AI.md)**: a ready-made prompt for Claude Code, Codex, Gemini CLI, Cursor, Kiro or similar. The AI inventories your CPU, GPU, RAM, monitor and network, benchmarks first, shows a plan, applies only measured improvements, keeps security on, and writes an undo script.
+- **Automatic game detection.** A running game (Steam, Epic, GOG, EA, Ubisoft, Xbox, Riot, Battle.net, itch, or any fullscreen app) switches BAKA to **Competitive Gaming**:
+  - menu bar, dock, widgets and BAKA window buttons are hidden;
+  - the video wallpaper is closed and its decoder and video memory freed;
+  - BAKA's **keyboard hook is removed**, so no key press of the game passes through BAKA;
+  - the window-event hooks for the BAKA buttons are removed;
+  - transparency and animations are switched off, background apps paused, and BAKA's memory trimmed;
+  - BAKA Desktop runs at below-normal priority.
 
-### Privacy, ads and clean-up
-- Ads and trackers blocked for every app: encrypted AdGuard DNS plus a BAKA hosts block list. One switch in Settings turns both off.
-- Telemetry off: DiagTrack, dmwappushservice, Inventory and Compatibility Appraisal, Windows Health and Optimized Experiences, Windows AI Components Host, Distributed Link Tracking, 16 telemetry tasks, app inventory and application telemetry. Copilot, Recall, advertising ID, tips, suggestions, Start web search, activity history and Spotlight off. Windows Pro still sends "required" diagnostic data; BAKA does not claim zero telemetry.
-- Removed: Internet Explorer, legacy Windows Media Player, Movies & TV, WordPad, Steps Recorder, Math Input Panel, Fax and Scan, PowerShell ISE, Clipchamp, Copilot, Maps, People, Family and 19 more consumer apps; Microsoft Edge (WebView2 kept).
-- Kept: Microsoft Store (WhatsApp, Spotify, To Do and others install and run), Media Player, Photos, Paint, Notepad, Calculator, Snipping Tool, Terminal, Windows Security, Xbox sign-in.
-- Boots straight to the desktop with a passwordless local account. Everything BAKA changes is backed up; **Restore BAKA System Tuning** puts it back.
+  Everything comes back when the game closes. Arena's Gaming card does the same by hand.
+- **BAKA Gaming power plan**: based on Ultimate Performance, no core parking, games kept on performance cores, no USB selective suspend. Laptops keep Balanced on battery.
+- Game Mode on, hardware-accelerated GPU scheduling on, optimizations for windowed games, foreground priority, no network throttling for games.
+- Raw mouse input (no acceleration), no Sticky Keys, Filter Keys or Toggle Keys pop-ups.
+- Game DVR and Game Bar off. Xbox sign-in is kept for Game Pass and PC games.
+- Free AV1, VP9, HEVC and HEIF codecs installed from the Microsoft Store at first sign-in.
+- **[Tune it for your hardware with an AI coding tool](docs/OPTIMIZE_WITH_AI.md)**: a ready-made prompt for Claude Code, Codex, Gemini CLI, Cursor, Kiro or similar. The AI inventories your CPU, GPU, RAM, monitor and network, benchmarks first, shows a plan, applies only changes it measured to help, keeps security and anti-cheat requirements on, and writes an undo script.
+
+### Privacy and ads
+- **Ads and trackers blocked for every app**, not just the browser: encrypted AdGuard DNS (DNS over HTTPS) plus a BAKA block list in the Windows hosts file for ad, analytics and error-tracking hosts that DNS lists miss. One switch in Settings turns both off.
+- **Telemetry off**: DiagTrack, dmwappushservice, Inventory and Compatibility Appraisal, Windows Health and Optimized Experiences, Windows AI Components Host and Distributed Link Tracking services; 16 telemetry tasks; app inventory and application telemetry policies; diagnostic data at the lowest level Windows Pro allows. Windows Pro still sends "required" diagnostic data; BAKA does not claim zero telemetry.
+- **Off**: Copilot, Recall, advertising ID, tips and suggestions, Start menu web search, activity history, Spotlight, consumer app installs.
+
+### Apps
+- **Removed**: Internet Explorer, legacy Windows Media Player, Movies & TV, WordPad, Steps Recorder, Math Input Panel, Fax and Scan, PowerShell ISE, Clipchamp, Copilot, Xbox app, Game Bar, News, Weather, Office hub, Solitaire, Teams (personal), Bing Search, Outlook (new), To Do, Power Automate, Get Help, Feedback Hub, Dev Home, Phone Link, Cross Device, Quick Assist, Maps, People, Family; Microsoft Edge (the WebView2 runtime that apps need is kept). Removed apps can be installed again from the Store.
+- **Kept**: Microsoft Store (WhatsApp, Spotify, To Do and others install and run), Media Player, Photos, Camera, Paint, Notepad, Calculator, Snipping Tool, Terminal, Clock, Sound Recorder, Windows Security, App Installer (winget), Xbox sign-in.
+- **Added**: Baka Browser, BAKA Desktop, free AV1/VP9/HEVC/HEIF codecs.
 
 ### Baka Browser 1.6.2
-Preinstalled and the default browser: uBlock Origin Lite, Chrome Web Store extensions, new-tab background picture or video, tab menu, drag tabs to reorder or into a new window, mute button, 4K VP9/AV1 video.
+Preinstalled and set as the default browser. Chromium engine (WebView2), uBlock Origin Lite added on first start, Chrome Web Store extensions with signature checks, tab menu, drag tabs to reorder or into a new window, mute button, private windows, new-tab dashboard with picture or video background, 4K VP9/AV1/H.264 video, quiet automatic updates. See the [Baka Browser README](https://github.com/OldcarryG/Baka-browser#readme).
 
 ## BAKA vs normal Windows 11
 
@@ -59,7 +99,8 @@ Preinstalled and the default browser: uBlock Origin Lite, Chrome Web Store exten
 | Window buttons | Windows' buttons | BAKA amber/green/red buttons on every app |
 | File manager | File Explorer | BAKA Files (Explorer still runs hidden for tray, notifications, file dialogs) |
 | Wallpaper | Picture, slideshow, Spotlight | Picture, colour, or 4K video decoded on the GPU, paused when covered, closed in games |
-| While gaming | Taskbar, widgets, background apps keep running | BAKA UI, keyboard hook and video wallpaper off; BAKA uses 0.03% CPU |
+| While gaming | Taskbar, widgets, background apps keep running | BAKA UI, keyboard hook and video wallpaper off; BAKA Desktop uses 0.01% CPU and 34 MB |
+| Key press latency while gaming (VM, median) | 0.225 ms | 0.21 to 0.30 ms (no BAKA hook in the path) |
 | Power plan | Balanced | BAKA Gaming (Ultimate Performance base) |
 | Game DVR / Game Bar | On | Off |
 | Mouse acceleration | On | Off (raw input) |
@@ -68,7 +109,7 @@ Preinstalled and the default browser: uBlock Origin Lite, Chrome Web Store exten
 | Telemetry tasks / services running | 14 / 5 | 0 / 0 |
 | Copilot, Recall, ads ID, tips, Spotlight, Start web search | On | Off |
 | Microsoft Edge | Installed, default browser | Removed; Baka Browser is the default (WebView2 kept) |
-| Preinstalled consumer apps | 50 Store apps | 30 |
+| Installed app packages | 51 | 35 |
 | Setup | Account, privacy and Microsoft-account screens | Straight to the desktop; disk choice stays interactive |
 | Security (Defender, firewall, Secure Boot, TPM, VBS, updates) | On | On (nothing bypassed) |
 | Undo | – | Restore BAKA System Tuning, Settings > Windows > Leave BAKA |
@@ -77,36 +118,66 @@ The full comparison, with every setting, is in [docs/BAKA_VS_WINDOWS.md](docs/BA
 
 ## Benchmark
 
-Stock Windows 11 and BAKA were installed from their ISOs into identical Hyper-V VMs (Generation 2, Secure Boot, virtual TPM 2.0, 4 vCPU, 6 GB), restarted, left idle for 10 minutes and measured with the same script. BAKA was measured in Desktop mode and again in Gaming mode (what a running game switches to).
+Final R14 ISO, measured 2026-10-29. Stock Windows 11 (the official Microsoft ISO, unchanged) and BAKA were installed into identical Hyper-V VMs (Generation 2, Secure Boot, virtual TPM 2.0, 4 vCPU, 6 GB, 64 GB disk). Each VM ran alone, was restarted, signed in, left idle for 10 minutes and measured with the same script. BAKA was measured in Desktop mode and again in Gaming mode (what a running game switches to).
 
 | | Stock Windows 11 | BAKA Desktop mode | BAKA Gaming mode |
 |---|---:|---:|---:|
 | **Score** (100 = stock) | 100 | 99.4 | **101.7** |
-| Idle CPU | 5.5% | **2.6%** | 2.9% |
+| Score without idle CPU | 100 | 91.4 | 94.0 |
+| Idle CPU, 60 s average | 5.5% | **2.6%** | 2.9% |
 | Memory in use at idle | **2066 MB** | 2539 MB | 2579 MB |
-| Processes / running services | 137 / 97 | 136 / 90 | 136 / **89** |
+| Memory committed | **1779 MB** | 2340 MB | 2324 MB |
+| Processes / threads | 137 / 1562 | 136 / 1652 | 136 / **1511** |
+| Running services | 97 | 90 | **89** |
+| Ready scheduled tasks | 211 | **194** | **194** |
 | BAKA Desktop's own CPU / memory | – | 0.1% / 57 MB | 0.01% / 34 MB |
-| CPU (SHA-256, MB/s) | 1871 | 1871 | 1870 |
-| Memory copy (MB/s) | 18088 | 17517 | 17803 |
-| Disk write (MB/s) | 1620 | 1509 | 1619 |
-| Boot to desktop (Windows boot event) | **22.0 s** | 27.8 s | |
+| CPU (SHA-256, one core) | 1871 MB/s | 1871 MB/s | 1870 MB/s |
+| Memory copy (256 MB) | 18,088 MB/s | 17,517 MB/s | 17,803 MB/s |
+| Disk write (1 GB, write-through) | 1620 MB/s | 1509 MB/s | 1619 MB/s |
+| Boot time (Windows boot event) | **22.0 s** | 27.8 s | |
+| Disk used on C: | **22.0 GB** | 23.8 GB | 23.8 GB |
 | Ads blocked (d3ward test, 131 hosts) | 2 | **131** | **131** |
 | Privacy checks passed | 0 / 12 | **12 / 12** | **12 / 12** |
 
-Final R14, measured 2026-10-29. The BAKA VM still had WhatsApp, Spotify and Microsoft To Do installed from the Store test (WhatsApp alone used 200 MB), which accounts for part of the higher memory. Stock's idle CPU was mostly Microsoft Defender (2.9%); on BAKA the largest user was dwm (0.4%). Boot time varies by several seconds between runs on both systems.
+What this means:
+- **Same speed as stock.** CPU is identical; memory copy and disk write are within 7%, the normal run-to-run range of this VM.
+- **BAKA's own cost is small**: 0.1% CPU and 57 MB on the desktop, 0.01% and 34 MB while gaming.
+- **Idle CPU** was lower on BAKA this round, mostly because Microsoft Defender was scanning on stock (2.9%). In R13 it was the other way round (BAKA 13.5%, stock 3.6%), so idle CPU is noisy. It also carries the score: without it the score is 91.4 (Desktop) and 94.0 (Gaming).
+- **Memory** was about 0.5 GB higher on BAKA. The BAKA VM still had WhatsApp, Spotify and To Do installed and running from the Store test (WhatsApp alone 200 MB); stock had none of them.
+- **Boot** was 5.8 s slower on BAKA this round; in R13 it was 2.8 s faster. Boot time varies by several seconds between runs.
 
-**Input latency** (time from an injected key press until the app in front receives it, 200 presses, same VMs):
+The score is the geometric mean of BAKA-vs-stock ratios over boot time, memory in use, memory committed, processes, services, idle CPU, disk used, CPU, memory copy and disk write (Gaming mode without boot time). **Full method, every ratio, the top CPU and memory users of each system, earlier rounds and the scripts to run it yourself: [docs/BENCHMARK.md](docs/BENCHMARK.md).**
 
-| | Stock Windows 11 | BAKA Desktop mode | BAKA Gaming mode |
-|---|---:|---:|---:|
-| Median | 0.225 ms | 0.30 to 0.37 ms | **0.21 to 0.30 ms** |
-| 99th percentile | **0.386 ms** | 0.74 to 1.19 ms | 0.62 to 1.54 ms |
+Game FPS cannot be measured in a VM without a GPU; use the [AI tuning prompt](docs/OPTIMIZE_WITH_AI.md) to benchmark and tune on your own PC.
 
-BAKA was measured in three installs, stock in one. In Gaming mode BAKA has no hook at all; the spread between runs comes from the VM itself. Mouse latency and the 1 ms timer could not be measured in Hyper-V.
+## Input latency
 
-**The latency fix in R14.** Windows holds every key press until each low-level keyboard hook answers. Until R13, BAKA's hook (for the Windows key) ran on BAKA's UI thread, so a key press waited whenever BAKA was busy drawing. On the development PC, with BAKA's main thread kept busy like a frame being drawn, that design delayed key presses by **25 to 42 ms** (median), and most were held more than 50 ms. The hook now runs on its own time-critical thread that does nothing else: median **0.75 ms**, the same as with no hook at all (0.66 to 0.71 ms, run-to-run noise). In games the hook is removed completely, and turning off "Windows key opens Launchpad" removes it on the desktop too.
+Time from an injected key press until the window in front receives it, 200 presses per run, in the same VMs:
 
-**4K video wallpaper** (`--video-test`, 4K clips, 12 s each; CPU is BAKA Desktop's share of all cores):
+| | Median | 99th percentile |
+|---|---:|---:|
+| Stock Windows 11 | 0.225 ms | 0.386 ms |
+| BAKA Gaming mode, final R14 ISO | **0.243 ms** | **0.555 ms** |
+| BAKA Gaming mode, three earlier R14 installs | 0.21 to 0.30 ms | 0.62 to 1.54 ms |
+| BAKA Desktop mode, final R14 ISO | 0.331 ms | 4.219 ms |
+| BAKA Desktop mode, three earlier R14 installs | 0.30 to 0.37 ms | 0.74 to 1.19 ms |
+
+- **While gaming, BAKA is not in the input path at all.** Its keyboard hook is removed, so key presses reach the game the same way as on stock Windows; the small differences are within what two runs of the same VM differ by.
+- **On the desktop BAKA adds about 0.1 ms** at the median (the hook that makes the Windows key open Launchpad). In the final run 2 of 200 presses took about 4 ms; the three earlier installs stayed under 1.2 ms. Turning off "Windows key opens Launchpad" removes the hook on the desktop too.
+
+**The latency fix in R14.** Windows holds every key press until each low-level keyboard hook answers. Until R13, BAKA's hook ran on BAKA's UI thread, so a key press had to wait whenever BAKA was busy drawing. On the development PC, with BAKA's main thread kept busy like a frame being drawn:
+
+| Design | Median key latency |
+|---|---:|
+| No hook at all | 0.66 to 0.71 ms |
+| R13: hook on the UI thread | **25 to 42 ms** (most presses held more than 50 ms) |
+| R14: hook on its own time-critical thread | **0.75 ms** |
+
+Mouse latency and the 1 ms timer could not be measured in Hyper-V. Details: [docs/BENCHMARK.md#input-latency](docs/BENCHMARK.md#input-latency).
+
+## 4K video wallpaper
+
+Settings > Wallpaper > choose a video, or `BakaDesktop.exe --wallpaper <file>`. Windows' own Media Foundation player decodes the video on the graphics card (DXVA) and draws it straight to the screen, without copying frames through the CPU.
 
 | Format | Development PC (RTX 5060) | VM (no GPU, software decoding) |
 |---|---|---|
@@ -114,21 +185,97 @@ BAKA was measured in three installs, stock in one. In Gaming mode BAKA has no ho
 | HEVC MP4 4K | needs the HEVC extension (BAKA installs it) | plays, 50% |
 | VP9 WebM 4K | plays, **2% CPU** | plays, 21% |
 | AV1 WebM 4K | plays, **0% CPU** | too slow without a GPU |
-| Paused when a maximized window covers the desktop | – | yes, CPU 37% → 0.05% |
-| Closed while a game runs, back afterwards | – | yes, CPU 0% in Gaming mode |
+| A maximized window covers the desktop | – | paused, CPU 37% → 0.05% |
+| A game starts | – | closed, CPU 0%; plays again afterwards |
+
+- It plays only while you can see it: it **pauses** when a maximized or fullscreen window covers the desktop, **on battery**, and while the PC is **locked**. Each can be switched off in Settings > Wallpaper.
+- While a game runs the player is **closed** (decoder and video memory freed) and it continues afterwards.
+- **Fill** crops the video to the screen without black bars; **Fit** shows it whole.
+- A video Windows cannot decode falls back to the picture, and Settings > Wallpaper says why.
+- AV1 needs a GPU that decodes it (NVIDIA RTX 30 or newer, AMD RX 6000 or newer, Intel Arc or 11th-gen Core graphics or newer). On older GPUs use H.264, HEVC or VP9 for 4K.
 
 ![4K video wallpaper on the installed VM](docs/screenshots/video-wallpaper.png)
 
-The score is the geometric mean of BAKA-vs-stock ratios over boot time, memory in use, memory committed, processes, services, idle CPU, disk used, CPU, memory copy and disk write. In R13, idle CPU was higher than stock (13.5% vs 3.6%); in the R14 round it was lower (2.6% vs 5.5%). Game FPS cannot be measured in a VM without a GPU; use the [AI tuning prompt](docs/OPTIMIZE_WITH_AI.md) to benchmark and tune on your own PC.
+## System requirements
+
+The same as Windows 11 Pro; nothing is bypassed:
+- 64-bit CPU supported by Windows 11, UEFI with **Secure Boot**, **TPM 2.0**
+- 4 GB RAM minimum, 8 GB or more recommended for gaming
+- 64 GB disk minimum
+- A USB stick of 16 GB or more for installing
+- Internet at first sign-in for Baka Browser, codecs and Store apps
+- For 4K video wallpapers with almost no CPU use: a GPU with hardware video decoding
 
 ## Install
 
-1. Download the ISO from the MEGA link in the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest) and check its SHA-256 (`Get-FileHash <file>.iso` in PowerShell) against the one in the release.
-2. Write it to a USB stick of 16 GB or more with [Rufus](https://rufus.ie) (GPT, UEFI), or mount it in a VM.
-3. Boot from it. Setup asks which disk to install to (it never erases a disk on its own). TPM 2.0 and Secure Boot are required, as on stock Windows 11.
-4. After about 10 minutes you are on the BAKA desktop. Baka Browser and the 4K codecs install in the background during the first minutes (internet needed).
+1. Download the ISO from the MEGA link in the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest).
+2. Check it: `Get-FileHash .\BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R14-20261029.iso` in PowerShell must print the SHA-256 shown in the release.
+3. Write it to a USB stick with [Rufus](https://rufus.ie) (partition scheme GPT, target UEFI), or mount it in a VM (Hyper-V Generation 2 with Secure Boot and a virtual TPM, or VMware with UEFI and a vTPM).
+4. Boot from it. Setup asks which disk to install to; it never erases a disk on its own. **Back up your data first** if you install over an existing system.
+5. After about 10 minutes you are on the BAKA desktop.
 
 To build the ISO yourself from Microsoft's official ISO, follow [docs/GITHUB_WORKFLOW.md](docs/GITHUB_WORKFLOW.md) and run the scripts in `Scripts/` (needs the Windows ADK Deployment Tools and the .NET SDK).
+
+## First start
+
+- Setup skips the account, privacy and Microsoft-account screens. A local account named **BAKA** signs in by itself without a password. Set a password in Windows Settings > Accounts to get the sign-in screen back.
+- In the first minutes, with internet, BAKA installs Baka Browser and the AV1, VP9, HEVC and HEIF codecs in the background.
+- Windows Update is **paused** at first so it does not download for an hour on a fresh install. Resume it with the **Restore Windows Update** shortcut in the Start menu's BAKA folder.
+- Install your GPU driver (NVIDIA, AMD or Intel) as on any Windows PC.
+- Optional: run the [AI tuning prompt](docs/OPTIMIZE_WITH_AI.md) to tune for your hardware.
+
+## Keyboard shortcuts
+
+| Keys | Action |
+|---|---|
+| Windows key | Launchpad (apps and search) |
+| Win+S | Search |
+| Win+E | BAKA Files |
+| Ctrl+Esc | Windows Start menu |
+| Win+D, Alt+Tab, Win+Tab, Win+L and other Windows shortcuts | Work as usual |
+
+## Undo BAKA
+
+- **BAKA Settings > Windows > Leave BAKA** gives back the Windows taskbar, Start menu and File Explorer.
+- **Restore BAKA System Tuning** (Start menu, BAKA folder) undoes BAKA's service, scheduled-task, privacy, power plan and default-browser policy changes from the backup BAKA made at first sign-in. It asks for administrator approval.
+- **Restore Windows Update** (same folder) turns Windows Update back on.
+- The ad-block DNS and hosts list are turned off with one switch in BAKA Settings > Privacy & ads.
+- `BakaDesktop.exe --restore-windows` does the same as Leave BAKA from a command line.
+- Removed apps can be installed again from the Microsoft Store or Windows Settings > Optional features.
+
+## Known limits
+
+- **Microsoft Edge** is removed and its reinstall blocked by policy, but in one R12 install Windows put Edge back, so removal is not guaranteed on this Windows build.
+- **Store apps that need Edge**, such as Netflix, do not install while Edge is removed (error 0x80073D31).
+- **AV1 4K wallpapers** need hardware AV1 decoding (see above).
+- **Game FPS, frame times, mouse latency and media keys** were not tested; the test VMs have no GPU and no sound device.
+- **Windows Pro telemetry**: "required" diagnostic data is still sent; BAKA does not claim zero telemetry.
+- **Apps running as administrator** and dialogs keep Windows' own window buttons.
+- The ISO is not signed by Microsoft. Check its SHA-256 against the release.
+
+## FAQ
+
+**Does BAKA affect anti-cheat?** BAKA does not load anything into other processes. The BAKA buttons are separate windows that follow the app, and the keyboard hook is removed while a game runs. Secure Boot, TPM, VBS and Defender stay on.
+
+**Is it activated?** BAKA includes no licence key. Activate it with your own Windows 11 Pro licence, as with Microsoft's ISO.
+
+**Can I update Windows?** Yes. Windows Update works normally once you resume it with Restore Windows Update.
+
+**Can I install Chrome, Firefox or Edge?** Chrome, Firefox and other browsers install as usual. Edge is blocked by the Edge Update policy value `Install{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}` = 0 in `HKLM\SOFTWARE\Policies\Microsoft\EdgeUpdate`; delete that value (and `DoNotUpdateToEdgeWithChromium` in `HKLM\SOFTWARE\Microsoft\EdgeUpdate`) to install Edge again.
+
+**Does the video wallpaper slow games down?** No. It is closed completely while a game runs, and paused whenever a maximized window covers the desktop.
+
+**How do I get the normal Windows desktop back?** BAKA Settings > Windows > Leave BAKA.
+
+## Releases
+
+| Release | Main changes |
+|---|---|
+| **R14** (2026-10-29) | 4K video wallpaper decoded on the GPU; keyboard hook on its own time-critical thread (25–42 ms → 0.75 ms with BAKA busy) and removed in games; AI tuning prompt; ISO on MEGA |
+| R13 (2026-10-29) | BAKA buttons on every app window, Mica backdrop for BAKA windows, more privacy checks, Store apps tested, Gaming-mode benchmark, Baka Browser 1.6.2 |
+| R12 (2026-10-28) | Baka Browser 1.6.1 |
+
+All releases: [github.com/OldcarryG/Baka-windows/releases](https://github.com/OldcarryG/Baka-windows/releases).
 
 ## Command line
 
@@ -144,7 +291,7 @@ To build the ISO yourself from Microsoft's official ISO, follow [docs/GITHUB_WOR
 | `--preview`, `--selftest` | run the desktop in a throwaway profile / click through every surface (50 checks) |
 | `--restore-windows` | put the normal Windows desktop back |
 
-## Source checks
+## Build and source checks
 
 ```powershell
 ./Tests/Test-ProjectConfiguration.ps1 -SkipExternalArtifactChecks
@@ -157,11 +304,13 @@ To build the ISO yourself from Microsoft's official ISO, follow [docs/GITHUB_WOR
 ./Tests/Test-BakaDesktop.ps1
 ```
 
-## Project layout
+Benchmark scripts: [`Tests/Benchmark/`](Tests/Benchmark) (see [docs/BENCHMARK.md](docs/BENCHMARK.md#run-it-yourself)).
+
+Project layout:
 
 - `Shell/BakaDesktop/` the desktop (C#): menu bar, dock, Launchpad, Files, Settings, Control Center, Arena, widgets, icons, BAKA window buttons, video wallpaper player, Explorer integration, ad blocking
 - `Scripts/` build pipeline and first sign-in setup
 - `Modules/` power plan, system tuning, update control, gaming profile rules
 - `Config/` answer file, debloat, privacy, block list, performance profiles, themes, applications (pinned Baka Browser installer)
-- `Tests/` the checks above
-- `docs/` comparison with stock Windows, release notes, AI tuning prompt, checklist, decisions, screenshots
+- `Tests/` the checks above and the benchmark scripts
+- `docs/` comparison with stock Windows, benchmark, release notes, AI tuning prompt, checklist, decisions, screenshots
