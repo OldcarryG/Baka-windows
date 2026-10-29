@@ -11,6 +11,7 @@ Both are Windows 11 Pro 26H2 (build 26300) from Microsoft's own installation med
 | Maximized windows | Stop at the taskbar | Stop below the menu bar and next to the dock, so close/minimize/maximize buttons are never covered. Fullscreen video and games cover the bars, as they cover the taskbar. |
 | File manager | File Explorer | **BAKA Files**: sidebar with places and drives (with free space), sortable list, search in folder and subfolders, copy/cut/paste with the Windows clipboard, drag and drop, delete to Recycle Bin, rename, new folder/text file, ZIP compress/extract, open with, properties, open Terminal here. Win+E and folders opened from any app open here. File Explorer still runs in the background because Windows needs it for tray icons, notifications and file dialogs. |
 | Window buttons | Windows' minimize, maximize and close | **BAKA's amber, green and red buttons on every app window** (Notepad, Store apps such as Calculator and Media Player, most desktop apps), in Windows order. Nothing is loaded into the apps, so anti-cheat is not affected. Apps running as administrator, dialogs and fullscreen windows keep their own buttons. Hidden while a game runs. Can be turned off in Settings > Windows. |
+| Wallpaper | Picture, slideshow, Spotlight | Picture, solid colour, or **4K video** (H.264, HEVC, VP9, AV1 in MP4/MOV/MKV/WebM/WMV/AVI) decoded on the graphics card by Windows' Media Foundation. Pauses when a maximized or fullscreen window covers the desktop, on battery and when locked; closed during games. |
 | Moving windows | Smooth | BAKA's own windows use the same Mica backdrop as Windows 11 apps, so they move as smoothly. |
 | Desktop icons | Shown | Hidden (the Desktop folder is in BAKA Files). |
 | App icons | As shipped | **125 hand-drawn BAKA icons** (Steam, Discord, Spotify, Settings, Store, Terminal, Git, Python, NVIDIA, Riot, VALORANT, Roblox, browsers…), each drawn in the theme's style: metal squircles (Carbon), neon hexagons (Carbon Red, Gaming), glass bubbles, candy keycaps (Pop themes) and more. Apps without a BAKA icon keep their own icon on a BAKA tile. "Original" shows icons as the apps ship them. |
@@ -28,6 +29,8 @@ Both are Windows 11 Pro 26H2 (build 26300) from Microsoft's own installation med
 | Game library | Xbox app | **BAKA Arena**: all installed Steam and Epic games in one grid, profiles and live performance numbers. |
 | Background recording | Game Bar / DVR on | Off. Xbox app and Game Bar removed; Xbox sign-in kept for Game Pass and PC games. |
 | Input | Mouse acceleration on, Sticky Keys prompt | Raw mouse input, no Sticky/Filter/Toggle Keys pop-ups. |
+| Input path while gaming | Any app's hooks stay | BAKA removes its own keyboard hook while a game runs, so key presses go straight to the game (VM: median 0.221 ms vs stock 0.225 ms). |
+| Tuning for your hardware | – | [AI tuning prompt](OPTIMIZE_WITH_AI.md) for any AI coding agent: inventory, benchmark, plan, measured changes only, undo script. |
 | Other tuning | Default | Hardware GPU scheduling, optimizations for windowed games, foreground priority, no network throttling for games, full-quality wallpapers. |
 
 ## Privacy and ads

@@ -1,6 +1,6 @@
 # BAKA Windows: your requests checklist
 
-Updated: 2026-10-29 (R13 and Baka Browser 1.6.2). "VM" means seen or measured on the R13 image installed in a Hyper-V VM (Generation 2, Secure Boot, virtual TPM 2.0, 4 vCPU, 6 GB). "PC" means an automated run on the development PC.
+Updated: 2026-10-29 (R14 and Baka Browser 1.6.2). "VM" means seen or measured on the R13 image installed in a Hyper-V VM (Generation 2, Secure Boot, virtual TPM 2.0, 4 vCPU, 6 GB). "PC" means an automated run on the development PC.
 
 Legend: ✅ done and verified · 🟡 done, not fully verified · ❌ not done or not possible here · 🔄 waiting on you
 
@@ -38,6 +38,9 @@ Legend: ✅ done and verified · 🟡 done, not fully verified · ❌ not done o
 | ✅ | Ad and tracker blocking with a 100% score | VM: 131 of 131 d3ward test domains blocked (stock: 2 of 131). Online tests needing a person in a browser were not run |
 | ✅ | Privacy and tracking | VM: 12 of 12 privacy checks (stock: 0 of 12); 0 of 16 telemetry tasks and 0 of 6 telemetry services running (stock: 14 and 5). Windows Pro still sends required diagnostic data |
 | 🟡 | Gaming tweaks and power plan | VM: BAKA Gaming plan active. FPS not measurable without a GPU |
+| ✅ | 4K video wallpaper without problems | PC (RTX 5060): 4K H.264, VP9 and AV1 play and loop at 0 to 2% CPU; HEVC needs the HEVC extension (BAKA installs it). VM (no GPU): H.264 and HEVC 4K play; pauses when covered, closed in games, back after. See R14 notes |
+| ✅ | Low latency | Keyboard hook removed while gaming; VM key latency median 0.221 ms (stock 0.225) |
+| ✅ | AI prompt to tune BAKA for your hardware | [docs/OPTIMIZE_WITH_AI.md](OPTIMIZE_WITH_AI.md) |
 | ❌ | Proven FPS gain | Needs a real PC with a GPU |
 | ✅ | BAKA adds no useless load while gaming | VM, Gaming mode: 2242 MB in use vs stock 2295, 130 vs 138 processes; BAKA Desktop 0.03% CPU, 39 MB. Score 101.9 (100 = stock) |
 | 🟡 | Less idle memory and CPU, fast boot | Desktop mode score 91.8: memory +59 MB vs stock, boot event 26.5 s vs 29.3 s, but idle CPU 13.5% vs 3.6% (not BAKA Desktop itself, cause not found) |

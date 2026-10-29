@@ -13,15 +13,19 @@ namespace Baka.Desktop
     // the desktop (it pauses during games and when a window covers the screen).
     static class Wallpaper
     {
-        static Window video; static MediaElement media;
-        [DllImport("user32.dll")] static extern IntPtr SetParent(IntPtr child, IntPtr parent);
+        static VideoPlayer video;
+        static System.Windows.Threading.DispatcherTimer watch;
+        static bool inGame, locked, coveredNow, onBattery;
         [DllImport("user32.dll")] static extern bool SetSysColors(int count, int[] elements, int[] colors);
+        public static VideoPlayer Current => video;
+        public static string State => video == null ? "off" : video.Suspended ? "suspended" : video.Playing ? "playing" : "paused";
 
         public static void Apply(bool force)
         {
             var w = App.Settings.Wallpaper;
             string mode = Json.Str(w, "mode", "Image"), path = Paths.Expand(Json.Str(w, "path")), fit = Json.Str(w, "fit", "Fill");
             if (mode != "Video") Stop();
+            else if (!force && video != null && string.Equals(video.Path, path, StringComparison.OrdinalIgnoreCase)) { video.Fit = fit; video.SetMuted(Json.Bool(w, "muted", true)); return; }
             if (Paths.Preview) { Log.Write("wallpaper-preview mode=" + mode); return; }
             try
             {
@@ -48,24 +52,75 @@ namespace Baka.Desktop
             catch (Exception e) { Log.Write("wallpaper-failed error=\"" + e.Message + "\""); }
         }
 
+        // The video covers the primary monitor (other monitors keep the Windows picture). It is drawn by
+        // Media Foundation on the GPU (see VideoPlayer), and it only plays while you can see it: it pauses when
+        // a maximized or fullscreen window covers the desktop, on battery, and while the PC is locked, and it
+        // is closed entirely (decoder and video memory freed) while a game runs.
         static void StartVideo(string path, string fit, bool muted)
         {
             Stop();
             IntPtr host = DesktopHost();
             if (host == IntPtr.Zero) { Log.Write("video-wallpaper-no-host"); return; }
-            var b = System.Windows.Forms.Screen.PrimaryScreen.Bounds;
-            video = new Window { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, ShowActivated = false, Background = Brushes.Black, Left = -32000, Top = -32000, Width = 10, Height = 10, Title = "BAKA Video Wallpaper" };
-            media = new MediaElement { LoadedBehavior = MediaState.Manual, UnloadedBehavior = MediaState.Manual, IsMuted = muted, Volume = muted ? 0 : 0.5, Source = new Uri(path) };
-            media.Stretch = fit == "Fit" ? Stretch.Uniform : fit == "Stretch" ? Stretch.Fill : fit == "Center" ? Stretch.None : Stretch.UniformToFill;
-            media.MediaEnded += (o, e) => { media.Position = TimeSpan.Zero; media.Play(); };
-            media.MediaFailed += (o, e) => { Log.Write("video-wallpaper-failed error=\"" + e.ErrorException?.Message + "\""); Stop(); App.Settings.Wallpaper["mode"] = "Image"; Apply(true); };
-            video.Content = media;
-            video.Show();
-            var h = new WindowInteropHelper(video).Handle;
-            SetParent(h, host);
-            Native.SetWindowPos(h, IntPtr.Zero, 0, 0, b.Width, b.Height, Native.SWP_NOACTIVATE | Native.SWP_NOZORDER | Native.SWP_SHOWWINDOW);
-            media.Play();
-            Log.Write("video-wallpaper-started path=\"" + path + "\"");
+            video = new VideoPlayer(path, fit, muted);
+            // a video Windows cannot play falls back to the picture; Settings > Wallpaper shows why
+            video.Failed += why => Post(() =>
+            {
+                Stop();
+                App.Settings.Wallpaper["mode"] = "Image"; App.Settings.Wallpaper["lastVideoError"] = why; App.Settings.Save();
+                Apply(true);
+            });
+            video.Open(host, PrimaryInHost());
+            if (watch == null)
+            {
+                watch = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
+                watch.Tick += (o, e) => Update();
+                Microsoft.Win32.SystemEvents.SessionSwitch += (o, e) => { locked = e.Reason == Microsoft.Win32.SessionSwitchReason.SessionLock || e.Reason == Microsoft.Win32.SessionSwitchReason.ConsoleDisconnect || e.Reason == Microsoft.Win32.SessionSwitchReason.RemoteDisconnect; Post(Update); };
+                Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (o, e) => Post(() => video?.Place(PrimaryInHost()));
+            }
+            watch.Start();
+            Log.Write("video-wallpaper-started path=\"" + path + "\" fit=" + fit);
+        }
+        // the primary monitor in the coordinates of the desktop host window (which spans every monitor)
+        static System.Drawing.Rectangle PrimaryInHost()
+        {
+            var b = System.Windows.Forms.Screen.PrimaryScreen.Bounds; var v = System.Windows.Forms.SystemInformation.VirtualScreen;
+            return new System.Drawing.Rectangle(b.X - v.X, b.Y - v.Y, b.Width, b.Height);
+        }
+        // Plays only while it can be seen and nothing more important needs the GPU.
+        static void Update()
+        {
+            if (video == null) return;
+            var w = App.Settings.Wallpaper;
+            coveredNow = Json.Bool(w, "pauseWhenCovered", true) && DesktopCovered();
+            onBattery = Json.Bool(w, "pauseOnBattery", true) && System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Offline;
+            if (inGame && Json.Bool(w, "pauseInGames", true)) { if (!video.Suspended) { video.Suspend(); Log.Write("video-wallpaper-suspended reason=game"); } return; }
+            if (video.Suspended) { video.Resume(); Log.Write("video-wallpaper-resumed"); return; }
+            bool play = !coveredNow && !onBattery && !locked;
+            if (!video.Ready) return;
+            if (play && !video.Playing) { video.Play(); Log.Write("video-wallpaper-playing"); }
+            else if (!play && video.Playing) { video.Pause(); Log.Write("video-wallpaper-paused reason=" + (locked ? "locked" : onBattery ? "battery" : "covered")); }
+        }
+        // Any visible, not minimized window (not BAKA's own, not the shell) that is maximized or covers the whole
+        // primary monitor hides the wallpaper, whether or not it is the window in front.
+        static readonly uint myPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+        static bool DesktopCovered()
+        {
+            var p = System.Windows.Forms.Screen.PrimaryScreen; var b = p.Bounds; bool covered = false;
+            Native.EnumWindows((h, l) =>
+            {
+                if (!Native.IsWindowVisible(h) || Native.IsIconic(h) || Native.IsCloaked(h)) return true;
+                if ((Native.ExStyle(h) & Native.WS_EX_TOOLWINDOW) != 0) return true;
+                Native.GetWindowThreadProcessId(h, out uint pid);
+                if (pid == myPid) return true;
+                string cls = Native.ClassName(h);
+                if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd") return true;
+                if (!Native.GetWindowRect(h, out var r)) return true;
+                bool onPrimary = r.Left < b.Right && r.Right > b.Left && r.Top < b.Bottom && r.Bottom > b.Top && System.Windows.Forms.Screen.FromHandle(h).DeviceName == p.DeviceName;
+                if (!onPrimary) return true;
+                if (Native.IsZoomed(h) || (r.Left <= b.Left && r.Top <= b.Top && r.Right >= b.Right && r.Bottom >= b.Bottom)) { covered = true; return false; }
+                return true;
+            }, IntPtr.Zero);
+            return covered;
         }
         // The window that sits between the wallpaper and the desktop icons (Windows creates it on request).
         static IntPtr DesktopHost()
@@ -84,16 +139,14 @@ namespace Baka.Desktop
             }, IntPtr.Zero);
             return found;
         }
-        public static void Pause(bool pause)
-        {
-            if (media == null) return;
-            if (pause && Json.Bool(App.Settings.Wallpaper, "pauseInGames", true)) media.Pause(); else if (!pause) media.Play();
-        }
+        static void Post(Action a) { try { App.Ui?.BeginInvoke(a); } catch { } }
+        // called when a game starts (true) and ends (false)
+        public static void Pause(bool pause) { inGame = pause; Update(); }
         public static void Stop()
         {
-            try { media?.Stop(); media?.Close(); } catch { }
-            try { video?.Close(); } catch { }
-            media = null; video = null;
+            watch?.Stop();
+            try { video?.Dispose(); } catch { }
+            video = null;
         }
     }
 }

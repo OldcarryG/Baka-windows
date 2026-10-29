@@ -127,21 +127,25 @@ namespace Baka.Desktop
             c.Children.Add(gallery);
             var pick = Ui.Labeled(0xE8E5, "Choose a picture or video…", () =>
             {
-                var d = new Microsoft.Win32.OpenFileDialog { Filter = "Pictures and videos|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.webp;*.mp4;*.m4v;*.mov;*.wmv;*.mkv;*.webm" };
+                var d = new Microsoft.Win32.OpenFileDialog { Filter = "Pictures and videos|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.webp;*.mp4;*.m4v;*.mov;*.wmv;*.mkv;*.webm;*.avi" };
                 if (d.ShowDialog(this) == true)
                 {
-                    bool vid = new[] { ".mp4", ".m4v", ".mov", ".wmv", ".mkv", ".webm" }.Contains(Path.GetExtension(d.FileName).ToLowerInvariant());
-                    S.Wallpaper["mode"] = vid ? "Video" : "Image"; S.Wallpaper["path"] = d.FileName; Save(); Wallpaper.Apply(true); Rebuild();
+                    bool vid = new[] { ".mp4", ".m4v", ".mov", ".wmv", ".mkv", ".webm", ".avi" }.Contains(Path.GetExtension(d.FileName).ToLowerInvariant());
+                    S.Wallpaper["mode"] = vid ? "Video" : "Image"; S.Wallpaper["path"] = d.FileName; S.Wallpaper.Remove("lastVideoError"); Save(); Wallpaper.Apply(true); Rebuild();
                 }
             });
-            c.Children.Add(Ui.Row("Your own", "Pictures: JPG, PNG, BMP, GIF, WebP. Videos loop muted behind the desktop and pause in games.", pick));
+            c.Children.Add(Ui.Row("Your own", "Pictures: JPG, PNG, BMP, GIF, WebP. Videos up to 4K (and higher if your graphics card decodes it): MP4, MOV, MKV, WebM, WMV, AVI with H.264, HEVC, VP9 or AV1. They loop behind the desktop, decoded by the graphics card.", pick));
+            string lastError = Json.Str(S.Wallpaper, "lastVideoError");
+            if (!string.IsNullOrEmpty(lastError)) c.Children.Add(Ui.Row("Last video could not play", lastError, Ui.Button("Clear", () => { S.Wallpaper.Remove("lastVideoError"); Save(); Rebuild(); })));
             c.Children.Add(Ui.Row("Fit", null, Ui.Choice(new[] { "Fill", "Fit", "Stretch", "Center", "Span" }, Json.Str(S.Wallpaper, "fit", "Fill"), v => { S.Wallpaper["fit"] = v; Save(); Wallpaper.Apply(true); })));
             var colors = new StackPanel { Orientation = Orientation.Horizontal };
             foreach (var hex in new[] { "#05060A", "#101014", "#0B1220", "#1A1026", "#0F1A14", "#2A1414" })
             { string h = hex; var sw = new Border { Width = 26, Height = 26, CornerRadius = new CornerRadius(6), Background = Theme.B(h), Margin = new Thickness(0, 0, 6, 0), Cursor = Cursors.Hand, BorderBrush = Theme.Border, BorderThickness = new Thickness(1) }; sw.MouseLeftButtonUp += (o, e) => { S.Wallpaper["mode"] = "Color"; S.Wallpaper["color"] = h; Save(); Wallpaper.Apply(true); }; colors.Children.Add(sw); }
             c.Children.Add(Ui.Row("Solid colour", "No picture at all, the lightest option.", colors));
             c.Children.Add(Ui.Row("Video sound", null, Ui.Toggle(!Json.Bool(S.Wallpaper, "muted", true), on => { S.Wallpaper["muted"] = !on; Save(); Wallpaper.Apply(true); })));
-            c.Children.Add(Ui.Row("Pause video during games", null, Ui.Toggle(Json.Bool(S.Wallpaper, "pauseInGames", true), on => { S.Wallpaper["pauseInGames"] = on; Save(); })));
+            c.Children.Add(Ui.Row("Close the video during games", "Frees the decoder and its video memory while a game runs; it continues where it was afterwards.", Ui.Toggle(Json.Bool(S.Wallpaper, "pauseInGames", true), on => { S.Wallpaper["pauseInGames"] = on; Save(); })));
+            c.Children.Add(Ui.Row("Pause when a window covers the desktop", "A maximized or fullscreen app hides the wallpaper, so it stops drawing.", Ui.Toggle(Json.Bool(S.Wallpaper, "pauseWhenCovered", true), on => { S.Wallpaper["pauseWhenCovered"] = on; Save(); })));
+            c.Children.Add(Ui.Row("Pause on battery", null, Ui.Toggle(Json.Bool(S.Wallpaper, "pauseOnBattery", true), on => { S.Wallpaper["pauseOnBattery"] = on; Save(); })));
         }
 
         void DockPage(StackPanel c)

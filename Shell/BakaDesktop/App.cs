@@ -38,8 +38,18 @@ namespace Baka.Desktop
             if (a.Contains("--profile")) return Forward("profile|" + (Arg("--profile") ?? ""), () => { });
             // --tray: what Control Center's tray button does (shows the Windows tray icons for a few seconds)
             if (a.Contains("--tray")) return Forward("tray|", () => { });
+            // --wallpaper <picture or video>: sets the desktop background on the running desktop
+            if (a.Contains("--wallpaper")) return Forward("wallpaper|" + Path.GetFullPath(Arg("--wallpaper") ?? "."), () => { });
             if (a.Contains("--adblock")) return AdBlockDns.Run(!string.Equals(Arg("--adblock"), "off", StringComparison.OrdinalIgnoreCase));
             if (a.Contains("--status")) return Status(Arg("--status"));
+            // --video-test <file> <result.json> [seconds]: checks the video wallpaper player on this PC
+            if (a.Contains("--video-test"))
+            {
+                int i = Array.FindIndex(args, x => x.Equals("--video-test", StringComparison.OrdinalIgnoreCase));
+                if (i + 2 >= args.Length) return 2;
+                Paths.Init(true);
+                return VideoTest.Run(args[i + 1], args[i + 2], i + 3 < args.Length && int.TryParse(args[i + 3], out int sec) ? sec : 20);
+            }
             if (a.Contains("--restore-windows")) { Paths.Init(false); ExplorerIntegration.RestoreAll(); ExplorerIntegration.SetFolderHandler(false, ""); return 0; }
             bool preview = a.Contains("--preview") || a.Contains("--selftest") || a.Contains("--capture") || a.Contains("--icon-sheet");
             if (!a.Contains("--ui") && !preview) return Supervise();
@@ -71,6 +81,16 @@ namespace Baka.Desktop
             }
         }
 
+        static string LastLogLine(string marker)
+        {
+            try
+            {
+                string f = Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\BAKA\Logs\Desktop.log");
+                using (var s = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                using (var r = new StreamReader(s)) { string line, last = ""; while ((line = r.ReadLine()) != null) if (line.Contains(marker)) last = line; return last; }
+            }
+            catch { return ""; }
+        }
         // What a person would see, as JSON (used by the VM acceptance test from inside the user's session).
         static int Status(string path)
         {
@@ -90,6 +110,7 @@ namespace Baka.Desktop
                 ["menuBarWindow"] = Native.FindWindow(null, "BAKA Menu Bar") != IntPtr.Zero, ["dockWindow"] = Native.FindWindow(null, "BAKA Dock") != IntPtr.Zero,
                 ["workAreaTop"] = work.Top, ["workAreaLeft"] = work.Left, ["dockWidth"] = DockWidth(), ["folderVerb"] = verb ?? "", ["shellOverride"] = shell ?? "",
                 ["adBlockDns"] = AdBlockDns.On, ["edgeInstalled"] = System.IO.File.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe")),
+                ["videoWallpaper"] = LastLogLine("video-"),
                 ["webView2Installed"] = System.IO.Directory.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramFiles(x86)%\Microsoft\EdgeWebView\Application")),
                 ["bakaBrowserInstalled"] = System.IO.File.Exists(Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\BakaBrowser\current\baka.exe")),
             };
@@ -244,7 +265,9 @@ namespace Baka.Desktop
         }
         public static void EnterGame(string name)
         {
-            GameRunning = true; Profiles.DetectedGame = name; KeyHook.Enabled = false;
+            // The keyboard hook is removed, not just switched off: while it is installed every key press of the
+            // game would make a round trip through BAKA's thread before reaching the game.
+            GameRunning = true; Profiles.DetectedGame = name; KeyHook.Enabled = false; if (!Paths.Preview) KeyHook.Remove();
             Profiles.Set("CompetitiveGaming", "game " + name);
             Bar?.Hide(); Dock?.Hide(); Widgets.HideAll(); Launchpad.HideIfOpen(); Wallpaper.Pause(true); CaptionButtons.HideAll(true);
             // give the game the memory BAKA's hidden surfaces were holding
@@ -255,6 +278,7 @@ namespace Baka.Desktop
             GameRunning = false; Profiles.DetectedGame = null;
             Profiles.Set("Desktop", "game closed");
             KeyHook.Enabled = Json.Bool(Settings.Integration, "winKeyOpensLaunchpad", true);
+            if (!Paths.Preview && !KeyHook.Install()) Log.Write("key-hook-unavailable");
             if (Json.Bool(Settings.TopBar, "enabled", true)) Bar?.Show();
             Dock?.Show(); Widgets.ShowEnabled(); Wallpaper.Pause(false); CaptionButtons.HideAll(false);
         }
@@ -293,6 +317,12 @@ namespace Baka.Desktop
             else if (kind == "profile" && value.Equals("gaming", StringComparison.OrdinalIgnoreCase)) { Profiles.Manual = "CompetitiveGaming"; EnterGame("manual"); }
             else if (kind == "profile" && value.Equals("desktop", StringComparison.OrdinalIgnoreCase)) { Profiles.Manual = null; LeaveGame(); }
             else if (kind == "tray") PeekTray();
+            else if (kind == "wallpaper" && File.Exists(value))
+            {
+                bool vid = new[] { ".mp4", ".m4v", ".mov", ".wmv", ".mkv", ".webm", ".avi" }.Contains(Path.GetExtension(value).ToLowerInvariant());
+                Settings.Wallpaper["mode"] = vid ? "Video" : "Image"; Settings.Wallpaper["path"] = value; Settings.Wallpaper.Remove("lastVideoError"); Settings.Save();
+                Wallpaper.Apply(true);
+            }
         }
 
         public static void Quit(bool restoreWindows)
