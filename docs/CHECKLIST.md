@@ -39,7 +39,8 @@ Legend: ✅ done and verified · 🟡 done, not fully verified · ❌ not done o
 | ✅ | Privacy and tracking | VM: 12 of 12 privacy checks (stock: 0 of 12); 0 of 16 telemetry tasks and 0 of 6 telemetry services running (stock: 14 and 5). Windows Pro still sends required diagnostic data |
 | 🟡 | Gaming tweaks and power plan | VM: BAKA Gaming plan active. FPS not measurable without a GPU |
 | ✅ | 4K video wallpaper without problems | PC (RTX 5060): 4K H.264, VP9 and AV1 play and loop at 0 to 2% CPU; HEVC needs the HEVC extension (BAKA installs it). VM (no GPU): H.264 and HEVC 4K play; pauses when covered, closed in games, back after. See R14 notes |
-| ✅ | Low latency | Keyboard hook removed while gaming; VM key latency median 0.221 ms (stock 0.225) |
+| ✅ | Low latency | Keyboard hook on its own thread (was: up to 25 to 42 ms per key when BAKA was busy, now 0.75 ms, same as no hook); removed completely while gaming |
+| ✅ | Delete old ISOs and useless files | Old ISOs R10 to R13, old build folders, orphaned VM disks, old acceptance copies, old browser installers, old logs and scripts removed; about 400 GB freed |
 | ✅ | AI prompt to tune BAKA for your hardware | [docs/OPTIMIZE_WITH_AI.md](OPTIMIZE_WITH_AI.md) |
 | ❌ | Proven FPS gain | Needs a real PC with a GPU |
 | ✅ | BAKA adds no useless load while gaming | VM, Gaming mode: 2242 MB in use vs stock 2295, 130 vs 138 processes; BAKA Desktop 0.03% CPU, 39 MB. Score 101.9 (100 = stock) |

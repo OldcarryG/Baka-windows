@@ -42,6 +42,25 @@ namespace Baka.Desktop
             if (a.Contains("--wallpaper")) return Forward("wallpaper|" + Path.GetFullPath(Arg("--wallpaper") ?? "."), () => { });
             if (a.Contains("--adblock")) return AdBlockDns.Run(!string.Equals(Arg("--adblock"), "off", StringComparison.OrdinalIgnoreCase));
             if (a.Contains("--status")) return Status(Arg("--status"));
+            // --keyhook-test thread|ui <seconds>: installs only the keyboard hook (Windows-key actions off, every
+            // key passes through) while the main thread is kept busy like a UI thread drawing frames
+            // (40 ms of work, then messages are handled). Used to measure what the hook adds to key latency.
+            if (a.Contains("--keyhook-test"))
+            {
+                int i = Array.FindIndex(args, x => x.Equals("--keyhook-test", StringComparison.OrdinalIgnoreCase));
+                string mode = i + 1 < args.Length ? args[i + 1] : "thread";
+                int sec = i + 2 < args.Length && int.TryParse(args[i + 2], out int s) ? s : 30;
+                KeyHook.Enabled = false;
+                bool ok = mode == "ui" ? KeyHook.InstallOnCurrentThread() : KeyHook.Install();
+                var end = DateTime.UtcNow.AddSeconds(sec);
+                while (DateTime.UtcNow < end)
+                {
+                    var busy = DateTime.UtcNow.AddMilliseconds(40); while (DateTime.UtcNow < busy) { }
+                    System.Windows.Forms.Application.DoEvents(); System.Threading.Thread.Sleep(10);
+                }
+                if (mode == "ui") KeyHook.RemoveFromCurrentThread(); else KeyHook.Remove();
+                return ok ? 0 : 1;
+            }
             // --video-test <file> <result.json> [seconds]: checks the video wallpaper player on this PC
             if (a.Contains("--video-test"))
             {
@@ -183,7 +202,7 @@ namespace Baka.Desktop
             ApplyIntegration();
             if (!preview)
             {
-                if (!KeyHook.Install()) Log.Write("key-hook-unavailable");
+                if (KeyHook.Enabled && !KeyHook.Install()) Log.Write("key-hook-unavailable");
                 KeyHook.Pressed += what => Ui.BeginInvoke(new Action(() =>
                 {
                     if (what == "launchpad") Launchpad.Toggle(); else if (what == "files") Files.Open(null); else if (what == "search") Launchpad.Toggle(true);
@@ -239,6 +258,8 @@ namespace Baka.Desktop
             ExplorerIntegration.SetDesktopIcons(!Json.Bool(Settings.Integration, "hideDesktopIcons", true));
             ExplorerIntegration.SetFolderHandler(Json.Bool(Settings.Integration, "filesOpensFolders", true), Exe);
             KeyHook.Enabled = Json.Bool(Settings.Integration, "winKeyOpensLaunchpad", true) && !GameRunning;
+            // no hook at all when it has nothing to do (feature off or a game running)
+            if (!KeyHook.Enabled) KeyHook.Remove(); else if (!KeyHook.Install()) Log.Write("key-hook-unavailable");
             try { CaptionButtons.Apply(Json.Bool(Settings.Integration, "captionButtons", true)); } catch (Exception e) { Log.Write("caption-buttons-failed error=\""+e.Message+"\""); }
         }
 
@@ -267,7 +288,10 @@ namespace Baka.Desktop
         {
             // The keyboard hook is removed, not just switched off: while it is installed every key press of the
             // game would make a round trip through BAKA's thread before reaching the game.
-            GameRunning = true; Profiles.DetectedGame = name; KeyHook.Enabled = false; if (!Paths.Preview) KeyHook.Remove();
+            // BAKA's window-event hooks (for the BAKA window buttons) are removed too, so Windows sends BAKA
+            // no notifications about the game's window while it runs.
+            GameRunning = true; Profiles.DetectedGame = name; KeyHook.Enabled = false;
+            if (!Paths.Preview) { KeyHook.Remove(); try { CaptionButtons.Apply(false); } catch { } }
             Profiles.Set("CompetitiveGaming", "game " + name);
             Bar?.Hide(); Dock?.Hide(); Widgets.HideAll(); Launchpad.HideIfOpen(); Wallpaper.Pause(true); CaptionButtons.HideAll(true);
             // give the game the memory BAKA's hidden surfaces were holding
@@ -278,7 +302,8 @@ namespace Baka.Desktop
             GameRunning = false; Profiles.DetectedGame = null;
             Profiles.Set("Desktop", "game closed");
             KeyHook.Enabled = Json.Bool(Settings.Integration, "winKeyOpensLaunchpad", true);
-            if (!Paths.Preview && !KeyHook.Install()) Log.Write("key-hook-unavailable");
+            if (!Paths.Preview && KeyHook.Enabled && !KeyHook.Install()) Log.Write("key-hook-unavailable");
+            if (!Paths.Preview) try { CaptionButtons.Apply(Json.Bool(Settings.Integration, "captionButtons", true)); } catch { }
             if (Json.Bool(Settings.TopBar, "enabled", true)) Bar?.Show();
             Dock?.Show(); Widgets.ShowEnabled(); Wallpaper.Pause(false); CaptionButtons.HideAll(false);
         }

@@ -95,10 +95,12 @@ Stock Windows 11 and BAKA were installed from their ISOs into identical Hyper-V 
 
 | | Stock Windows 11 | BAKA Desktop mode | BAKA Gaming mode |
 |---|---:|---:|---:|
-| Median | 0.225 ms | 0.297 to 0.299 ms | **0.214 to 0.221 ms** |
-| 99th percentile | **0.386 ms** | 0.743 to 1.075 ms | 0.618 to 0.893 ms |
+| Median | 0.225 ms | 0.30 to 0.37 ms | **0.21 to 0.30 ms** |
+| 99th percentile | **0.386 ms** | 0.74 to 1.19 ms | 0.62 to 1.54 ms |
 
-BAKA was measured in two installs, stock in one. In Gaming mode BAKA removes its keyboard hook, so the median is the same as stock; the slowest 1% of key presses are 0.2 to 0.5 ms slower than stock (VM noise; one stock key press took 16.7 ms). In Desktop mode the hook (Windows key opens Launchpad) adds about 0.07 ms per key press. Mouse latency and the 1 ms timer could not be measured in Hyper-V.
+BAKA was measured in three installs, stock in one. In Gaming mode BAKA has no hook at all; the spread between runs comes from the VM itself. Mouse latency and the 1 ms timer could not be measured in Hyper-V.
+
+**The latency fix in R14.** Windows holds every key press until each low-level keyboard hook answers. Until R13, BAKA's hook (for the Windows key) ran on BAKA's UI thread, so a key press waited whenever BAKA was busy drawing. On the development PC, with BAKA's main thread kept busy like a frame being drawn, that design delayed key presses by **25 to 42 ms** (median), and most were held more than 50 ms. The hook now runs on its own time-critical thread that does nothing else: median **0.75 ms**, the same as with no hook at all (0.66 to 0.71 ms, run-to-run noise). In games the hook is removed completely, and turning off "Windows key opens Launchpad" removes it on the desktop too.
 
 **4K video wallpaper** (`--video-test`, 4K clips, 12 s each; CPU is BAKA Desktop's share of all cores):
 

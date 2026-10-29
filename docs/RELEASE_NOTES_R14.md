@@ -4,7 +4,7 @@ Windows 11 Pro 26H2 x64 (build 26300.9711) with BAKA Desktop, gaming and privacy
 
 **Download:** MEGA_LINK
 
-ISO: `BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R14-20261029.iso`, 11,174,219,776 bytes, SHA-256 `96728B57215A4C3A28D76010771B0425D0D3673796BA860D61F405B247C2CE89`. Check it after downloading with `Get-FileHash <file>.iso` in PowerShell.
+ISO: `BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R14-20261029.iso`, 11,174,221,824 bytes, SHA-256 `80E4EB67F6F04C4449C40FDFB5158BD1B4F9C1227F83A9BFDFAA57125C53E51E`. Check it after downloading with `Get-FileHash <file>.iso` in PowerShell.
 
 ## What changed since R13
 
@@ -16,8 +16,10 @@ ISO: `BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R14-20261029.iso`, 11,174
 - A video Windows cannot decode (missing codec) falls back to the picture, and Settings > Wallpaper says why. A file that has sound but no decodable picture is treated as a failure too.
 - `BakaDesktop.exe --wallpaper <file>` sets the background; `--video-test <file> <result.json>` checks whether this PC plays a file and how much CPU it costs.
 
-### Lower input latency while gaming
+### Lower input latency
 - BAKA's keyboard hook (for the Windows key, Win+E, Win+S) is now **removed** while a game runs, not just switched off. A low-level hook sits in the path of every key press of every app, so with it gone no key press of the game passes through BAKA. It is installed again when the game closes.
+- On the desktop the hook now runs on its own time-critical thread that does nothing else, instead of BAKA's UI thread. Before, a key press had to wait whenever BAKA was drawing; that was the 0.7 to 1.1 ms worst case measured in Desktop mode. Turning off "Windows key opens Launchpad" in Settings removes the hook completely.
+- BAKA's window-event hooks for the BAKA window buttons are also removed while a game runs.
 
 ### AI tuning prompt
 - [docs/OPTIMIZE_WITH_AI.md](OPTIMIZE_WITH_AI.md): copy it into Claude Code, Codex, Gemini CLI, Cursor, Kiro or a similar agent on the BAKA PC. It inventories the hardware, benchmarks first, shows a plan, applies only changes it measured to help, never weakens security or anti-cheat requirements, and writes an undo script.
@@ -39,7 +41,8 @@ ISO: `BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R14-20261029.iso`, 11,174
 | Store apps | Store opens; WhatsApp, Microsoft To Do, Spotify install and start; Netflix needs Edge (0x80073D31) |
 | 4K video wallpaper, development PC (RTX 5060) | H.264 4K 0.2% CPU and loops, VP9 4K 2%, AV1 4K 0%; HEVC needs the HEVC extension, which BAKA installs |
 | 4K video wallpaper, VM (no GPU) | H.264, HEVC and VP9 4K play; AV1 4K too slow for software decoding. On the real desktop: starts at 3840×2160, pauses when Notepad is maximized (CPU 37% → 0.05%), plays again when it closes, is closed in Gaming mode (0% CPU) and comes back after |
-| Key latency (median / 99th percentile) | Stock 0.225 / 0.386 ms. BAKA Desktop mode 0.297 to 0.299 / 0.743 to 1.075 ms. BAKA Gaming mode 0.214 to 0.221 / 0.618 to 0.893 ms |
+| Key latency with BAKA busy (development PC, 200 keys per run, BAKA's main thread kept busy like a frame being drawn) | No hook: median 0.66 to 0.71 ms. Old design (hook on the UI thread): median 25 to 42 ms and most key presses held more than 50 ms. New design (own thread): median 0.75 ms, the same as no hook within run-to-run noise |
+| Key latency in the VM (median / 99th percentile) | Stock 0.225 / 0.386 ms. BAKA Desktop mode 0.30 to 0.37 / 0.74 to 1.19 ms. BAKA Gaming mode (no hook) 0.21 to 0.30 / 0.62 to 1.54 ms. Differences of this size also appear between two runs of the same system in the VM |
 | Ad blocking / privacy | 131 of 131 test domains blocked; 12 of 12 privacy checks |
 | Benchmark (from R13, same settings) | Score 91.8 Desktop mode, 101.9 Gaming mode (100 = stock) |
 

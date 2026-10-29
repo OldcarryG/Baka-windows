@@ -125,19 +125,60 @@ namespace Baka.Desktop
     // Win+S searches in the Launchpad. Every other Win shortcut keeps working. Ctrl+Esc still opens Start.
     static class KeyHook
     {
-        static Native.HookProc proc; static IntPtr hook;
+        // The hook runs on its own thread with time-critical priority and a bare message loop. Windows calls a
+        // low-level hook on the thread that installed it and holds every key press until it answers, so on
+        // the UI thread a busy frame (layout, rendering, a Settings page loading) delayed keys for every app.
+        // This thread does nothing else, so it answers in microseconds.
+        static Native.HookProc proc; static volatile IntPtr hook;
+        static System.Threading.Thread thread; static uint threadId;
         static bool winDown, winUsed;
         public static volatile bool Enabled = true;
         public static event Action<string> Pressed;
+        public static bool Installed => hook != IntPtr.Zero;
+
+        [StructLayout(LayoutKind.Sequential)] struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam, lParam; public uint time; public int x, y; }
+        [DllImport("user32.dll")] static extern int GetMessage(out MSG m, IntPtr hwnd, uint min, uint max);
+        [DllImport("user32.dll")] static extern bool PostThreadMessage(uint thread, uint msg, IntPtr w, IntPtr l);
+        [DllImport("kernel32.dll")] static extern bool SetThreadPriority(IntPtr thread, int priority);
+        [DllImport("kernel32.dll")] static extern IntPtr GetCurrentThread();
+        [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
 
         public static bool Install()
         {
             if (hook != IntPtr.Zero) return true;
             proc = Callback;
-            hook = Native.SetWindowsHookEx(13, proc, Native.GetModuleHandle(null), 0);
+            using (var ready = new System.Threading.ManualResetEventSlim())
+            {
+                thread = new System.Threading.Thread(() =>
+                {
+                    SetThreadPriority(GetCurrentThread(), 15 /*THREAD_PRIORITY_TIME_CRITICAL*/);
+                    threadId = GetCurrentThreadId();
+                    hook = Native.SetWindowsHookEx(13, proc, Native.GetModuleHandle(null), 0);
+                    ready.Set();
+                    if (hook == IntPtr.Zero) return;
+                    while (GetMessage(out MSG m, IntPtr.Zero, 0, 0) > 0) { }
+                    Native.UnhookWindowsHookEx(hook); hook = IntPtr.Zero;
+                }) { IsBackground = true, Name = "BAKA key hook" };
+                thread.Start();
+                ready.Wait(3000);
+            }
             return hook != IntPtr.Zero;
         }
-        public static void Remove() { if (hook != IntPtr.Zero) { Native.UnhookWindowsHookEx(hook); hook = IntPtr.Zero; } }
+        // Test only (--keyhook-test): the way R13 installed the hook, on the calling (UI) thread.
+        public static bool InstallOnCurrentThread()
+        {
+            proc = Callback;
+            hook = Native.SetWindowsHookEx(13, proc, Native.GetModuleHandle(null), 0);
+            threadId = 0;
+            return hook != IntPtr.Zero;
+        }
+        public static void RemoveFromCurrentThread() { if (hook != IntPtr.Zero && threadId == 0) { Native.UnhookWindowsHookEx(hook); hook = IntPtr.Zero; } }
+        public static void Remove()
+        {
+            if (hook == IntPtr.Zero || threadId == 0) return;
+            PostThreadMessage(threadId, 0x0012 /*WM_QUIT*/, IntPtr.Zero, IntPtr.Zero);
+            thread?.Join(1000);
+        }
 
         // Tells Windows the Win key was "used" so Start does not open: a harmless unassigned key (0xE8).
         static void Mask() { Native.keybd_event(0xE8, 0, 0, UIntPtr.Zero); Native.keybd_event(0xE8, 0, 2, UIntPtr.Zero); }
