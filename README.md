@@ -81,15 +81,19 @@ Stock Windows 11 and BAKA were installed from their ISOs into identical Hyper-V 
 
 | | Stock Windows 11 | BAKA Desktop mode | BAKA Gaming mode |
 |---|---:|---:|---:|
-| **Score** (100 = stock) | 100 | 91.8 | **101.9** |
-| Memory in use at idle | 2295 MB | 2354 MB | **2242 MB** |
-| Processes / running services | 138 / 99 | 135 / 98 | **130 / 97** |
-| Idle CPU | **3.6%** | 13.5% | 5.0% |
-| BAKA Desktop's own CPU / memory | – | 0.03% / 43 MB | 0.03% / 39 MB |
-| CPU (SHA-256, MB/s) | 1850 | 1855 | 1874 |
-| Memory copy (MB/s) | 14512 | 17498 | 17081 |
-| Disk write (MB/s) | 1140 | 1431 | 1442 |
-| Boot to desktop (Windows boot event) | 29.3 s | 26.5 s | |
+| **Score** (100 = stock) | 100 | 99.4 | **101.7** |
+| Idle CPU | 5.5% | **2.6%** | 2.9% |
+| Memory in use at idle | **2066 MB** | 2539 MB | 2579 MB |
+| Processes / running services | 137 / 97 | 136 / 90 | 136 / **89** |
+| BAKA Desktop's own CPU / memory | – | 0.1% / 57 MB | 0.01% / 34 MB |
+| CPU (SHA-256, MB/s) | 1871 | 1871 | 1870 |
+| Memory copy (MB/s) | 18088 | 17517 | 17803 |
+| Disk write (MB/s) | 1620 | 1509 | 1619 |
+| Boot to desktop (Windows boot event) | **22.0 s** | 27.8 s | |
+| Ads blocked (d3ward test, 131 hosts) | 2 | **131** | **131** |
+| Privacy checks passed | 0 / 12 | **12 / 12** | **12 / 12** |
+
+Final R14, measured 2026-10-29. The BAKA VM still had WhatsApp, Spotify and Microsoft To Do installed from the Store test (WhatsApp alone used 200 MB), which accounts for part of the higher memory. Stock's idle CPU was mostly Microsoft Defender (2.9%); on BAKA the largest user was dwm (0.4%). Boot time varies by several seconds between runs on both systems.
 
 **Input latency** (time from an injected key press until the app in front receives it, 200 presses, same VMs):
 
@@ -115,7 +119,7 @@ BAKA was measured in three installs, stock in one. In Gaming mode BAKA has no ho
 
 ![4K video wallpaper on the installed VM](docs/screenshots/video-wallpaper.png)
 
-The score is the geometric mean of BAKA-vs-stock ratios over boot time, memory in use, memory committed, processes, services, idle CPU, disk used, CPU, memory copy and disk write. Idle CPU is still higher than stock in Desktop mode; it is not BAKA Desktop itself (0.03%) and the cause was not found. Game FPS cannot be measured in a VM without a GPU; use the [AI tuning prompt](docs/OPTIMIZE_WITH_AI.md) to benchmark and tune on your own PC.
+The score is the geometric mean of BAKA-vs-stock ratios over boot time, memory in use, memory committed, processes, services, idle CPU, disk used, CPU, memory copy and disk write. In R13, idle CPU was higher than stock (13.5% vs 3.6%); in the R14 round it was lower (2.6% vs 5.5%). Game FPS cannot be measured in a VM without a GPU; use the [AI tuning prompt](docs/OPTIMIZE_WITH_AI.md) to benchmark and tune on your own PC.
 
 ## Install
 

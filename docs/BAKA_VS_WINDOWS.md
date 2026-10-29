@@ -76,6 +76,38 @@ Baka Browser uses the same engine as Edge (Chromium through the WebView2 runtime
 
 Both systems were installed from their ISOs into identical Hyper-V VMs (Generation 2, Secure Boot, virtual TPM 2.0, 4 vCPU, 6 GB fixed memory, 64 GB disk) on the same host and measured one at a time with the same script (`Guest-Bench`) over PowerShell Direct. Stock is the official Windows 11 Pro 26H2 ISO with no changes.
 
+### R14 (final build, measured 2026-10-29)
+
+Same method as R13 below: each VM restarted, signed in, left idle 10 minutes, then measured; BAKA in Desktop mode, then in Gaming mode.
+
+| Measurement | Stock | BAKA Desktop mode | BAKA Gaming mode |
+|---|---:|---:|---:|
+| Boot time (Windows boot event, s) | **22.0** | 27.8 | (same boot) |
+| Main boot path (s) | **6.4** | 7.8 | (same boot) |
+| Memory in use at idle (MB) | **2066** | 2539 | 2579 |
+| Memory committed (MB) | **1779** | 2340 | 2324 |
+| Processes | 137 | 136 | 136 |
+| Threads | 1562 | 1652 | **1511** |
+| Running services | 97 | 90 | **89** |
+| Idle CPU, 60 s average (%) | 5.5 | **2.6** | 2.9 |
+| BAKA Desktop's own CPU (%) | – | 0.1 | 0.01 |
+| BAKA Desktop's own memory (MB) | – | 57 | 34 |
+| Disk used on C: (GB) | **22.0** | 23.8 | 23.8 |
+| CPU: SHA-256 on one core (MB/s) | 1871 | 1871 | 1870 |
+| Memory copy, 256 MB (MB/s) | 18088 | 17517 | 17803 |
+| Disk write, 1 GB write-through (MB/s) | 1620 | 1509 | 1619 |
+| Ads blocked (131 hosts) | 2 | **131** | **131** |
+| Privacy checks passed | 0 / 12 | **12 / 12** | **12 / 12** |
+
+**Score: 99.4 in Desktop mode, 101.7 in Gaming mode** (100 = stock, same formula as below).
+
+- Idle CPU was lower than stock this time (2.6% vs 5.5%). Stock's largest user was Microsoft Defender (2.9%); on BAKA it was dwm (0.4%). In R13 BAKA was higher, so idle CPU varies between rounds.
+- Memory was 470 to 510 MB higher. The BAKA VM still had WhatsApp, Spotify and Microsoft To Do installed from the Store test (WhatsApp used 200 MB), so this is not a like-for-like install.
+- CPU, memory copy and disk write are within 7% of stock.
+- The 4K video wallpaper was off during this measurement (image wallpaper). An earlier R14 run with a VP9 video still playing was discarded.
+
+### R13
+
 R13 measures three states: stock Windows, **BAKA in Desktop mode** (normal use), and **BAKA in Gaming mode** (the same VM a minute after `BakaDesktop.exe --profile gaming`, which is what Arena's Gaming card and a detected game do: menu bar, dock, widgets and BAKA window buttons hidden, BAKA's memory trimmed). Each VM was restarted, signed in, and left alone for 10 minutes before measuring, so first-boot work (indexing, Store and Defender updates) does not count. Measured 2026-10-29 on the R13 candidate whose BAKA Desktop differs from the final R13 only in which windows get BAKA buttons.
 
 | Measurement | Stock | BAKA Desktop mode | BAKA Gaming mode |
