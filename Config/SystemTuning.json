@@ -9,7 +9,11 @@
     { "name": "Fax", "startType": "Disabled", "purpose": "Legacy fax service" },
     { "name": "WpcMonSvc", "startType": "Disabled", "purpose": "Family Safety monitoring (re-enable for parental controls)" },
     { "name": "lfsvc", "startType": "Manual", "purpose": "Geolocation only on demand" },
-    { "name": "WerSvc", "startType": "Manual", "purpose": "Error reporting only on demand" }
+    { "name": "WerSvc", "startType": "Manual", "purpose": "Error reporting only on demand" },
+    { "name": "InventorySvc", "startType": "Disabled", "purpose": "Inventory and Compatibility Appraisal (feeds compatibility telemetry)" },
+    { "name": "whesvc", "startType": "Disabled", "purpose": "Windows Health and Optimized Experiences (cloud-driven tips and health reporting)" },
+    { "name": "WSAIFabricSvc", "startType": "Disabled", "purpose": "Windows AI Components Host (Copilot and Recall are already off)" },
+    { "name": "TrkWks", "startType": "Disabled", "purpose": "Distributed Link Tracking for NTFS links across network PCs; not needed on a home PC" }
   ],
   "scheduledTasks": [
     { "path": "\\Microsoft\\Windows\\Application Experience\\", "name": "Microsoft Compatibility Appraiser", "purpose": "Telemetry compatibility scan" },
@@ -24,7 +28,13 @@
     { "path": "\\Microsoft\\Windows\\Feedback\\Siuf\\", "name": "DmClientOnScenarioDownload", "purpose": "Feedback prompts" },
     { "path": "\\Microsoft\\Windows\\Windows Error Reporting\\", "name": "QueueReporting", "purpose": "Queued error report upload" },
     { "path": "\\Microsoft\\Windows\\Maps\\", "name": "MapsUpdateTask", "purpose": "Offline maps update" },
-    { "path": "\\Microsoft\\Windows\\Maps\\", "name": "MapsToastTask", "purpose": "Maps notifications" }
+    { "path": "\\Microsoft\\Windows\\Maps\\", "name": "MapsToastTask", "purpose": "Maps notifications" },
+    { "path": "\\Microsoft\\Windows\\Application Experience\\", "name": "MareBackup", "purpose": "Compatibility telemetry backup" },
+    { "path": "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\", "name": "UsageDataReporting", "purpose": "Feature usage reporting" },
+    { "path": "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\", "name": "UsageDataFlushing", "purpose": "Feature usage reporting" },
+    { "path": "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\", "name": "UsageDataReceiver", "purpose": "Feature usage reporting" },
+    { "path": "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\", "name": "BootstrapUsageDataReporting", "purpose": "Feature usage reporting" },
+    { "path": "\\Microsoft\\Windows\\PI\\", "name": "Sqm-Tasks", "purpose": "SQM (usage metrics) collection" }
   ],
   "protectedServices": [
     "WinDefend", "WdNisSvc", "SecurityHealthService", "mpssvc", "BFE", "wuauserv", "UsoSvc", "BITS", "TrustedInstaller",

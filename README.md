@@ -18,6 +18,12 @@ A custom Windows 11 Pro 26H2 (x64) image for gaming. It replaces the taskbar, St
 
 ![125 BAKA icons in the Carbon Red theme](docs/screenshots/icons-carbon-red.png)
 
+BAKA buttons on other apps, captured in the installed R13 VM (Notepad, Calculator, Media Player):
+
+![BAKA buttons on Notepad](docs/screenshots/baka-buttons-notepad.png)
+![BAKA buttons on Calculator](docs/screenshots/baka-buttons-calculator.png)
+![BAKA buttons on Media Player](docs/screenshots/baka-buttons-mediaplayer.png)
+
 ## What you get
 
 **BAKA Desktop** replaces the taskbar, Start, desktop icons and File Explorer windows.
@@ -25,6 +31,7 @@ A custom Windows 11 Pro 26H2 (x64) image for gaming. It replaces the taskbar, St
 - File Explorer keeps running in the background only because Windows needs it for tray icons, notifications and file dialogs. You never see it: Win+E and folders opened from any app open in BAKA Files.
 - It restarts itself after a crash. After three crashes in two minutes it gives back the normal Windows taskbar and desktop.
 - **Menu bar** on top and **dock** on the left (or bottom or right). They reserve their screen edge like the Windows taskbar, so maximized windows never hide their close, minimize and maximize buttons under them. Fullscreen video and games cover them.
+- **BAKA buttons on every app window**: amber, green and red minimize, maximize and close on Notepad, Store apps and most desktop apps. Nothing is loaded into the apps, so anti-cheat is not affected; hidden while a game runs.
 - **Launchpad** (Windows key) lists every installed app. One search finds apps, Windows settings pages and your files. It tolerates a typo ("setings"), knows program names ("cmd", "regedit") and initials ("vsc").
 - **BAKA Files**: places and drives with free space, sorting, search in subfolders, copy/cut/paste with the Windows clipboard, drag and drop, Recycle Bin, rename, new folder, ZIP, Open with, Properties, Terminal here.
 - **125 hand-drawn app icons** in the style of each theme (metal squircles, neon hexagons, glass bubbles, candy keycaps and more). An app without one shows its own icon on a theme tile. "Original" shows icons as the apps ship them.
@@ -38,30 +45,32 @@ A custom Windows 11 Pro 26H2 (x64) image for gaming. It replaces the taskbar, St
 **Privacy, ads and clean-up**
 - Ads and trackers blocked for every app: encrypted AdGuard DNS plus a BAKA block list in the Windows hosts file. BAKA Settings > Privacy & ads turns both off and restores your DNS.
 - Telemetry services and tasks off. Copilot, Recall, advertising ID, tips, suggestions, Start web search and Spotlight off.
-- Microsoft Edge: BAKA uninstalls it and blocks its reinstall by policy, but on Windows 11 26H2 this is not reliable yet (in one of two VM tests Windows installed Edge again). WebView2 is kept.
+- Telemetry and inventory services off (DiagTrack, Inventory and Compatibility Appraisal, Windows Health and Optimized Experiences, Windows AI Components Host, Distributed Link Tracking), 16 telemetry tasks off.
+- Microsoft Edge: BAKA uninstalls it and blocks its reinstall by policy. It stayed off in every R13 VM install; in R12 Windows put it back once. WebView2 is kept. Store apps built on Edge (Netflix) do not install while Edge is removed.
 - Removed: Internet Explorer, the legacy Windows Media Player, Movies & TV, WordPad, Steps Recorder, Math Input Panel, Fax and Scan, PowerShell ISE, Clipchamp, Copilot, Maps, People, Family and 19 more consumer apps. Kept: Microsoft Store, Media Player, Photos, Paint, Notepad, Calculator, Snipping Tool, Terminal, Windows Security.
 - Boots straight to the desktop with a passwordless local account (set a password in Windows to get the sign-in screen back). The "Restore BAKA System Tuning" shortcut undoes the tuning.
 
-**Baka Browser 1.6.1** is preinstalled and the default browser: tab menu, drag tabs to reorder or into a new window, mute button, Chrome Web Store extensions and uBlock Origin Lite.
+**Baka Browser 1.6.2** is preinstalled and the default browser: new-tab background image or video, tab menu, drag tabs to reorder or into a new window, mute button, Chrome Web Store extensions and uBlock Origin Lite.
 
 ## Tested in virtual machines
 
-Stock Windows 11 and BAKA were installed into identical Hyper-V VMs (Gen 2, Secure Boot, virtual TPM, 4 vCPU, 6 GB) and measured the same way. Final ISO, round 2:
+Stock Windows 11 and BAKA were installed into identical Hyper-V VMs (Gen 2, Secure Boot, virtual TPM, 4 vCPU, 6 GB), restarted, left idle for 10 minutes and measured the same way. BAKA was measured in Desktop mode and again in Gaming mode (what a running game switches to):
 
-| | Stock Windows 11 | BAKA R12 |
-|---|---:|---:|
-| Ads and trackers blocked (d3ward list, 131 domains) | 2 (1.5%) | **131 (100%)** |
-| Privacy checks passed | 0 of 10 | 8 of 10 |
-| Store apps installed | 50 | 32 |
-| CPU (SHA-256, MB/s) / memory copy (MB/s) | 1862 / 17881 | 1838 / 17640 |
-| Disk write (MB/s) | 1301 | 1450 |
-| Memory in use at idle | 2005 MB | 2451 MB |
-| Idle CPU | 3.4% | 14.2% |
-| BAKA Desktop's own memory | – | 43 MB |
+| | Stock Windows 11 | BAKA R13 Desktop mode | BAKA R13 Gaming mode |
+|---|---:|---:|---:|
+| Ads and trackers blocked (d3ward list, 131 domains) | 2 (1.5%) | **131 (100%)** | |
+| Privacy checks passed | 0 of 12 | **12 of 12** | |
+| Memory in use at idle | 2295 MB | 2354 MB | **2242 MB** |
+| Processes / running services | 138 / 99 | 135 / 98 | **130 / 97** |
+| Idle CPU | **3.6%** | 13.5% | 5.0% |
+| BAKA Desktop's own CPU / memory | – | 0.03% / 43 MB | 0.03% / 39 MB |
+| CPU (SHA-256, MB/s) / memory copy (MB/s) | 1850 / 14512 | 1855 / 17498 | 1874 / 17081 |
+| Disk write (MB/s) | 1140 | 1431 | 1442 |
+| Boot (Windows boot event) | 29.3 s | 26.5 s | |
 
-Performance and footprint score **80.6** (round 1: 90.7), where 100 means the same as stock. BAKA is as fast for CPU and memory work and faster for disk writes, but uses more memory and CPU at idle, and it does not yet keep Microsoft Edge off this Windows build. Game FPS cannot be measured in a VM. BAKA Desktop's own feature test passed every check inside the installed VM, 4 runs out of 4.
+Performance and footprint score **91.8 in Desktop mode and 101.9 in Gaming mode**, where 100 means the same as stock. In Gaming mode BAKA uses less memory and fewer processes than stock, and BAKA Desktop itself uses 0.03% CPU. Idle CPU is still higher than stock; it is not BAKA Desktop, and the cause was not found. Game FPS cannot be measured in a VM.
 
-The full comparison with stock Windows is in [docs/BAKA_VS_WINDOWS.md](docs/BAKA_VS_WINDOWS.md). What changed in this release, the bugs the tests found and what is still not verified are in [docs/RELEASE_NOTES_R12.md](docs/RELEASE_NOTES_R12.md).
+The full comparison with stock Windows is in [docs/BAKA_VS_WINDOWS.md](docs/BAKA_VS_WINDOWS.md). What changed in this release, the bugs the tests found and what is still not verified are in [docs/RELEASE_NOTES_R13.md](docs/RELEASE_NOTES_R13.md).
 
 ## Download
 
@@ -86,7 +95,7 @@ Setup keeps disk selection interactive, so the image never erases a disk on its 
 ./Tests/Test-BakaDesktop.ps1     # builds BAKA Desktop and clicks through every surface in a throwaway preview (48 checks)
 ```
 
-`BakaDesktop.exe --preview` runs the desktop with a temporary profile and never changes the PC's taskbar, settings, registry or wallpaper. `--capture <folder>` saves design screenshots, `--icon-sheet <folder>` renders the icon set in every theme, `--status <file>` writes what the desktop looks like as JSON, and `--restore-windows` puts the normal Windows desktop back.
+`BakaDesktop.exe --preview` runs the desktop with a temporary profile and never changes the PC's taskbar, settings, registry or wallpaper. `--capture <folder>` saves design screenshots, `--icon-sheet <folder>` renders the icon set in every theme, `--status <file>` writes what the desktop looks like as JSON, `--profile gaming|desktop` switches the profile, `--tray` shows the tray icons, and `--restore-windows` puts the normal Windows desktop back.
 
 ## Project layout
 

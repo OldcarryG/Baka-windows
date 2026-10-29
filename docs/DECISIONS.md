@@ -1,6 +1,6 @@
 # BAKA Windows Gaming Edition: decisions
 
-Updated: 2026-10-28 (R12)
+Updated: 2026-10-29 (R13)
 
 ## Base image
 
@@ -17,6 +17,8 @@ Updated: 2026-10-28 (R12)
 - Large windows (Files, Settings, Arena) use the DWM backdrop, so moving them is as smooth as any Windows window. Small panels use a blurred layered window, and the blur pauses while they are dragged.
 - Icons: 125 vector icons drawn for BAKA (one per app, families get badges). The theme decides the tile shape and colours. An app without a BAKA icon shows its own icon on a theme tile. "Original" shows icons as the apps ship them.
 - A click in BAKA surfaces is a press and a release on the same element (R12 fix): a bare release, for example from the click that opened the full-screen Launchpad, no longer starts the app under the cursor.
+- **BAKA buttons on other apps' windows (R13)** are a small BAKA window placed over each window's own minimize, maximize and close buttons. Nothing is loaded into other apps. DLL injection (the way Windhawk-style mods restyle title bars) was rejected because anti-cheat and antivirus software treat it as tampering. The position comes from Windows (`DWMWA_CAPTION_BUTTON_BOUNDS`, relative to the window rectangle) and is used only when the window's own hit test reports its close button there. A click sends the window the same `WM_SYSCOMMAND` its own button would. Elevated windows (unless BAKA is elevated too), tool windows, dialogs and owned windows keep their own buttons. While a game runs, the overlays are hidden and the window scan stops. Settings > Windows turns it off.
+- **Window moves (R13)**: BAKA Files, Settings and Arena use the Mica backdrop instead of Acrylic, because Acrylic re-blurs the screen behind the window on every frame of a drag. BAKA's glass panels show a solid card while they are dragged instead of turning transparent.
 
 ## Apps
 
@@ -35,6 +37,8 @@ Updated: 2026-10-28 (R12)
 - Telemetry upload services and tasks off; Copilot, Recall, advertising ID, tips, suggestions, Start web search, activity history and Spotlight off. Every changed value is backed up and "Restore BAKA System Tuning" puts it back. Security, Update, Xbox sign-in, audio and network services are on a protected list.
 - Ad blocking for every app: encrypted AdGuard DNS (DNS over HTTPS, plain DNS allowed as fallback so a network that blocks DoH still works) plus a BAKA section in the hosts file built from `Config/BlockedDomains.txt`. Microsoft domains are left out of the hosts list so Defender does not report it as a hijack. `BakaDesktop.exe --adblock off` (or BAKA Settings) restores the previous DNS.
 - Windows Pro keeps "required" diagnostic data. BAKA does not claim zero telemetry.
+- R13 adds: the Inventory and Compatibility Appraisal, Windows Health and Optimized Experiences, Windows AI Components Host and Distributed Link Tracking services disabled; the MareBackup, feature-usage reporting (4 tasks) and SQM tasks disabled; the `DisableInventory`, `AITEnable=0` and `DisableWindowsConsumerFeatures` policies set (Microsoft documents the last one for Enterprise and Education; Pro may ignore it); Edge startup boost and background mode off. `PcaPatchDbTask` and `SdbinstMergeDbTask` stay on: they update the app-compatibility database and send nothing. A service or task that Windows refuses to change is skipped and logged instead of stopping the whole setup.
+- The privacy benchmark counts 12 checks. The scheduled-task check counts 16 named telemetry tasks; until R12 it counted every task in two folders, which included the two compatibility-database tasks.
 
 ## Gaming
 

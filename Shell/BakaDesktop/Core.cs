@@ -169,7 +169,7 @@ namespace Baka.Desktop
             Def(Dock, "alignment", "Left"); Def(Dock, "iconSize", 40); Def(Dock, "spacing", 6); Def(Dock, "autoHide", false); Def(Dock, "magnification", true); Def(Dock, "monitor", "Primary");
             Def(TopBar, "enabled", true); Def(TopBar, "showProfile", true); Def(TopBar, "showDate", true); Def(TopBar, "monitor", "Primary");
             Def(Widgets, "enabled", false); Def(Widgets, "refreshSeconds", 3);
-            Def(Integration, "filesOpensFolders", true); Def(Integration, "hideDesktopIcons", true); Def(Integration, "winKeyOpensLaunchpad", true);
+            Def(Integration, "filesOpensFolders", true); Def(Integration, "hideDesktopIcons", true); Def(Integration, "winKeyOpensLaunchpad", true); Def(Integration, "captionButtons", true);
             var known = WidgetItems.Select(i => Json.Str(Json.Obj(i), "id")).ToList();
             foreach (var w in new[] { ("clock", true, 104, 48, 260, 160), ("calendar", false, 104, 222, 260, 250), ("system", false, 380, 48, 300, 190), ("notes", false, 380, 252, 300, 190), ("media", false, 696, 48, 280, 190), ("timer", false, 696, 252, 280, 200) })
                 if (!known.Contains(w.Item1)) WidgetItems.Add(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["id"] = w.Item1, ["enabled"] = w.Item2, ["left"] = w.Item3, ["top"] = w.Item4, ["width"] = w.Item5, ["height"] = w.Item6 });

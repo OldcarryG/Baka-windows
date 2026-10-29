@@ -224,8 +224,13 @@ namespace Baka.Desktop
         // Dragging a layered window with live blur makes it trail the cursor; the blur pauses while it moves.
         public void Drag()
         {
+            // While moving, the panel is a solid card instead of see-through glass: no blur that trails the
+            // cursor and no flash to fully transparent (the old behaviour switched the blur off and on).
             if (Handle != IntPtr.Zero) Native.SetBlur(Handle, false);
+            var glass = Frame.Background;
+            Frame.Background = Theme.B(Theme.Current.Surface, 248);
             try { DragMove(); } catch { }
+            Frame.Background = glass;
             UpdateBlur();
         }
         public void Pin(bool bottom) { if (Handle != IntPtr.Zero) Native.SetWindowPos(Handle, bottom ? Native.HWND_BOTTOM : Native.HWND_TOPMOST, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE); }
@@ -273,7 +278,10 @@ namespace Baka.Desktop
         void ApplyBackdrop()
         {
             if (Handle == IntPtr.Zero) return;
-            int kind = Theme.Current.Backdrop == "Opaque" ? 1 : Theme.Current.Backdrop == "Mica" ? 2 : 3; // none, Mica, Acrylic
+            // Mica, not Acrylic: Acrylic re-blurs whatever is behind the window on every frame of a drag, which
+            // made moving Files/Settings/Arena look smeared and laggy. Mica samples only the wallpaper, so the
+            // window moves like any Windows 11 app.
+            int kind = Theme.Current.Backdrop == "Opaque" ? 1 : 2; // none, Mica
             bool ok = Native.DwmSetWindowAttribute(Handle, 38, ref kind, 4) == 0 && kind != 1;
             // Tint on top of the backdrop; fully opaque when Windows has no backdrop (older builds, transparency off).
             byte a = ok ? (byte)Math.Max(120, 215 - Json.Int(App.Settings.Appearance, "glassIntensity", 34) * 2) : (byte)255;

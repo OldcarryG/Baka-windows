@@ -34,6 +34,10 @@ namespace Baka.Desktop
 
             if (a.Contains("--open")) return Forward("open|" + (Arg("--open") ?? ""), () => Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), "\"" + Arg("--open") + "\""));
             if (a.Contains("--settings")) return Forward("settings|", () => { });
+            // --profile gaming|desktop: what Arena does, from the command line (used by the VM benchmark)
+            if (a.Contains("--profile")) return Forward("profile|" + (Arg("--profile") ?? ""), () => { });
+            // --tray: what Control Center's tray button does (shows the Windows tray icons for a few seconds)
+            if (a.Contains("--tray")) return Forward("tray|", () => { });
             if (a.Contains("--adblock")) return AdBlockDns.Run(!string.Equals(Arg("--adblock"), "off", StringComparison.OrdinalIgnoreCase));
             if (a.Contains("--status")) return Status(Arg("--status"));
             if (a.Contains("--restore-windows")) { Paths.Init(false); ExplorerIntegration.RestoreAll(); ExplorerIntegration.SetFolderHandler(false, ""); return 0; }
@@ -214,6 +218,7 @@ namespace Baka.Desktop
             ExplorerIntegration.SetDesktopIcons(!Json.Bool(Settings.Integration, "hideDesktopIcons", true));
             ExplorerIntegration.SetFolderHandler(Json.Bool(Settings.Integration, "filesOpensFolders", true), Exe);
             KeyHook.Enabled = Json.Bool(Settings.Integration, "winKeyOpensLaunchpad", true) && !GameRunning;
+            try { CaptionButtons.Apply(Json.Bool(Settings.Integration, "captionButtons", true)); } catch (Exception e) { Log.Write("caption-buttons-failed error=\""+e.Message+"\""); }
         }
 
         // Shows the Windows taskbar for a few seconds: its tray holds Discord, Steam and driver icons.
@@ -241,7 +246,9 @@ namespace Baka.Desktop
         {
             GameRunning = true; Profiles.DetectedGame = name; KeyHook.Enabled = false;
             Profiles.Set("CompetitiveGaming", "game " + name);
-            Bar?.Hide(); Dock?.Hide(); Widgets.HideAll(); Launchpad.HideIfOpen(); Wallpaper.Pause(true);
+            Bar?.Hide(); Dock?.Hide(); Widgets.HideAll(); Launchpad.HideIfOpen(); Wallpaper.Pause(true); CaptionButtons.HideAll(true);
+            // give the game the memory BAKA's hidden surfaces were holding
+            Ui.BeginInvoke(new Action(() => TrimMemory("game")), DispatcherPriority.ApplicationIdle);
         }
         public static void LeaveGame()
         {
@@ -249,7 +256,7 @@ namespace Baka.Desktop
             Profiles.Set("Desktop", "game closed");
             KeyHook.Enabled = Json.Bool(Settings.Integration, "winKeyOpensLaunchpad", true);
             if (Json.Bool(Settings.TopBar, "enabled", true)) Bar?.Show();
-            Dock?.Show(); Widgets.ShowEnabled(); Wallpaper.Pause(false);
+            Dock?.Show(); Widgets.ShowEnabled(); Wallpaper.Pause(false); CaptionButtons.HideAll(false);
         }
 
         public static void TrimMemory(string reason)
@@ -283,6 +290,9 @@ namespace Baka.Desktop
             int bar = text.IndexOf('|'); string kind = bar < 0 ? text : text.Substring(0, bar), value = bar < 0 ? "" : text.Substring(bar + 1);
             Log.Write("request kind=" + kind);
             if (kind == "open") Files.Open(value); else if (kind == "settings") SettingsWindow.Open();
+            else if (kind == "profile" && value.Equals("gaming", StringComparison.OrdinalIgnoreCase)) { Profiles.Manual = "CompetitiveGaming"; EnterGame("manual"); }
+            else if (kind == "profile" && value.Equals("desktop", StringComparison.OrdinalIgnoreCase)) { Profiles.Manual = null; LeaveGame(); }
+            else if (kind == "tray") PeekTray();
         }
 
         public static void Quit(bool restoreWindows)
@@ -295,6 +305,7 @@ namespace Baka.Desktop
         {
             try { Profiles.Set("Desktop", "exit"); } catch { }
             try { Wallpaper.Stop(); } catch { }
+            try { CaptionButtons.Apply(false); } catch { }
             if (!preview) ExplorerIntegration.RestoreAll();
             try { messages?.Dispose(); } catch { }
             try { instance?.ReleaseMutex(); } catch { }

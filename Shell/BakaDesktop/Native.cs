@@ -69,6 +69,45 @@ namespace Baka.Desktop
         [DllImport("user32.dll")] public static extern int SetWindowRgn(IntPtr hwnd, IntPtr region, bool redraw);
         [DllImport("gdi32.dll")] public static extern IntPtr CreateRoundRectRgn(int l, int t, int r, int b, int w, int h);
 
+        // ---- window events from other apps (out of context: nothing is loaded into their process) ----
+        public delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+        [DllImport("user32.dll")] public static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr module, WinEventProc proc, uint pid, uint thread, uint flags);
+        [DllImport("user32.dll")] public static extern bool UnhookWinEvent(IntPtr hook);
+        public const uint WINEVENT_OUTOFCONTEXT = 0, WINEVENT_SKIPOWNPROCESS = 2;
+        public const uint EVENT_SYSTEM_MOVESIZESTART = 0x000A, EVENT_SYSTEM_MOVESIZEEND = 0x000B, EVENT_SYSTEM_MINIMIZESTART = 0x0016, EVENT_SYSTEM_MINIMIZEEND = 0x0017;
+        public const uint EVENT_OBJECT_DESTROY = 0x8001, EVENT_OBJECT_SHOW = 0x8002, EVENT_OBJECT_HIDE = 0x8003, EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
+        [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out RECT value, int size);
+
+        // WM_NCHITTEST at a screen point, with a short timeout so a hung app cannot stall the desktop
+        public static int HitTest(IntPtr hwnd, int x, int y)
+        {
+            IntPtr l = new IntPtr((y << 16) | (x & 0xFFFF));
+            return SendMessageTimeout(hwnd, 0x0084, IntPtr.Zero, l, 0x0002 /*SMTO_ABORTIFHUNG*/, 150, out IntPtr r) == IntPtr.Zero ? -1 : r.ToInt32();
+        }
+        [DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr hwnd);
+        [DllImport("user32.dll")] static extern int ReleaseDC(IntPtr hwnd, IntPtr dc);
+        [DllImport("gdi32.dll")] static extern uint GetPixel(IntPtr dc, int x, int y);
+        public static System.Drawing.Color? ScreenPixel(int x, int y)
+        {
+            IntPtr dc = GetDC(IntPtr.Zero); if (dc == IntPtr.Zero) return null;
+            try { uint c = GetPixel(dc, x, y); if (c == 0xFFFFFFFF) return null; return System.Drawing.Color.FromArgb((int)(c & 0xFF), (int)((c >> 8) & 0xFF), (int)((c >> 16) & 0xFF)); }
+            finally { ReleaseDC(IntPtr.Zero, dc); }
+        }
+        [DllImport("advapi32.dll")] static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+        [DllImport("advapi32.dll")] static extern bool GetTokenInformation(IntPtr token, int cls, out int info, int size, out int ret);
+        // true for elevated processes (and ones we cannot even open, e.g. system processes)
+        public static bool IsElevated(uint pid)
+        {
+            IntPtr p = OpenProcess(0x1000, false, pid); if (p == IntPtr.Zero) return true;
+            try
+            {
+                if (!OpenProcessToken(p, 0x0008 /*TOKEN_QUERY*/, out IntPtr t)) return true;
+                try { return GetTokenInformation(t, 20 /*TokenElevation*/, out int elevated, 4, out _) && elevated != 0; }
+                finally { CloseHandle(t); }
+            }
+            finally { CloseHandle(p); }
+        }
+
         public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr param);
         [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc proc, IntPtr param);
 

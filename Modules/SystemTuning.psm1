@@ -75,8 +75,8 @@ function Invoke-BakaSystemTuning {
             $current=& $Adapter.GetServiceStart $name
             if($null -eq $current -or $current -eq $target){continue}
             if(-not $PSCmdlet.ShouldProcess($name,"Set service start to $($service.startType)")){continue}
+            try{& $Adapter.SetServiceStart $name $target}catch{$skipped.Add("service:$name failed: $($_.Exception.Message)");continue}
             if(-not @($services|Where-Object {$_.Name -eq $name}).Count){$services.Add([pscustomobject]@{Name=$name;PreviousStart=[int]$current})}
-            & $Adapter.SetServiceStart $name $target
             $changed.Add("service:$name=$($service.startType)")
         }
         foreach($task in @($Configuration.scheduledTasks)){
@@ -85,8 +85,8 @@ function Invoke-BakaSystemTuning {
             if(-not $current){$skipped.Add("task:$id");continue}
             if(-not $current.Enabled){continue}
             if(-not $PSCmdlet.ShouldProcess($id,'Disable scheduled task')){continue}
+            try{& $Adapter.SetTaskEnabled ([string]$task.path) ([string]$task.name) $false}catch{$skipped.Add("task:$id failed: $($_.Exception.Message)");continue}
             if(-not @($tasks|Where-Object {$_.Path -eq [string]$task.path -and $_.Name -eq [string]$task.name}).Count){$tasks.Add([pscustomobject]@{Path=[string]$task.path;Name=[string]$task.name;WasEnabled=$true})}
-            & $Adapter.SetTaskEnabled ([string]$task.path) ([string]$task.name) $false
             $changed.Add("task:$id")
         }
         foreach($value in @($RegistryValues)){

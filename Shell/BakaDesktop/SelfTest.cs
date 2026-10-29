@@ -18,6 +18,19 @@ namespace Baka.Desktop
         public static bool Running;
         static readonly List<string> passed = new List<string>(), failed = new List<string>();
         static string resultPath;
+        static DateTime captionTestStart;
+        static bool calculatorInstalled;
+        // installed Store apps are listed for the user under ActivatableClasses\Package
+        static bool CalculatorInstalled()
+        {
+            try
+            {
+                using (var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages"))
+                    if (k != null && k.GetSubKeyNames().Any(n => n.StartsWith("Microsoft.WindowsCalculator_", StringComparison.OrdinalIgnoreCase))) return true;
+                return false;
+            }
+            catch { return false; }
+        }
 
         public static void Fail(string why) { failed.Add(why); Log.Write("selftest-fail " + why); }
         static void Check(bool ok, string what) { if (ok) { passed.Add(what); Log.Write("selftest-pass " + what); } else Fail(what); }
@@ -55,6 +68,21 @@ namespace Baka.Desktop
                 () => { SettingsWindow.Open(); foreach (var p in SettingsWindow.PageNames) { SettingsWindow.Current.Go(p); SettingsWindow.Current.UpdateLayout(); } Check(SettingsWindow.Current.CurrentPage == "About", "every Settings page opens"); SettingsWindow.Current.Close(); },
                 () => { Files.Open(null); var f = Files.Last; Check(f != null && Directory.Exists(f.CurrentFolder) && f.ItemCount > 0, "BAKA Files opens the home folder with items"); f.Navigate(Environment.GetFolderPath(Environment.SpecialFolder.Windows), true); Check(f.CurrentFolder.EndsWith("Windows", StringComparison.OrdinalIgnoreCase) && f.ItemCount > 10, "BAKA Files navigates to C:\\Windows"); f.Navigate(Paths.Local, true); try { f.TestNewFolderAndDelete("BAKA self test folder"); Check(true, "new folder appears and is removed"); } catch (Exception e) { Fail(e.Message); } f.Close(); },
                 () => { Arena.Open(); Check(Arena.Current != null && Arena.Current.IsVisible, "Arena opens"); Arena.Current.Close(); },
+                () => { captionTestStart = DateTime.Now.AddSeconds(-1); try { System.Diagnostics.Process.Start("notepad.exe"); } catch (Exception e) { Fail("notepad did not start: " + e.Message); } },
+                () => {
+                    bool ok = CaptionButtons.TestOverlayOn("Notepad", out string detail);
+                    Check(ok, "BAKA buttons sit over another app's close/minimize/maximize buttons (" + detail + ")");
+                    foreach (var p in System.Diagnostics.Process.GetProcessesByName("Notepad")) { try { if (p.StartTime >= captionTestStart) p.Kill(); } catch { } }
+                    calculatorInstalled = CalculatorInstalled();
+                    if (calculatorInstalled) try { System.Diagnostics.Process.Start("calculator:"); } catch (Exception e) { Fail("Calculator did not start: " + e.Message); }
+                },
+                () => {
+                    if (!calculatorInstalled) { Check(true, "BAKA buttons on a Store app: skipped, Calculator is not installed on this PC"); return; }
+                    System.Threading.Thread.Sleep(2500);
+                    bool ok = CaptionButtons.TestOverlayOn("ApplicationFrameWindow", out string detail);
+                    Check(ok, "BAKA buttons sit over a Store app's buttons (Calculator: " + detail + ")");
+                    foreach (var p in System.Diagnostics.Process.GetProcessesByName("CalculatorApp")) { try { p.Kill(); } catch { } }
+                },
                 () => { App.Settings.Widgets["enabled"] = true; foreach (var i in App.Settings.WidgetItems.Select(Json.Obj)) i["enabled"] = true; Widgets.ShowEnabled(); Check(Widgets.Open.Count == 6, "all six widgets open (" + Widgets.Open.Count + ")"); },
                 () => {
                     var t = Widgets.Open["timer"]; t.ToggleTimer(); Check(t.TimerRunning, "focus timer starts"); t.ToggleTimer(); Check(!t.TimerRunning && t.TimerLeft >= 1490, "focus timer pauses with the time left");

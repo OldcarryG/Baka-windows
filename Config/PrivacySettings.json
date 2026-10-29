@@ -31,6 +31,8 @@
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\EdgeUpdate", "name": "CreateDesktopShortcutDefault", "type": "DWord", "value": 0, "purpose": "Edge updates do not put a shortcut back on the desktop" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "PersonalizationReportingEnabled", "type": "DWord", "value": 0, "purpose": "Edge does not send browsing data for ad personalization (WinUtil Edge debloat)" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "UserFeedbackAllowed", "type": "DWord", "value": 0, "purpose": "No Edge feedback prompts" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "StartupBoostEnabled", "type": "DWord", "value": 0, "purpose": "Edge does not preload itself at sign-in (about 120 MB of idle memory)" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "BackgroundModeEnabled", "type": "DWord", "value": 0, "purpose": "Edge does not keep running in the background after it is closed" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DiagnosticData", "type": "DWord", "value": 0, "purpose": "Edge sends no optional diagnostic data" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EdgeShoppingAssistantEnabled", "type": "DWord", "value": 0, "purpose": "No Edge shopping pop-ups" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge", "name": "ShowMicrosoftRewards", "type": "DWord", "value": 0, "purpose": "No Microsoft Rewards promotions in Edge" },
@@ -38,7 +40,10 @@
     { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Device Metadata", "name": "PreventDeviceMetadataFromNetwork", "type": "DWord", "value": 1, "purpose": "Plugging in a device does not silently download vendor companion apps (WinUtil)" },
     { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager", "name": "DisableWpbtExecution", "type": "DWord", "value": 1, "purpose": "Firmware cannot inject a program into Windows at boot (Windows Platform Binary Table; WinUtil)" },
     { "path": "HKLM:\\SOFTWARE\\Policies\\WindowsNotepad", "name": "DisableAIFeatures", "type": "DWord", "value": 1, "purpose": "No AI features in Notepad" },
-    { "path": "HKLM:\\SYSTEM\\Maps", "name": "AutoUpdateEnabled", "type": "DWord", "value": 0, "purpose": "Offline maps do not download updates in the background" }
+    { "path": "HKLM:\\SYSTEM\\Maps", "name": "AutoUpdateEnabled", "type": "DWord", "value": 0, "purpose": "Offline maps do not download updates in the background" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableWindowsConsumerFeatures", "type": "DWord", "value": 1, "purpose": "No suggested consumer apps (Microsoft documents this for Enterprise/Education; Pro may ignore it, the ContentDeliveryManager values below cover Pro)" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat", "name": "DisableInventory", "type": "DWord", "value": 1, "purpose": "Inventory Collector does not send app and driver inventory" },
+    { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat", "name": "AITEnable", "type": "DWord", "value": 0, "purpose": "Application Telemetry off" }
   ],
   "userPolicies": [
     { "path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableTailoredExperiencesWithDiagnosticData", "type": "DWord", "value": 1, "purpose": "Do not use diagnostic data for tailored experiences" },
@@ -77,7 +82,6 @@
     { "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel", "name": "{2cc5ca98-6485-489a-920e-b3e88a6ccce3}", "type": "DWord", "value": 1, "purpose": "Remove the Spotlight 'Learn about this picture' desktop icon" }
   ],
   "notApplied": [
-    { "name": "DisableWindowsConsumerFeatures", "reason": "Microsoft documents this policy for Enterprise/Education, not Pro." },
     { "name": "AllowTelemetry=0", "reason": "Treated as Required (1) on Pro; BAKA disables the DiagTrack upload service instead." }
   ]
 }

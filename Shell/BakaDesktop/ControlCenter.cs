@@ -42,7 +42,7 @@ namespace Baka.Desktop
             quick.Add(Quick(0xE701, "Wi-Fi", "ms-availablenetworks:")); quick.Add(Quick(0xE702, "Bluetooth", "ms-settings:bluetooth"));
             quick.Add(Quick(0xE708, "Focus", "ms-settings:quiethours")); quick.Add(Quick(0xE706, "Night light", "ms-settings:nightlight"));
             quick.Add(QuickAction(0xE70E, "Tray", App.PeekTray)); quick.Add(QuickAction(0xE7F4, "Display", () => Run("ms-settings:display")));
-            quick.Add(QuickAction(0xE72E, "Ad block", () => SettingsWindow.Open("System"))); quick.Add(QuickAction(0xE713, "Settings", () => Run("ms-settings:")));
+            quick.Add(QuickAction(0xE72E, "Ad block", () => SettingsWindow.Open("Privacy & ads"))); quick.Add(QuickAction(0xE713, "Settings", () => Run("ms-settings:")));
             sp.Children.Add(quick.Panel);
 
             sp.Children.Add(Caption("Sound"));
