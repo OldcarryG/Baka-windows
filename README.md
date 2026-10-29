@@ -1,6 +1,6 @@
 # BAKA Windows Gaming Edition
 
-A custom Windows 11 Pro 26H2 (x64) image for gaming. It replaces the taskbar, Start menu and File Explorer windows with its own desktop, puts BAKA buttons on every app window, plays 4K video wallpapers on the graphics card, removes apps most people never use, blocks ads and trackers for every app, turns off telemetry, and ships [Baka Browser](https://github.com/OldcarryG/Baka-browser) as the default browser. When a game starts, BAKA gets out of the way: its UI, keyboard hook and video wallpaper are switched off, so it adds almost nothing while you play.
+A custom Windows 11 Pro 26H2 (x64) image for gaming. It replaces the taskbar, Start menu and File Explorer windows with its own desktop, puts BAKA buttons on every app window, plays 4K video wallpapers on the graphics card, removes apps most people never use, blocks ads and trackers for every app, turns off telemetry, and ships [Baka Browser](https://github.com/OldcarryG/Baka-browser) as the default browser. When a game starts, BAKA gets out of the way: its UI, keyboard listener and video wallpaper are switched off, so it adds almost nothing while you play.
 
 Windows itself is not modified: it is Microsoft's own Windows 11 Pro 26H2 (build 26300) with Windows Security, Secure Boot, TPM, the Store, drivers and Windows Update all working. Everything BAKA changes can be undone.
 
@@ -65,7 +65,7 @@ BAKA buttons on other apps (Notepad, Calculator, Media Player), captured in the 
 - **Automatic game detection.** A running game (Steam, Epic, GOG, EA, Ubisoft, Xbox, Riot, Battle.net, itch, or any fullscreen app) switches BAKA to **Competitive Gaming**:
   - menu bar, dock, widgets and BAKA window buttons are hidden;
   - the video wallpaper is closed and its decoder and video memory freed;
-  - BAKA's **keyboard hook is removed**, so no key press of the game passes through BAKA;
+  - BAKA's **keyboard listener is removed**, so BAKA sees none of the game's key presses;
   - the window-event hooks for the BAKA buttons are removed;
   - transparency and animations are switched off, background apps paused, and BAKA's memory trimmed;
   - BAKA Desktop runs at below-normal priority.
@@ -99,8 +99,10 @@ Preinstalled and set as the default browser. Chromium engine (WebView2), uBlock 
 | Window buttons | Windows' buttons | BAKA amber/green/red buttons on every app |
 | File manager | File Explorer | BAKA Files (Explorer still runs hidden for tray, notifications, file dialogs) |
 | Wallpaper | Picture, slideshow, Spotlight | Picture, colour, or 4K video decoded on the GPU, paused when covered, closed in games |
-| While gaming | Taskbar, widgets, background apps keep running | BAKA UI, keyboard hook and video wallpaper off; BAKA Desktop uses 0.01% CPU and 34 MB |
-| Key press latency while gaming (VM, median) | 0.225 ms | 0.21 to 0.30 ms (no BAKA hook in the path) |
+| While gaming | Taskbar, widgets, background apps keep running | BAKA UI, keyboard listener and video wallpaper off; BAKA Desktop uses 0.01% CPU and 34 MB |
+| Key press latency, median (VM) | 0.27 to 0.28 ms | 0.26 to 0.27 ms gaming, 0.29 to 0.33 ms desktop |
+| Windows key → start surface | 30 to 46 ms (Start) | 16 to 19 ms (Launchpad) |
+| Fast Startup | On | On (since R15) |
 | Power plan | Balanced | BAKA Gaming (Ultimate Performance base) |
 | Game DVR / Game Bar | On | Off |
 | Mouse acceleration | On | Off (raw input) |
@@ -152,20 +154,27 @@ Game FPS cannot be measured in a VM without a GPU; use the [AI tuning prompt](do
 
 ## Input latency
 
-Time from an injected key press until the window in front receives it, 200 presses per run, in the same VMs:
+Time from an injected key press until the window in front receives it, 200 presses per run, 3 runs, in the same VMs on the same day (R15):
 
-| | Median | 99th percentile |
+| | Median |
+|---|---:|
+| Stock Windows 11 | 0.27 to 0.28 ms |
+| BAKA Gaming mode | **0.26 to 0.27 ms** |
+| BAKA Desktop mode, R15 | 0.29 to 0.33 ms |
+| BAKA Desktop mode, R14 | 0.33 to 0.37 ms |
+| BAKA Desktop mode, "Windows key opens Launchpad" off | 0.26 to 0.27 ms |
+
+- **While gaming, BAKA is not in the input path at all**: the same as stock.
+- **On the desktop BAKA adds 0.02 to 0.06 ms** per key, the cost of listening for the Windows key. Since R15 BAKA only listens (raw input) instead of hooking the keyboard, so Windows never waits for BAKA on a key press. Turning off "Windows key opens Launchpad" brings it to stock.
+
+| Start surface | Stock Windows 11 | BAKA R15 |
 |---|---:|---:|
-| Stock Windows 11 | 0.225 ms | 0.386 ms |
-| BAKA Gaming mode, final R14 ISO | **0.243 ms** | **0.555 ms** |
-| BAKA Gaming mode, three earlier R14 installs | 0.21 to 0.30 ms | 0.62 to 1.54 ms |
-| BAKA Desktop mode, final R14 ISO | 0.331 ms | 4.219 ms |
-| BAKA Desktop mode, three earlier R14 installs | 0.30 to 0.37 ms | 0.74 to 1.19 ms |
+| Windows key → Start / Launchpad in front | 30 to 46 ms | **16 to 19 ms** |
+| Win+E → File Explorer / BAKA Files | 175 to 258 ms | **16 to 64 ms** |
 
-- **While gaming, BAKA is not in the input path at all.** Its keyboard hook is removed, so key presses reach the game the same way as on stock Windows; the small differences are within what two runs of the same VM differ by.
-- **On the desktop BAKA adds about 0.1 ms** at the median (the hook that makes the Windows key open Launchpad). In the final run 2 of 200 presses took about 4 ms; the three earlier installs stayed under 1.2 ms. Turning off "Windows key opens Launchpad" removes the hook on the desktop too.
+**Boot** (restart, same VMs): the Windows boot event is the same as stock within the VM's spread (BAKA 27.0 to 28.8 s, stock 23.0 to 28.5 s). The BAKA desktop is ready 8.8 to 9.6 s after boot start (R14: 10.9 to 11.3 s); Explorer starts at about 7 s on both. R15 also keeps Windows' Fast Startup on, which R14 had turned off, so power-on after a shutdown is no longer a full cold boot. Details: [docs/BENCHMARK.md#r15-boot-shutdown-and-key-latency](docs/BENCHMARK.md#r15-boot-shutdown-and-key-latency).
 
-**The latency fix in R14.** Windows holds every key press until each low-level keyboard hook answers. Until R13, BAKA's hook ran on BAKA's UI thread, so a key press had to wait whenever BAKA was busy drawing. On the development PC, with BAKA's main thread kept busy like a frame being drawn:
+**The earlier latency fix in R14** (before R15 removed the hook altogether). Windows holds every key press until each low-level keyboard hook answers. Until R13, BAKA's hook ran on BAKA's UI thread, so a key press had to wait whenever BAKA was busy drawing. On the development PC, with BAKA's main thread kept busy like a frame being drawn:
 
 | Design | Median key latency |
 |---|---:|
@@ -255,7 +264,7 @@ To build the ISO yourself from Microsoft's official ISO, follow [docs/GITHUB_WOR
 
 ## FAQ
 
-**Does BAKA affect anti-cheat?** BAKA does not load anything into other processes. The BAKA buttons are separate windows that follow the app, and the keyboard hook is removed while a game runs. Secure Boot, TPM, VBS and Defender stay on.
+**Does BAKA affect anti-cheat?** BAKA does not load anything into other processes. The BAKA buttons are separate windows that follow the app, and since R15 BAKA uses no keyboard hook at all (it only listens with raw input, and stops listening while a game runs). Secure Boot, TPM, VBS and Defender stay on.
 
 **Is it activated?** BAKA includes no licence key. Activate it with your own Windows 11 Pro licence, as with Microsoft's ISO.
 
@@ -271,7 +280,8 @@ To build the ISO yourself from Microsoft's official ISO, follow [docs/GITHUB_WOR
 
 | Release | Main changes |
 |---|---|
-| **R14** (2026-10-29) | 4K video wallpaper decoded on the GPU; keyboard hook on its own time-critical thread (25–42 ms → 0.75 ms with BAKA busy) and removed in games; AI tuning prompt; ISO on MEGA |
+| **R15** (2026-10-29) | Fast Startup back on; BAKA Desktop starts with Explorer (desktop ready about 1.7 s sooner); no false crash at every shutdown; Windows key only listened to, not hooked; Launchpad opens in under 20 ms; native image for BAKA Desktop |
+| R14 (2026-10-29) | 4K video wallpaper decoded on the GPU; keyboard hook on its own time-critical thread (25–42 ms → 0.75 ms with BAKA busy) and removed in games; AI tuning prompt; ISO on MEGA |
 | R13 (2026-10-29) | BAKA buttons on every app window, Mica backdrop for BAKA windows, more privacy checks, Store apps tested, Gaming-mode benchmark, Baka Browser 1.6.2 |
 | R12 (2026-10-28) | Baka Browser 1.6.1 |
 

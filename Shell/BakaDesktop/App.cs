@@ -51,7 +51,7 @@ namespace Baka.Desktop
                 string mode = i + 1 < args.Length ? args[i + 1] : "thread";
                 int sec = i + 2 < args.Length && int.TryParse(args[i + 2], out int s) ? s : 30;
                 KeyHook.Enabled = false;
-                bool ok = mode == "ui" ? KeyHook.InstallOnCurrentThread() : KeyHook.Install();
+                bool ok = mode == "ui" ? KeyHook.InstallOnCurrentThread() : mode == "raw" ? KeyHook.InstallRawForTest() : KeyHook.InstallHookForTest();
                 var end = DateTime.UtcNow.AddSeconds(sec);
                 while (DateTime.UtcNow < end)
                 {
@@ -69,7 +69,7 @@ namespace Baka.Desktop
                 Paths.Init(true);
                 return VideoTest.Run(args[i + 1], args[i + 2], i + 3 < args.Length && int.TryParse(args[i + 3], out int sec) ? sec : 20);
             }
-            if (a.Contains("--restore-windows")) { Paths.Init(false); ExplorerIntegration.RestoreAll(); ExplorerIntegration.SetFolderHandler(false, ""); return 0; }
+            if (a.Contains("--restore-windows")) { Paths.Init(false); ExplorerIntegration.RestoreAll(); ExplorerIntegration.SetFolderHandler(false, ""); ShellHotkeys.Release(); return 0; }
             bool preview = a.Contains("--preview") || a.Contains("--selftest") || a.Contains("--capture") || a.Contains("--icon-sheet");
             if (!a.Contains("--ui") && !preview) return Supervise();
             return RunUi(preview, a.Contains("--selftest"), Arg("--capture"), Arg("--icon-sheet"));
@@ -87,18 +87,31 @@ namespace Baka.Desktop
                 try { using (var p = Process.Start(new ProcessStartInfo(Exe, "--ui") { UseShellExecute = false })) { p.WaitForExit(); code = p.ExitCode; } }
                 catch (Exception e) { Log.Write("supervisor-start-failed error=\"" + e.Message + "\""); code = -1; }
                 if (code == 0 || code == 3) return 0; // closed on purpose, or already running
+                // Signing out, restarting or shutting down: Windows ends the desktop (0x40010004). That is not a
+                // crash. Nothing is restored, so the next sign-in starts with the taskbar still hidden instead of
+                // showing it until BAKA Desktop hides it again, and nothing is restarted while Windows shuts down.
+                if (code == unchecked((int)0x40010004) || SessionEnding())
+                {
+                    Log.Write("desktop-ended-with-session code=" + code);
+                    return 0;
+                }
                 Log.Write("desktop-crashed code=" + code);
                 ExplorerIntegration.RestoreAll();
                 crashes.Add(DateTime.Now); crashes.RemoveAll(t => t < DateTime.Now.AddMinutes(-2));
                 if (crashes.Count >= 3)
                 {
                     Log.Write("desktop-gave-up; Windows taskbar restored");
+                    ShellHotkeys.Release();
                     System.Windows.Forms.MessageBox.Show("BAKA Desktop stopped three times, so the normal Windows taskbar and desktop are back.\n\nStart BAKA Desktop again from the Start menu. The log is in %LOCALAPPDATA%\\BAKA\\Logs.", "BAKA Desktop", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
                     return 1;
                 }
                 Thread.Sleep(1500);
             }
         }
+
+        [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
+        static bool SessionEnding() => sessionEnding || GetSystemMetrics(0x2000 /*SM_SHUTTINGDOWN*/) != 0;
+        static volatile bool sessionEnding;
 
         static string LastLogLine(string marker)
         {
@@ -130,6 +143,7 @@ namespace Baka.Desktop
                 ["workAreaTop"] = work.Top, ["workAreaLeft"] = work.Left, ["dockWidth"] = DockWidth(), ["folderVerb"] = verb ?? "", ["shellOverride"] = shell ?? "",
                 ["adBlockDns"] = AdBlockDns.On, ["edgeInstalled"] = System.IO.File.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe")),
                 ["videoWallpaper"] = LastLogLine("video-"),
+                ["keyboardMode"] = LastLogLine("keyboard mode="),
                 ["webView2Installed"] = System.IO.Directory.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramFiles(x86)%\Microsoft\EdgeWebView\Application")),
                 ["bakaBrowserInstalled"] = System.IO.File.Exists(Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\BakaBrowser\current\baka.exe")),
             };
@@ -183,6 +197,9 @@ namespace Baka.Desktop
                 Native.EnsureFullWindowDrag();
             }
             app.Startup += (o, e) => { };
+            // Sign-out or shutdown: exit at once and leave Windows as it is (taskbar hidden, BAKA settings),
+            // so Windows does not wait for BAKA and the next sign-in starts clean.
+            app.SessionEnding += (o, e) => { sessionEnding = true; Log.Write("session-ending reason=" + e.ReasonSessionEnding); try { app.Shutdown(0); } catch { } };
             app.Dispatcher.BeginInvoke(new Action(() => Start(preview, selfTest, capture)));
             int exit = 0;
             app.Exit += (o, e) => exit = e.ApplicationExitCode;
@@ -223,6 +240,8 @@ namespace Baka.Desktop
             var guard = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
             guard.Tick += (o, e) => { if (!preview && TaskbarWanted && !peeking && ExplorerIntegration.TaskbarVisible()) ExplorerIntegration.HideTaskbar(); };
             guard.Start();
+            // the Launchpad is built while nothing else is happening, so the first Windows key press is instant
+            new DispatcherTimer(TimeSpan.FromSeconds(4), DispatcherPriority.ApplicationIdle, (o, e) => { ((DispatcherTimer)o).Stop(); try { if (!GameRunning) Launchpad.Prepare(); } catch (Exception ex) { Log.Write("launchpad-prepare-failed error=\"" + ex.Message + "\""); } }, Ui).Start();
             new DispatcherTimer(TimeSpan.FromSeconds(25), DispatcherPriority.Background, (o, e) => { ((DispatcherTimer)o).Stop(); TrimMemory("startup"); }, Ui).Start();
 
             if (selfTest) SelfTest.Start();
@@ -257,8 +276,10 @@ namespace Baka.Desktop
             if (TaskbarWanted) ExplorerIntegration.HideTaskbar(); else ExplorerIntegration.ShowTaskbar(true);
             ExplorerIntegration.SetDesktopIcons(!Json.Bool(Settings.Integration, "hideDesktopIcons", true));
             ExplorerIntegration.SetFolderHandler(Json.Bool(Settings.Integration, "filesOpensFolders", true), Exe);
-            KeyHook.Enabled = Json.Bool(Settings.Integration, "winKeyOpensLaunchpad", true) && !GameRunning;
-            // no hook at all when it has nothing to do (feature off or a game running)
+            bool winKey = Json.Bool(Settings.Integration, "winKeyOpensLaunchpad", true);
+            KeyHook.Enabled = winKey && !GameRunning;
+            // nothing listening when it has nothing to do (feature off or a game running)
+            if (!winKey) ShellHotkeys.Release();
             if (!KeyHook.Enabled) KeyHook.Remove(); else if (!KeyHook.Install()) Log.Write("key-hook-unavailable");
             try { CaptionButtons.Apply(Json.Bool(Settings.Integration, "captionButtons", true)); } catch (Exception e) { Log.Write("caption-buttons-failed error=\""+e.Message+"\""); }
         }
@@ -293,7 +314,7 @@ namespace Baka.Desktop
             GameRunning = true; Profiles.DetectedGame = name; KeyHook.Enabled = false;
             if (!Paths.Preview) { KeyHook.Remove(); try { CaptionButtons.Apply(false); } catch { } }
             Profiles.Set("CompetitiveGaming", "game " + name);
-            Bar?.Hide(); Dock?.Hide(); Widgets.HideAll(); Launchpad.HideIfOpen(); Wallpaper.Pause(true); CaptionButtons.HideAll(true);
+            Bar?.Hide(); Dock?.Hide(); Widgets.HideAll(); Launchpad.HideIfOpen(); Launchpad.Release(); Wallpaper.Pause(true); CaptionButtons.HideAll(true);
             // give the game the memory BAKA's hidden surfaces were holding
             Ui.BeginInvoke(new Action(() => TrimMemory("game")), DispatcherPriority.ApplicationIdle);
         }
@@ -306,6 +327,7 @@ namespace Baka.Desktop
             if (!Paths.Preview) try { CaptionButtons.Apply(Json.Bool(Settings.Integration, "captionButtons", true)); } catch { }
             if (Json.Bool(Settings.TopBar, "enabled", true)) Bar?.Show();
             Dock?.Show(); Widgets.ShowEnabled(); Wallpaper.Pause(false); CaptionButtons.HideAll(false);
+            Ui.BeginInvoke(new Action(() => { try { if (!GameRunning) Launchpad.Prepare(); } catch { } }), DispatcherPriority.ApplicationIdle);
         }
 
         public static void TrimMemory(string reason)
@@ -353,7 +375,7 @@ namespace Baka.Desktop
         public static void Quit(bool restoreWindows)
         {
             Log.Write("desktop-quit restoreWindows=" + restoreWindows);
-            if (restoreWindows && !Paths.Preview) { Settings.Taskbar["autoHideWindowsTaskbar"] = false; Settings.Save(); }
+            if (restoreWindows && !Paths.Preview) { Settings.Taskbar["autoHideWindowsTaskbar"] = false; Settings.Save(); ShellHotkeys.Release(); }
             Application.Current.Shutdown(0);
         }
         static void Cleanup(bool preview)
@@ -361,7 +383,8 @@ namespace Baka.Desktop
             try { Profiles.Set("Desktop", "exit"); } catch { }
             try { Wallpaper.Stop(); } catch { }
             try { CaptionButtons.Apply(false); } catch { }
-            if (!preview) ExplorerIntegration.RestoreAll();
+            if (!preview && !SessionEnding()) ExplorerIntegration.RestoreAll();
+            else if (!preview) { try { KeyHook.Remove(); } catch { } }
             try { messages?.Dispose(); } catch { }
             try { instance?.ReleaseMutex(); } catch { }
         }

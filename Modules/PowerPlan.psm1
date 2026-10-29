@@ -93,9 +93,14 @@ function Install-BakaPowerPlan {
         [void](Invoke-BakaPowerCfg -Arguments @('/setdcvalueindex',$script:BakaPlanGuid,$tweak.Sub,$tweak.Setting,[string]$tweak.Dc))
     }
     if($desktop){
-        # No hibernation file on desktops: frees disk space equal to ~40% of RAM and disables Fast Startup,
-        # which otherwise keeps stale driver state between boots. Laptops keep hibernate.
-        [void](Invoke-BakaPowerCfg -Arguments @('/hibernate','off'))
+        # Fast Startup stays on, as on stock Windows: after a shutdown Windows resumes its saved kernel and
+        # drivers instead of starting them from scratch, which makes power-on faster. (R14 turned hibernation
+        # off, which also turned Fast Startup off, so every power-on was a full cold boot.) The "reduced"
+        # hibernation file holds only what Fast Startup needs, about half the size of a full one.
+        # Restart always does a full boot either way.
+        [void](Invoke-BakaPowerCfg -Arguments @('/hibernate','on'))
+        [void](Invoke-BakaPowerCfg -Arguments @('/hibernate','/type','reduced'))
+        try{ New-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name 'HiberbootEnabled' -PropertyType DWord -Value 1 -Force -ErrorAction Stop|Out-Null }catch{}
     }
     if($Activate){[void](Set-BakaActivePowerScheme -Guid $script:BakaPlanGuid)}
     [pscustomobject]@{Guid=$script:BakaPlanGuid;Name=$script:BakaPlanName;BasedOn=$baseUsed;SettingsApplied=$applied;Active=[bool]$Activate;Desktop=$desktop}

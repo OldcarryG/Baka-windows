@@ -1,6 +1,42 @@
-# BAKA Windows benchmark and latency (R14)
+# BAKA Windows benchmark and latency
 
-All numbers on this page come from the final R14 ISO (`BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R14-20261029.iso`, SHA-256 `80E4EB67…E53E51E`) unless a row says otherwise. Measured on 2026-10-29.
+## R15: boot, shutdown and key latency
+
+R14 felt slower than stock Windows at power-on and on the keyboard, so each part was measured against stock in the same Hyper-V VMs (several runs each, one VM at a time) and fixed where BAKA was worse. Scripts: `Tests/Benchmark/Guest-Boot.ps1`, `Guest-Latency.ps1`, `Guest-OpenLatency.ps1`, `Guest-LatencyVariants.ps1`.
+
+**Where the key latency came from.** BAKA Desktop was measured in five states, two runs each (median of 200 key presses):
+
+| State | Median |
+|---|---:|
+| BAKA Desktop running, everything on | 0.35 to 0.36 ms |
+| BAKA window buttons off | 0.33 to 0.35 ms |
+| Windows-key listener off | **0.27 ms** |
+| Both off | 0.26 ms |
+| BAKA Desktop not running | 0.26 ms |
+| Stock Windows 11 | 0.27 to 0.28 ms |
+
+Only the Windows-key listener made a difference. R15 replaces the low-level hook with raw-input listening on a time-critical thread, so Windows no longer waits for BAKA on a key press; the remaining cost is 0.02 to 0.06 ms.
+
+| | Stock Windows 11 | BAKA R14 | BAKA R15 |
+|---|---:|---:|---:|
+| Key latency on the desktop, median (3 runs) | 0.27 to 0.28 ms | 0.33 to 0.37 ms | 0.29 to 0.33 ms |
+| Key latency while gaming, median | | 0.27 to 0.28 ms | 0.26 to 0.27 ms |
+| Windows key to start surface in front | 30 to 46 ms (Start) | 598 ms first press, then about 30 ms | 16 to 19 ms (Launchpad) |
+| Win+E to a file window | 175 to 258 ms (File Explorer) | not measured | 16 to 64 ms (BAKA Files) |
+| Windows boot event after a restart | 23.0 to 28.5 s | 27.0 to 29.4 s | 27.0 to 28.8 s |
+| Explorer started, after boot start | 7.2 to 7.7 s | 7.0 to 7.2 s | 6.9 to 7.1 s |
+| Desktop ready, after boot start | taskbar comes with Explorer (7.2 to 7.7 s) | 10.9 to 11.3 s | 8.8 to 9.6 s |
+| Shutdown (restart command until the new boot starts) | 5.6 to 17.5 s | 6.3 to 23.4 s | 5.7 to 7.1 s |
+| Desktop logged as crashed at shutdown | – | every restart | never (10 restarts) |
+| Fast Startup | on | off | on |
+
+The R15 column was measured with the R15 BAKA Desktop and start-up changes installed into the R14 test VM; the fresh R15 install is in the release notes. Fast Startup cannot be timed in Hyper-V (the virtual firmware has no hibernation), so both VMs did full boots.
+
+---
+
+# R14 benchmark
+
+All numbers below come from the final R14 ISO (`BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R14-20261029.iso`, SHA-256 `80E4EB67…E53E51E`) unless a row says otherwise. Measured on 2026-10-29.
 
 - [How it was measured](#how-it-was-measured)
 - [Results](#results)

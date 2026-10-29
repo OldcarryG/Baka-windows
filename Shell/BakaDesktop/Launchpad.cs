@@ -25,13 +25,42 @@ namespace Baka.Desktop
         int selected = -1;
         int queryVersion;
 
+        // The Launchpad window is built once (in the background, shortly after the desktop starts) and then
+        // only shown and hidden. Building it, a full-screen window with a tile for every app, took about
+        // 0.6 s in the test VM, which is what a person felt on every Windows key press when it was rebuilt
+        // each time. A new theme or accent builds it again.
+        bool reallyClose; string themeKey;
+        static string ThemeKey() => Theme.Current?.Name + "|" + Theme.AccentHex + "|" + Theme.Motion + "|" + (App.Settings == null ? "" : Json.Write(App.Settings.Appearance));
         public static void Toggle(bool focusSearch = false)
         {
             if (App.GameRunning) return;
             if (IsOpen) { current.Close(); return; }
-            current = new Launchpad();
+            if (current != null && current.themeKey != ThemeKey()) { current.Dispose(); current = null; }
+            if (current == null) current = new Launchpad();
+            current.Reset();
             current.Show(); current.Activate();
+            // BAKA only listens to the keyboard, so Windows does not count it as the app that got the key
+            // press and may refuse to bring the Launchpad to the front; force it, so typing goes to the search box
+            try { Native.Activate(new WindowInteropHelper(current).Handle); } catch { }
             current.search.Focus();
+        }
+        // Builds the hidden Launchpad ahead of the first Windows key press.
+        public static void Prepare()
+        {
+            if (current != null || App.GameRunning) return;
+            current = new Launchpad();
+            var h = new WindowInteropHelper(current); h.EnsureHandle();
+            Log.Write("launchpad-prepared apps=" + AppCatalog.Apps.Count);
+        }
+        // Frees the hidden Launchpad (games: its memory goes back to the game).
+        public static void Release() { if (current != null && !current.IsVisible) { current.Dispose(); current = null; } }
+        void Dispose() { reallyClose = true; try { Close(); } catch { } }
+        void Reset()
+        {
+            if (!string.IsNullOrEmpty(search.Text)) search.Text = ""; else if (grid.Visibility != Visibility.Visible) ShowAll();
+            if (selected >= 0 && selected < focusable.Count) ((Border)focusable[selected]).Background = Brushes.Transparent;
+            selected = -1; scroll.ScrollToTop();
+            Ui.FadeIn((UIElement)Content, 90, 1.0);
         }
         public static void HideIfOpen() { if (IsOpen) current.Close(); }
         public static Launchpad Current => current;
@@ -52,14 +81,19 @@ namespace Baka.Desktop
                 ((Grid)Content).Background = Theme.B(Theme.Current.Canvas, (byte)(ok ? 175 : 250));
             };
             Build();
+            themeKey = ThemeKey();
             Deactivated += (o, e) => { if (!SelfTest.Running && IsVisible) Close(); };
             PreviewKeyDown += OnKey;
             Closed += (o, e) => { if (current == this) current = null; };
-            Closing += (o, e) => { if (SelfTest.Running) Log.Write("launchpad-closing stack=\"" + Environment.StackTrace.Replace("\r", "").Replace("\n", " | ") + "\""); };
+            // Closing only hides it; it is really closed for a new theme, a game or when BAKA exits.
+            Closing += (o, e) =>
+            {
+                if (SelfTest.Running) Log.Write("launchpad-closing stack=\"" + Environment.StackTrace.Replace("\r", "").Replace("\n", " | ") + "\"");
+                if (!reallyClose && !Dispatcher.HasShutdownStarted && Application.Current != null) { e.Cancel = true; Hide(); }
+            };
             AppCatalog.Updated += OnAppsUpdated;
             Closed += (o, e) => AppCatalog.Updated -= OnAppsUpdated;
-            Ui.FadeIn((UIElement)Content, 150, 1.0);
-            Log.Write("launchpad-open apps=" + AppCatalog.Apps.Count);
+            Log.Write("launchpad-built apps=" + AppCatalog.Apps.Count);
         }
         void OnAppsUpdated() { if (string.IsNullOrEmpty(search.Text)) ShowAll(); }
 

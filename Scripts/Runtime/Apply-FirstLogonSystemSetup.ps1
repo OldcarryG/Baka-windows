@@ -138,7 +138,32 @@ try{
     $desktopExe=Join-Path $root 'Desktop\BakaDesktop.exe'
     foreach($old in @('BAKA Liquid Desktop.lnk','BAKA Gaming Dock.lnk')){$oldPath=Join-Path ([Environment]::GetFolderPath('CommonStartup')) $old;if(Test-Path -LiteralPath $oldPath -PathType Leaf){Remove-Item -LiteralPath $oldPath -Force}}
     if(Test-Path -LiteralPath $desktopExe -PathType Leaf){
-        New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name 'BAKA Desktop' -PropertyType String -Value ('"{0}"' -f $desktopExe) -Force|Out-Null
+        # Started by a sign-in task for every user, so it starts together with Explorer instead of after it
+        # (a Run entry is started by Explorer once its own start-up is done: about 3 s later in the test VM).
+        # If the task cannot be created, the HKLM Run entry is used as before.
+        $runKey='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+        try{
+            $taskAction=New-ScheduledTaskAction -Execute $desktopExe -WorkingDirectory (Split-Path -Parent $desktopExe)
+            $taskTrigger=New-ScheduledTaskTrigger -AtLogOn
+            $taskPrincipal=New-ScheduledTaskPrincipal -GroupId 'S-1-5-32-545' -RunLevel Limited
+            $taskSettings=New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -Priority 4
+            Register-ScheduledTask -TaskName 'BAKA Desktop' -TaskPath '\BAKA\' -Action $taskAction -Trigger $taskTrigger -Principal $taskPrincipal -Settings $taskSettings -Description 'Starts the BAKA desktop (menu bar, dock, Launchpad) at sign-in.' -Force|Out-Null
+            Remove-ItemProperty -LiteralPath $runKey -Name 'BAKA Desktop' -ErrorAction SilentlyContinue
+            Write-Output 'BAKA Desktop starts from the \BAKA\BAKA Desktop sign-in task.'
+        }catch{
+            New-ItemProperty -LiteralPath $runKey -Name 'BAKA Desktop' -PropertyType String -Value ('"{0}"' -f $desktopExe) -Force|Out-Null
+            Write-Output "BAKA Desktop sign-in task not created ($($_.Exception.Message)); using the Run entry."
+        }
+        # Pre-compile BAKA Desktop to native code once (NGen, part of .NET Framework), so each sign-in loads
+        # machine code instead of compiling the desktop's code again. .NET refreshes the image by itself
+        # when the file or the framework is updated.
+        try{
+            $ngen=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\ngen.exe'
+            if(Test-Path -LiteralPath $ngen -PathType Leaf){
+                $n=Start-Process -FilePath $ngen -ArgumentList @('install',('"{0}"' -f $desktopExe),'/nologo','/silent') -Wait -PassThru -WindowStyle Hidden
+                Write-Output ('BAKA Desktop native image (ngen) exit code {0}.' -f $n.ExitCode)
+            }
+        }catch{Write-Output "BAKA Desktop native image was not created: $($_.Exception.Message)"}
         foreach($spec in @(@{Name='BAKA Desktop.lnk';Args='';Desc='Start the BAKA desktop (menu bar, dock, Launchpad, widgets).'},@{Name='BAKA Settings.lnk';Args='--settings';Desc='Theme, wallpaper, dock, menu bar, widgets, privacy and power.'},@{Name='BAKA Files.lnk';Args='--open "%USERPROFILE%"';Desc='Your files and drives.'})){
             $link=$shell.CreateShortcut((Join-Path $menuFolder $spec.Name));$link.TargetPath=$desktopExe;$link.Arguments=$spec.Args;$link.WorkingDirectory=Split-Path -Parent $desktopExe;$link.Description=$spec.Desc;$link.IconLocation="$desktopExe,0";$link.Save()
         }

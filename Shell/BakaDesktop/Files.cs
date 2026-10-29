@@ -43,6 +43,7 @@ namespace Baka.Desktop
             if (File.Exists(path)) { select = path; path = System.IO.Path.GetDirectoryName(path); }
             var w = new Files(); open.Add(w); w.Closed += (o, e) => open.Remove(w);
             w.Show(); w.Activate();
+            try { Native.Activate(new System.Windows.Interop.WindowInteropHelper(w).Handle); } catch { }
             w.Navigate(path, true, select);
         }
         public static void OpenItem(string path)

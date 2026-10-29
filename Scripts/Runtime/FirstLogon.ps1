@@ -57,12 +57,25 @@ if (Test-Path -LiteralPath $codecInstaller -PathType Leaf) {
 $winlogonUser = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon'
 $oldShell = (Get-ItemProperty -LiteralPath $winlogonUser -Name 'Shell' -ErrorAction SilentlyContinue).Shell
 if ($oldShell -and $oldShell -match 'Baka') { Remove-ItemProperty -LiteralPath $winlogonUser -Name 'Shell' -ErrorAction SilentlyContinue; Write-FirstLogonLog 'old-baka-shell-override-removed' }
-# Startup apps run right away instead of after Explorer's 10-second delay, and the taskbar starts hidden
-# so it does not flash before BAKA Desktop appears.
+# Other startup apps (Steam, Discord, ...) keep Windows' own start-up delay, so the desktop comes up first,
+# as on stock Windows; BAKA Desktop itself starts from a sign-in task, not from the delayed Run list.
+# (R14 set StartupDelayInMSec=0, which made every startup app compete with the desktop at sign-in.)
 $serialize = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize'
-New-Item -Path $serialize -Force | Out-Null
-New-ItemProperty -LiteralPath $serialize -Name 'StartupDelayInMSec' -PropertyType DWord -Value 0 -Force | Out-Null
-New-ItemProperty -LiteralPath $serialize -Name 'WaitForIdleState' -PropertyType DWord -Value 0 -Force | Out-Null
+if (Test-Path -LiteralPath $serialize) {
+    Remove-ItemProperty -LiteralPath $serialize -Name 'StartupDelayInMSec' -ErrorAction SilentlyContinue
+    Remove-ItemProperty -LiteralPath $serialize -Name 'WaitForIdleState' -ErrorAction SilentlyContinue
+}
+# The taskbar starts hidden so it does not flash before BAKA Desktop appears.
+# Explorer's own Win+E, Win+S and Win+Q are switched off (DisabledHotkeys) before Explorer starts, so BAKA
+# Desktop can open BAKA Files and its search by only listening to the keyboard (raw input) instead of
+# hooking it. A low-level keyboard hook makes Windows wait for BAKA on every key press of every app.
+$advanced = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+if (-not (Test-Path -LiteralPath $advanced)) { New-Item -Path $advanced -Force | Out-Null }
+$hotkeys = [string](Get-ItemProperty -LiteralPath $advanced -Name 'DisabledHotkeys' -ErrorAction SilentlyContinue).DisabledHotkeys
+foreach ($letter in 'E','S','Q') { if ($hotkeys -notmatch $letter) { $hotkeys += $letter } }
+New-ItemProperty -LiteralPath $advanced -Name 'DisabledHotkeys' -PropertyType String -Value $hotkeys -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $userRoot 'explorer-hotkeys-off.txt') -Value (Get-Date -Format 'o') -Encoding UTF8
+Write-FirstLogonLog ('explorer-hotkeys-off value={0}' -f $hotkeys)
 $stuck = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3'
 $settings = (Get-ItemProperty -LiteralPath $stuck -Name 'Settings' -ErrorAction SilentlyContinue).Settings
 if ($settings -and $settings.Length -gt 8) { $settings[8] = $settings[8] -bor 1; New-ItemProperty -LiteralPath $stuck -Name 'Settings' -PropertyType Binary -Value $settings -Force | Out-Null }
