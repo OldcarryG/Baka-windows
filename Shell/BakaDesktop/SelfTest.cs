@@ -43,6 +43,17 @@ namespace Baka.Desktop
             {
                 () => { Check(App.Bar.IsVisible && TopBar.BarHeight <= 56, "menu bar islands are visible and slim"); Check(App.Dock.IsVisible, "dock is visible"); Check(App.Dock.ActualWidth < 110, "dock is only as wide as its icons (" + Math.Round(App.Dock.ActualWidth) + " px)"); Check(AppCatalog.Apps.Count > 10, "Launchpad lists the installed apps (" + AppCatalog.Apps.Count + ")"); },
                 () => {
+                    // Settings > Menu bar > Show the date (12.27.1 ignored it)
+                    bool was = TopBar.ShowDate;
+                    App.Settings.TopBar["showDate"] = true; App.Bar.RefreshClock();
+                    string with = App.Bar.ClockText;
+                    Check(with.Contains(DateTime.Now.ToString("MMM")) && with.Contains(":"), "the clock shows the date when \"Show the date\" is on (" + with + ")");
+                    App.Settings.TopBar["showDate"] = false; App.Bar.RefreshClock();
+                    string without = App.Bar.ClockText;
+                    Check(without.Length == 5 && without[2] == ':', "the clock shows only the time when it is off (" + without + ")");
+                    App.Settings.TopBar["showDate"] = was; App.Bar.RefreshClock();
+                },
+                () => {
                     var ids = Icons.Library.Select(d => d.Id).ToList();
                     Check(ids.Count == ids.Distinct().Count(), "every BAKA icon has its own id (" + ids.Count + " icons)");
                     var dupNames = new List<string>(); var seen = new Dictionary<string, string>();

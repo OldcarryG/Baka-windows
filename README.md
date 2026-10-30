@@ -8,7 +8,7 @@ Windows itself is not modified: it is Microsoft's own Windows 11 Pro 26H2 (build
 
 **Download:** the full ISO (11.2 GB) is on MEGA, linked from the [R15 release](https://github.com/OldcarryG/Baka-windows/releases/tag/r15-20261029) together with its SHA-256. The newest BAKA Desktop update is in the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest).
 
-> **No more new ISOs.** R15 is the last ISO for now. From here on BAKA Windows is updated through BAKA Desktop releases: download the zip, run the installer, done ([Update BAKA Desktop](#update-baka-desktop), [what changed since R15](#changes-since-r15)). A new ISO is only made if Microsoft releases a Windows update that is worth building into the image.
+> **No new ISO is coming.** R15 is the last BAKA Windows ISO for now. From here on BAKA Windows is updated through BAKA Desktop releases: download the zip, run the installer, done ([Update BAKA Desktop](#update-baka-desktop), [what changed since R15](#changes-since-r15)). A new ISO is only made if Microsoft releases a Windows update that is worth building into the image.
 
 - [Screenshots](#screenshots)
 - [Features](#features)
@@ -291,7 +291,7 @@ With BAKA as the shell and the background Explorer off, BAKA handles the shortcu
 - **AV1 4K wallpapers** need hardware AV1 decoding (see above).
 - **Game FPS, frame times, mouse latency and media keys** were not benchmarked; the test VMs have no GPU and no sound device. The game overlay's FPS counter was checked on a real PC at 60 FPS (a Direct3D 9 window and a DXGI app on a 60 Hz screen), but not yet inside a real game, and not with Vulkan or OpenGL games.
 - **Game overlay** shows over borderless and windowed games; a game in exclusive fullscreen draws above it. GPU temperature, power and video memory are read only on NVIDIA GPUs.
-- **BAKA Desktop 12.27.1** has a few known issues (WebP wallpapers, the "Show the date" switch, Win+F1): see [Known issues in 12.27.1](#known-issues-in-12271).
+- **BAKA Desktop 12.27.2** has a few known issues (Win+F1, a left or right dock next to the background Explorer): see [Known issues in 12.27.2](#known-issues-in-12272).
 - **Windows Pro telemetry**: "required" diagnostic data is still sent; BAKA does not claim zero telemetry.
 - **Apps running as administrator** and dialogs keep Windows' own window buttons.
 - The ISO is not signed by Microsoft. Check its SHA-256 against the release.
@@ -314,7 +314,8 @@ With BAKA as the shell and the background Explorer off, BAKA handles the shortcu
 
 | Release | Main changes |
 |---|---|
-| **BAKA Desktop 12.27.1** (2026-10-30, no new ISO) | Update for R15 PCs: game overlay with FPS, Focus, per-app volume, BAKA notification pop-ups without Windows' duplicate banners, shortcut cheat sheet, optional BAKA-as-shell mode with its own tray and switcher, and many bug fixes. [Every change and fix](#changes-since-r15), [how to install](#update-baka-desktop) |
+| **BAKA Desktop 12.27.2** (2026-10-30, no new ISO) | Fixes WebP wallpapers (they were replaced with the BAKA picture) and Settings > Menu bar > "Show the date" (it did nothing). Contains everything from 12.27.1. [Every change and fix](#changes-since-r15), [how to install](#update-baka-desktop) |
+| BAKA Desktop 12.27.1 (2026-10-30, no new ISO) | Update for R15 PCs: game overlay with FPS, Focus, per-app volume, BAKA notification pop-ups without Windows' duplicate banners, shortcut cheat sheet, optional BAKA-as-shell mode with its own tray and switcher, and many bug fixes. [Every change and fix](#changes-since-r15), [how to install](#update-baka-desktop) |
 | **R15** (2026-10-29, last ISO) | Fast Startup back on; BAKA Desktop starts with Explorer (desktop ready about 1.7 s sooner); no false crash at every shutdown; Windows key only listened to, not hooked; Launchpad opens in under 20 ms; native image for BAKA Desktop |
 | R14 (2026-10-29) | 4K video wallpaper decoded on the GPU; keyboard hook on its own time-critical thread (25–42 ms → 0.75 ms with BAKA busy) and removed in games; AI tuning prompt; ISO on MEGA |
 | R13 (2026-10-29) | BAKA buttons on every app window, Mica backdrop for BAKA windows, more privacy checks, Store apps tested, Gaming-mode benchmark, Baka Browser 1.6.2 |
@@ -324,7 +325,7 @@ All releases: [github.com/OldcarryG/Baka-windows/releases](https://github.com/Ol
 
 ## Changes since R15
 
-Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is in **BAKA Desktop 12.27.1** ([install it](#update-baka-desktop)). Windows itself, Baka Browser 1.6.2, the system tuning and the ISO build scripts are unchanged. The list comes from the code changes between R15 and 12.27.1 (48 files). Notes for each version: [docs/CHANGELOG_DESKTOP.md](docs/CHANGELOG_DESKTOP.md).
+Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is in **BAKA Desktop 12.27.2** ([install it](#update-baka-desktop)). Windows itself, Baka Browser 1.6.2, the system tuning and the ISO build scripts are unchanged. The list comes from the code changes between R15 and 12.27.2 (48 files). Notes for each version: [docs/CHANGELOG_DESKTOP.md](docs/CHANGELOG_DESKTOP.md).
 
 ### New features
 
@@ -374,6 +375,7 @@ Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is 
 - Three floating glass islands instead of one bar: menu on the left, clock in the middle, status on the right. Clicks in the gaps go through to the desktop and apps.
 - The clock island shows what is playing (album art, title and artist, from Spotify, a browser tab, Media Player and others), with play controls and the full date when the pointer is over it.
 - It can hide until the pointer reaches the top: Settings > Menu bar (off by default).
+- It can show the date next to the time: Settings > Menu bar > Show the date (off by default; 12.27.2).
 - Wi-Fi panel under the network icon: networks in range with signal, connect with a password, Wi-Fi on/off, disconnect, the wired connection's speed and address, and an explanation when Windows needs Location on to list networks.
 - A keyboard-language badge when more than one keyboard layout is installed.
 
@@ -423,7 +425,7 @@ Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is 
 - **Restart, Shut down and Sign out** use the Windows API and force-close only apps that are not responding, so the others can still save. shutdown.exe is the fallback.
 - **BAKA window buttons** are off by default, and were switched off once for existing installs. Windows' own buttons are back on every app.
 - **Widgets** were switched on once with a starter set (Clock, System, Media) placed clear of the dock.
-- **Menu bar:** its reserved strip is 50 px instead of 30 px. The clock shows the time; the date appears on hover.
+- **Menu bar:** its reserved strip is 50 px instead of 30 px. The clock shows the time, and the date appears on hover unless "Show the date" is on.
 - **Glass:** the dock, menu bar and widgets no longer use Windows' blur behind them, because it drew square corners on Windows 11. The glass is now a plain see-through tint.
 - **Widgets content:** the Media widget lost its volume buttons (use Control Center). The System widget no longer shows battery, disk space or upload speed; the battery is in the menu bar, disk space in Storage and upload in Network.
 - **Store apps** start by their app id, which also works with Explorer off.
@@ -478,6 +480,7 @@ Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is 
 - With BAKA as the shell and a video wallpaper, clicking a widget dropped it behind the wallpaper.
 - With BAKA as the shell, minimized windows sat as a black bar at the bottom left.
 - A screenshot was lost when another app held the clipboard, and copying it could freeze BAKA. The file is saved first now.
+- A WebP picture chosen as the wallpaper was replaced with the BAKA BlackGlass picture, and that was saved over your choice (12.27.1). BAKA now converts it once to PNG with Windows' own WebP decoder and shows it (12.27.2).
 
 **BAKA Files**
 - Pressing Win+E or a folder link several times opened a pile of identical windows.
@@ -488,6 +491,7 @@ Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is 
 
 **Widgets, Settings, Control Center and Launchpad**
 - CPU and network numbers were wrong with more than one system widget open.
+- Settings > Menu bar > "Show the date" did nothing after the menu bar redesign (fixed in 12.27.2; the update sets it to off once, so the menu bar looks the same until you turn it on).
 - Changing a setting far down a Settings page jumped back to the top.
 - Picking a wallpaper froze Settings for most of a second (every thumbnail was decoded again).
 - Opening Settings while it was minimized did not bring it back.
@@ -530,10 +534,10 @@ Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is 
 - The power plan list is cached for 20 seconds, the brightness check runs once on desktop PCs, the sound device is looked up every 5 seconds instead of for every slider step, and each window's program is read once.
 - The overlay reads its numbers once a second off the UI thread. The frame counter runs only while the overlay is shown, and Windows filters its events down to about one per frame.
 
-### Known issues in 12.27.1
+### Known issues in 12.27.2
 
-- A WebP picture chosen as the wallpaper is replaced with the BAKA BlackGlass picture. Use JPG or PNG for now.
-- Settings > Menu bar > "Show the date" has no effect since the menu bar redesign; the date shows when the pointer is over the clock.
+The WebP wallpaper and "Show the date" bugs of 12.27.1 are fixed in 12.27.2. Still open:
+
 - Win+F1 opens the cheat sheet only when Explorer is off (otherwise it is Windows Help). Win+/ always works.
 - With the background Explorer running, Explorer can refuse a left or right dock's screen reservation on some Windows builds. BAKA then stops trying, so maximized windows may reach under the dock; the menu bar stays reserved.
 - Per-app volume lists the default output device only.

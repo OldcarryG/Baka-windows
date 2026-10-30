@@ -276,7 +276,7 @@ namespace Baka.Desktop
         {
             c.Children.Add(Ui.Heading("Menu bar", "The strip at the top. Maximized windows stop below it, so their buttons are never covered."));
             c.Children.Add(Ui.Row("Show the menu bar", null, Ui.Toggle(Json.Bool(S.TopBar, "enabled", true), on => { S.TopBar["enabled"] = on; Save(); if (on) App.Bar.Show(); else App.Bar.Hide(); App.Dock.Place(); })));
-            c.Children.Add(Ui.Row("Show the date", null, Ui.Toggle(Json.Bool(S.TopBar, "showDate", true), on => { S.TopBar["showDate"] = on; Save(); })));
+            c.Children.Add(Ui.Row("Show the date", "Next to the time in the clock island. Off, the date shows when the pointer is over the clock.", Ui.Toggle(TopBar.ShowDate, on => { S.TopBar["showDate"] = on; Save(); App.Bar?.RefreshClock(); })));
             c.Children.Add(Ui.Row("Show the active profile", "DESKTOP, GAMING or BENCHMARK next to the tray.", Ui.Toggle(Json.Bool(S.TopBar, "showProfile", true), on => { S.TopBar["showProfile"] = on; Save(); Theme.Apply(Theme.Current.Name, Theme.AccentHex); })));
             c.Children.Add(Ui.Row("Hide the menu bar until the pointer reaches the top", "The islands slide up out of sight and apps get the whole screen height; touch the top edge to bring them back.", Ui.Toggle(Json.Bool(S.TopBar, "autoHide"), on => { S.TopBar["autoHide"] = on; Save(); App.Bar.ApplyAutoHide(); App.Dock.Place(); })));
         }

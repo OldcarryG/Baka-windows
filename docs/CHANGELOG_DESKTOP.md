@@ -4,6 +4,12 @@ BAKA Desktop is the app in `C:\ProgramData\BAKA\Desktop\BakaDesktop.exe`: the me
 
 R15 (2026-10-29) shipped BAKA Desktop 12.0. Everything below came after it. This page lists the changes version by version. The complete list of every new feature, change and bug fix since R15, grouped by area, is in the README: [Changes since R15](../README.md#changes-since-r15).
 
+## 12.27.2 (2026-10-30)
+
+- **WebP wallpapers work.** A WebP picture chosen in Settings > Wallpaper (or with `--wallpaper`) was replaced with the BAKA BlackGlass picture, and the replacement was saved over the choice. BAKA now converts the picture once to PNG with Windows' own WebP decoder (WIC, the WebP Image Extension), off the UI thread, and gives Windows the PNG. The user's file stays the setting; the converted copy is kept in `%LOCALAPPDATA%\BAKA\State\Wallpaper` (only the newest). If Windows cannot read the picture, an on-screen message says so and the BAKA picture is shown.
+- **Settings > Menu bar > "Show the date" works.** On: the clock island shows the short date next to the time. Off: only the time, with the full date when the pointer is over the clock. Since the menu bar redesign the switch did nothing while it read "on", so the update sets it to off once (settings revision 18) and the menu bar looks the same until you turn it on.
+- The self-test checks the date switch in both positions.
+
 ## 12.27.1 (2026-10-30)
 
 - **Each notification comes once.** With the hidden Explorer running, Windows showed its own banner next to BAKA's pop-up. BAKA now switches off Windows' "Show notification banners" option for every app while BAKA shows the pop-ups. Notifications still go to Windows' notification list, which is where BAKA reads them from. Each app's previous setting is saved and put back if you turn this off (Settings > Focus & games), leave BAKA, or stop using BAKA as the shell. An app's banner that you turn back on in Windows Settings stays on. Alarms, timers and calls keep Windows' banner (it stays until answered) and get no second pop-up from BAKA. A brand-new app's very first notification can still show Windows' banner once.

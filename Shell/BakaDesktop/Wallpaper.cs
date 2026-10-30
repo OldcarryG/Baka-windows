@@ -35,6 +35,63 @@ namespace Baka.Desktop
         // is a real image and never the now-dead video path.
         static string FallbackImage() => Paths.Shipped("BAKA-BlackGlass-4K.png") ?? Paths.Shipped("BAKA-Stealth-4K.png") ?? "";
 
+        // WebP pictures. Settings > Wallpaper offers them, but they are not a format Windows' wallpaper setting
+        // is given directly, so 12.27.1 rejected them and showed the BAKA picture instead (and saved that over
+        // the user's choice). Now BAKA converts the picture once to PNG with Windows' own image decoder (the
+        // WebP Image Extension, through WIC), off the UI thread, and gives Windows the PNG. The user's file
+        // stays the setting; the PNG is kept in State\Wallpaper and replaced when another picture is converted.
+        static bool NeedsConversion(string path) => !string.IsNullOrEmpty(path) && string.Equals(Path.GetExtension(path), ".webp", StringComparison.OrdinalIgnoreCase) && File.Exists(path);
+        static string ConvertedPath(string path)
+        {
+            var fi = new FileInfo(path);
+            string key = fi.FullName.ToLowerInvariant() + "|" + fi.Length + "|" + fi.LastWriteTimeUtc.Ticks;
+            string hash;
+            using (var sha = System.Security.Cryptography.SHA256.Create()) hash = BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key))).Replace("-", "").Substring(0, 12);
+            return Path.Combine(Paths.State, "Wallpaper", Path.GetFileNameWithoutExtension(path) + "-" + hash + ".png");
+        }
+        static string converting, failedConversion;
+        static void ConvertThenApply(string source, string target)
+        {
+            if (converting != null) return;
+            converting = source;
+            var t = new System.Threading.Thread(() =>
+            {
+                string error = null; int width = 0, height = 0;
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(target));
+                    System.Windows.Media.Imaging.BitmapFrame frame;
+                    using (var s = File.OpenRead(source))
+                        frame = System.Windows.Media.Imaging.BitmapDecoder.Create(s, System.Windows.Media.Imaging.BitmapCreateOptions.None, System.Windows.Media.Imaging.BitmapCacheOption.OnLoad).Frames[0];
+                    width = frame.PixelWidth; height = frame.PixelHeight;
+                    var png = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                    png.Frames.Add(frame);
+                    string tmp = target + ".tmp";
+                    using (var o = File.Create(tmp)) png.Save(o);
+                    if (File.Exists(target)) File.Delete(target);
+                    File.Move(tmp, target);
+                    // only the newest converted picture is kept (a 4K PNG is 10 to 30 MB)
+                    foreach (var old in Directory.GetFiles(Path.GetDirectoryName(target)))
+                        if (!string.Equals(old, target, StringComparison.OrdinalIgnoreCase)) try { File.Delete(old); } catch { }
+                }
+                catch (Exception e) { error = e.Message; try { File.Delete(target + ".tmp"); } catch { } }
+                Post(() =>
+                {
+                    converting = null;
+                    if (error == null) Log.Write("wallpaper-converted from=webp size=" + width + "x" + height);
+                    else
+                    {
+                        failedConversion = source;
+                        Log.Write("wallpaper-convert-failed error=\"" + error + "\"");
+                        Osd.Show(0xE7BA, "Windows cannot read this picture  ·  BAKA's picture is shown");
+                    }
+                    Apply(true);
+                });
+            }) { IsBackground = true, Name = "BAKA wallpaper picture" };
+            t.SetApartmentState(System.Threading.ApartmentState.STA); // WPF's image classes
+            t.Start();
+        }
+
         public static void Apply(bool force)
         {
             var w = App.Settings.Wallpaper;
@@ -50,6 +107,14 @@ namespace Baka.Desktop
                     // example after a video wallpaper failed and fell back to Image), would otherwise be
                     // handed to Windows as the wallpaper and paint the desktop solid black. Fall back to a
                     // shipped picture and remember the correction so the desktop is never black.
+                    // A WebP picture is shown through its converted PNG; while it is being converted (the first
+                    // time, under a second) the current wallpaper stays.
+                    if (NeedsConversion(path))
+                    {
+                        string png = ConvertedPath(path);
+                        if (File.Exists(png)) path = png;
+                        else if (!string.Equals(failedConversion, path, StringComparison.OrdinalIgnoreCase)) { ConvertThenApply(path, png); return; }
+                    }
                     if (!IsImageFile(path))
                     {
                         path = Paths.Shipped("BAKA-BlackGlass-4K.png") ?? Paths.Shipped("BAKA-Stealth-4K.png");

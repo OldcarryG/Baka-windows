@@ -165,7 +165,7 @@ namespace Baka.Desktop
             islandControls.Children.Add(Ui.Icon(0xE893, "Next track", NowPlaying.Next, 28, 11));
             clockStack.Children.Add(islandControls);
             var clockPill = Pill(clockStack); clockPill.HorizontalAlignment = HorizontalAlignment.Center; clockPill.Margin = new Thickness(0, TopMargin, 0, 0); clockPill.Cursor = Cursors.Hand; clockPill.ToolTip = "Calendar";
-            clockPill.MouseEnter += (o, e) => { islandHover = true; dateText.Visibility = Visibility.Visible; Ui.FadeIn(dateText, 140); UpdateIsland(); };
+            clockPill.MouseEnter += (o, e) => { islandHover = true; if (!ShowDate) { dateText.Visibility = Visibility.Visible; Ui.FadeIn(dateText, 140); } UpdateIsland(); };
             clockPill.MouseLeave += (o, e) => { islandHover = false; dateText.Visibility = Visibility.Collapsed; UpdateIsland(); };
             Ui.OnClick(clockPill, () => CalendarFlyout.Toggle(this));
             System.Windows.Automation.AutomationProperties.SetName(clockPill, "Calendar");
@@ -282,11 +282,18 @@ namespace Baka.Desktop
                 Ui.Item("Use the Windows taskbar instead", 0xE7C4, () => App.Quit(true)));
         }
 
+        public static bool ShowDate => App.Settings != null && Json.Bool(App.Settings.TopBar, "showDate", false);
+        public string ClockText => clockText?.Text ?? ""; // self-test
+        // Settings changed the date switch: redraw the clock now, not at the next second
+        public void RefreshClock() => UpdateClock();
         void UpdateClock()
         {
             if (clockText == null) return;
             var now = DateTime.Now;
-            clockText.Text = now.ToString("HH:mm");
+            // Settings > Menu bar > Show the date: the short date next to the time. Off, the date shows when the
+            // pointer is over the clock. (12.27.1 ignored the switch and always showed the time only.)
+            string clock = ShowDate ? now.ToString("ddd d MMM") + "   " + now.ToString("HH:mm") : now.ToString("HH:mm");
+            if (clockText.Text != clock) clockText.Text = clock;
             if (dateText != null) dateText.Text = now.ToString("dddd, d MMMM");
             if (now.Second % 5 == 0)
             {

@@ -169,7 +169,7 @@ namespace Baka.Desktop
             Def(Wallpaper, "color", "#05060A"); Def(Wallpaper, "muted", true); Def(Wallpaper, "pauseInGames", true);
             Def(Taskbar, "autoHideWindowsTaskbar", true); Def(Taskbar, "showRunningApps", true); Def(Taskbar, "showStartButton", true);
             Def(Dock, "alignment", "Left"); Def(Dock, "iconSize", 40); Def(Dock, "spacing", 6); Def(Dock, "autoHide", false); Def(Dock, "magnification", true); Def(Dock, "monitor", "Primary");
-            Def(TopBar, "enabled", true); Def(TopBar, "showProfile", true); Def(TopBar, "showDate", true); Def(TopBar, "monitor", "Primary");
+            Def(TopBar, "enabled", true); Def(TopBar, "showProfile", true); Def(TopBar, "showDate", false); Def(TopBar, "monitor", "Primary");
             Def(Widgets, "enabled", false); Def(Widgets, "refreshSeconds", 3);
             Def(Integration, "filesOpensFolders", true); Def(Integration, "hideDesktopIcons", true); Def(Integration, "winKeyOpensLaunchpad", true); Def(Integration, "captionButtons", false);
             // 12.27: the bell's "Do not disturb" became Focus mode
@@ -192,6 +192,15 @@ namespace Baka.Desktop
                 EnableWidget("system", 130, 190, 300, 210);
                 EnableWidget("media", 450, 20, 300, 170);
                 Root["desktopRevision"] = 17;
+                Save();
+            }
+            // 12.27.2: Settings > Menu bar > "Show the date" works again. Since the menu bar redesign the clock
+            // showed only the time whatever the switch said, while the switch read "on" (its old default). It is
+            // set to off once, so the menu bar looks the same after the update; turning it on shows the date.
+            if (!Paths.Preview && Json.Int(Root, "desktopRevision", 0) < 18)
+            {
+                TopBar["showDate"] = false;
+                Root["desktopRevision"] = 18;
                 Save();
             }
             foreach (var p in Pinned.Select(Json.Obj).Where(p => p != null))
