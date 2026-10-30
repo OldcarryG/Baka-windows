@@ -1,5 +1,7 @@
 # BAKA Desktop 12.27.1 (2026-10-30)
 
+> **A newer version is out:** [BAKA Desktop 12.27.2](https://github.com/OldcarryG/Baka-windows/releases/tag/desktop-12.27.2) fixes the WebP wallpaper and "Show the date" issues listed below. Install the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest) instead of this one.
+
 An update of BAKA Desktop for PCs installed from the **BAKA Windows R15** ISO. No new ISO: Windows, Baka Browser and the system tuning are unchanged, only `BakaDesktop.exe` is replaced. Your settings, wallpaper and pinned apps are kept.
 
 > **No more new ISOs.** From now on BAKA Windows is updated through BAKA Desktop releases like this one. A new ISO is only made if Microsoft releases a Windows update that is worth building into the image. For a fresh install, use the [R15 ISO](https://github.com/OldcarryG/Baka-windows/releases/tag/r15-20261029) and then install the newest BAKA Desktop update.
