@@ -18,16 +18,31 @@ The installer checks that the PC has BAKA Windows, checks `BakaDesktop.exe` agai
 
 ## What is new since R15
 
-The main additions (full list: [docs/CHANGELOG_DESKTOP.md](https://github.com/OldcarryG/Baka-windows/blob/main/docs/CHANGELOG_DESKTOP.md)):
+The main additions are below. **Every new feature, change and bug fix since R15**, grouped by area, is in the README: [Changes since R15](https://github.com/OldcarryG/Baka-windows#changes-since-r15). Notes for each version: [docs/CHANGELOG_DESKTOP.md](https://github.com/OldcarryG/Baka-windows/blob/main/docs/CHANGELOG_DESKTOP.md).
 
 - **Game overlay** (Ctrl+Alt+F): FPS, 1% low, CPU, GPU, GPU temperature, video memory and GPU power in a see-through strip. FPS comes from Windows' graphics event log, nothing is injected into games. FPS needs a one-time permission in Settings > Focus & games.
 - **Focus** (Ctrl+Alt+D): no pop-ups, the dock tucks away, the video wallpaper pauses; on by itself during games.
 - **Per-app volume** in Control Center.
-- **Notifications**: BAKA reads Windows' notifications and shows them as its own pop-ups and in the bell panel. Windows' duplicate banners are switched off (12.27.1).
+- **Notifications**: BAKA reads Windows' notifications and lists them in the bell panel. With BAKA as the shell they also come as BAKA pop-ups, and Windows' duplicate banners are switched off (12.27.1).
 - **Keyboard shortcut cheat sheet**: hold the Windows key.
 - **BAKA as the Windows shell** (optional): its own tray, sign-in apps, Win+ shortcuts, Win+Tab with live previews, snip, Wi-Fi panel, volume bar. A hidden Explorer stays in the background by default, so the Store and Windows Settings work and open quickly.
 - Minimize into the dock, video and picture backgrounds for the dock and menu bar, now-playing in the clock, more widgets, BAKA Files opens ZIP, Recycle Bin and Network itself.
-- Many fixes: launchers taken for games, dock icons blinking, maximized windows jumping, Baka Browser's window buttons vanishing, BAKA freezing while opening the Store, keys stuck after locking the PC.
+- Many bug fixes, among them:
+  - crashes when an installer window closed, and errors in the window buttons, keyboard listener or tray that could end BAKA;
+  - keys stuck "held" after locking the PC;
+  - launchers and stores taken for games;
+  - dock icons blinking, duplicate dock icons and triple launches;
+  - maximized windows jumping;
+  - a black desktop when the wallpaper file was missing;
+  - Shut down failing silently;
+  - BAKA freezing while opening the Store;
+  - Baka Browser's window buttons vanishing.
+
+## Known issues
+
+- A WebP picture chosen as the wallpaper is replaced with the BAKA BlackGlass picture; use JPG or PNG for now.
+- Settings > Menu bar > "Show the date" has no effect; the date shows when the pointer is over the clock.
+- Win+F1 opens the cheat sheet only when Explorer is off; Win+/ always works.
 
 ## Tested
 
