@@ -138,6 +138,8 @@ namespace Baka.Desktop
         public Dictionary<string, object> TopBar => Json.Section(Root, "topBar");
         public Dictionary<string, object> Widgets => Json.Section(Root, "widgets");
         public Dictionary<string, object> Integration => Json.Section(Root, "integration");
+        public Dictionary<string, object> Focus => Json.Section(Root, "focus");
+        public Dictionary<string, object> Overlay => Json.Section(Root, "overlay");
         public List<object> Pinned { get { if (!(Json.Get(Root, "pinnedApps") is List<object> l)) { l = new List<object>(); Root["pinnedApps"] = l; } return l; } }
         public List<object> WidgetItems { get { if (!(Json.Get(Widgets, "items") is List<object> l)) { l = new List<object>(); Widgets["items"] = l; } return l; } }
 
@@ -169,10 +171,29 @@ namespace Baka.Desktop
             Def(Dock, "alignment", "Left"); Def(Dock, "iconSize", 40); Def(Dock, "spacing", 6); Def(Dock, "autoHide", false); Def(Dock, "magnification", true); Def(Dock, "monitor", "Primary");
             Def(TopBar, "enabled", true); Def(TopBar, "showProfile", true); Def(TopBar, "showDate", true); Def(TopBar, "monitor", "Primary");
             Def(Widgets, "enabled", false); Def(Widgets, "refreshSeconds", 3);
-            Def(Integration, "filesOpensFolders", true); Def(Integration, "hideDesktopIcons", true); Def(Integration, "winKeyOpensLaunchpad", true); Def(Integration, "captionButtons", true);
+            Def(Integration, "filesOpensFolders", true); Def(Integration, "hideDesktopIcons", true); Def(Integration, "winKeyOpensLaunchpad", true); Def(Integration, "captionButtons", false);
+            // 12.27: the bell's "Do not disturb" became Focus mode
+            if (Integration.ContainsKey("doNotDisturb")) { if (!Focus.ContainsKey("enabled")) Focus["enabled"] = Json.Bool(Integration, "doNotDisturb"); Integration.Remove("doNotDisturb"); }
+            Def(Focus, "enabled", false); Def(Focus, "autoInGames", true); Def(Focus, "hideDock", true); Def(Focus, "pauseWallpaper", true);
+            Def(Overlay, "enabled", false); Def(Overlay, "when", "Games"); Def(Overlay, "position", "TopLeft"); Def(Overlay, "detail", "Standard");
+            // R16: BAKA's painted window buttons can only cover windows with the standard Windows title bar, so
+            // every app looked different (BAKA buttons on some, Windows buttons on others, doubled buttons on
+            // some). Windows' own buttons are the default again; the BAKA ones stay available in Settings.
+            if (Json.Int(Root, "desktopRevision", 0) < 16) { Integration["captionButtons"] = false; Root["desktopRevision"] = 16; }
             var known = WidgetItems.Select(i => Json.Str(Json.Obj(i), "id")).ToList();
-            foreach (var w in new[] { ("clock", true, 104, 48, 260, 160), ("calendar", false, 104, 222, 260, 250), ("system", false, 380, 48, 300, 190), ("notes", false, 380, 252, 300, 190), ("media", false, 696, 48, 280, 190), ("timer", false, 696, 252, 280, 200) })
+            foreach (var w in new[] { ("clock", true, 130, 20, 260, 150), ("calendar", false, 130, 190, 260, 250), ("system", false, 130, 185, 300, 210), ("gpu", false, 450, 20, 280, 220), ("network", false, 450, 260, 280, 150), ("storage", false, 750, 20, 280, 180), ("notes", false, 450, 430, 300, 190), ("media", false, 450, 20, 300, 170), ("timer", false, 750, 220, 280, 200), ("toggles", false, 750, 440, 300, 170), ("search", false, 130, 410, 360, 120) })
                 if (!known.Contains(w.Item1)) WidgetItems.Add(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["id"] = w.Item1, ["enabled"] = w.Item2, ["left"] = w.Item3, ["top"] = w.Item4, ["width"] = w.Item5, ["height"] = w.Item6 });
+            // R17: the widget overhaul. Turn widgets on with a tasteful starter set (clock, system monitor,
+            // media) placed clear of the left dock, once. The user can hide any with its × or in Settings.
+            if (!Paths.Preview && Json.Int(Root, "desktopRevision", 0) < 17)
+            {
+                Widgets["enabled"] = true;
+                EnableWidget("clock", 130, 20, 260, 150);
+                EnableWidget("system", 130, 190, 300, 210);
+                EnableWidget("media", 450, 20, 300, 170);
+                Root["desktopRevision"] = 17;
+                Save();
+            }
             foreach (var p in Pinned.Select(Json.Obj).Where(p => p != null))
             {
                 Def(p, "iconPath", ""); Def(p, "arguments", ""); Def(p, "glyph", "");
@@ -182,6 +203,13 @@ namespace Baka.Desktop
             if (Json.Get(Root, "schemaVersion") == null) Root["schemaVersion"] = 1;
         }
         static void Def(Dictionary<string, object> d, string k, object v) { if (!d.ContainsKey(k)) d[k] = v; }
+        // Turns a widget on and places it (used by the one-time R17 enable). Creates the entry if missing.
+        void EnableWidget(string id, int left, int top, int width, int height)
+        {
+            var it = WidgetItems.Select(Json.Obj).FirstOrDefault(i => i != null && Json.Str(i, "id") == id);
+            if (it == null) { it = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["id"] = id }; WidgetItems.Add(it); }
+            it["enabled"] = true; it["left"] = left; it["top"] = top; it["width"] = width; it["height"] = height;
+        }
 
         public void Save()
         {

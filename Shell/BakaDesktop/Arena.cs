@@ -46,13 +46,13 @@ namespace Baka.Desktop
             sp.Children.Add(stats);
             var games = Library();
             sp.Children.Add(Ui.Text("Your games (" + games.Count + ")", 15, FontWeights.SemiBold));
-            if (games.Count == 0) { var none = Ui.Muted("No Steam or Epic games found yet. Install a game and it appears here.", 12); none.Margin = new Thickness(0, 6, 0, 0); sp.Children.Add(none); }
+            if (games.Count == 0) { var none = Ui.Muted("No Steam, Epic or Riot games found yet. Install a game and it appears here.", 12); none.Margin = new Thickness(0, 6, 0, 0); sp.Children.Add(none); }
             var grid = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
             foreach (var g in games) grid.Children.Add(GameCard(g));
             sp.Children.Add(grid);
             var tools = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
             foreach (var (label, glyph, uri) in new[] { ("Game Mode", 0xE7FC, "ms-settings:gaming-gamemode"), ("Graphics", 0xE7F4, "ms-settings:display-advancedgraphics"), ("Display", 0xE7F8, "ms-settings:display"), ("Sound", 0xE995, "ms-settings:sound") })
-            { var b = Ui.Labeled(glyph, label, () => { try { Process.Start(uri); } catch { } }); b.Margin = new Thickness(0, 0, 8, 8); tools.Children.Add(b); }
+            { var u = uri; var b = Ui.Labeled(glyph, label, () => Launcher.Run(u, () => Process.Start(u))); b.Margin = new Thickness(0, 0, 8, 8); tools.Children.Add(b); }
             sp.Children.Add(tools);
             Body.Content = Ui.Scroll(sp);
             OnTick();
@@ -72,7 +72,7 @@ namespace Baka.Desktop
             ram.Text = m.MemoryUsedGb.ToString("0.0") + " GB"; disk.Text = m.DiskFreeGb.ToString("0") + " GB free";
         }
 
-        class Game { public string Name, Launch, Image, Source; }
+        class Game { public string Name, Launch, Args, Image, Source; }
         FrameworkElement GameCard(Game g)
         {
             var sp = new StackPanel();
@@ -84,7 +84,7 @@ namespace Baka.Desktop
             sp.Children.Add(Ui.Text(g.Source, 10.5, null, Theme.Muted));
             var b = new Border { Width = 210, Margin = new Thickness(0, 0, 12, 14), Child = sp, Cursor = Cursors.Hand, ToolTip = "Play " + g.Name };
             b.MouseEnter += (o, e) => art.Opacity = 0.85; b.MouseLeave += (o, e) => art.Opacity = 1;
-            Ui.OnClick(b, () => { try { Process.Start(g.Launch); Log.Write("arena-play name=\"" + g.Name + "\""); } catch (Exception ex) { Log.Write("arena-play-failed error=\"" + ex.Message + "\""); } });
+            Ui.OnClick(b, () => { try { Process.Start(new ProcessStartInfo(g.Launch, g.Args ?? "") { UseShellExecute = true }); Log.Write("arena-play name=\"" + g.Name + "\""); } catch (Exception ex) { Log.Write("arena-play-failed error=\"" + ex.Message + "\""); } });
             return b;
         }
 
@@ -127,6 +127,21 @@ namespace Baka.Desktop
                     }
             }
             catch (Exception e) { Log.Write("arena-epic-scan-failed error=\"" + e.Message + "\""); }
+            // Riot games start through the Riot Client (it signs in and updates them first).
+            try
+            {
+                string installs = Paths.Expand(@"%ProgramData%\Riot Games\RiotClientInstalls.json"), client = null;
+                if (File.Exists(installs)) client = Json.Str(Json.Obj(Json.Parse(File.ReadAllText(installs))), "rc_default").Replace('/', '\\');
+                if (string.IsNullOrEmpty(client) || !File.Exists(client)) client = new[] { @"C:\Riot Games\Riot Client\RiotClientServices.exe", @"D:\Riot Games\Riot Client\RiotClientServices.exe" }.FirstOrDefault(File.Exists);
+                if (client != null)
+                {
+                    string root = Path.GetDirectoryName(Path.GetDirectoryName(client));
+                    foreach (var (name, product, folder) in new[] { ("VALORANT", "valorant", @"VALORANT\live"), ("League of Legends", "league_of_legends", "League of Legends") })
+                        if (Directory.Exists(Path.Combine(root, folder)))
+                            games.Add(new Game { Name = name, Launch = client, Args = "--launch-product=" + product + " --launch-patchline=live", Source = "Riot Games" });
+                }
+            }
+            catch (Exception e) { Log.Write("arena-riot-scan-failed error=\"" + e.Message + "\""); }
             return games.OrderBy(g => g.Name).ToList();
         }
     }

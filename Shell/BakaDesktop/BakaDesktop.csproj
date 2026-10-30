@@ -13,7 +13,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>BakaDesktop</AssemblyName>
     <RootNamespace>Baka.Desktop</RootNamespace>
-    <Version>12.0.0</Version>
+    <Version>12.27.1</Version>
     <Company>BAKA</Company>
     <Product>BAKA Desktop</Product>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -35,6 +35,13 @@
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Now playing (title, artist, album art) comes from Windows' media controls, a WinRT API. The metadata
+       ships with Windows 10/11 and the interop assembly with .NET Framework, so nothing extra is installed
+       or copied next to the exe. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.1" />
   </ItemGroup>
 
 </Project>

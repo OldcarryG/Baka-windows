@@ -13,7 +13,17 @@ namespace Baka.Desktop
         public int? Cpu, Gpu, MemoryPercent; public double MemoryUsedGb, MemoryTotalGb, DiskFreeGb, DiskTotalGb, DownKBs, UpKBs; public int? Battery; public bool Charging;
 
         static long lastIdle, lastKernel, lastUser, lastRx, lastTx; static DateTime lastNet;
-        static IntPtr gpuQuery, gpuCounter; static bool gpuFailed;
+        static readonly GpuCounter gpu = new GpuCounter();
+
+        // One snapshot shared by every widget on a tick. Read() keeps running deltas (CPU, network) in
+        // statics, so letting several widgets each call Read() in the same second would corrupt those
+        // deltas; they all call Latest() instead, which reads at most once per ~second.
+        static Metrics cached; static DateTime cachedAt;
+        public static Metrics Latest()
+        {
+            if (cached == null || (DateTime.Now - cachedAt).TotalMilliseconds > 850) { cached = Read(); cachedAt = DateTime.Now; }
+            return cached;
+        }
 
         public static Metrics Read()
         {
@@ -37,17 +47,23 @@ namespace Baka.Desktop
                 lastRx = rx; lastTx = tx; lastNet = now;
             }
             catch { }
-            m.Gpu = GpuPercent();
+            m.Gpu = gpu.Read();
             if (Native.GetSystemPowerStatus(out var p) && p.BatteryFlag != 128 && p.BatteryLifePercent <= 100) { m.Battery = p.BatteryLifePercent; m.Charging = p.ACLineStatus == 1; }
             return m;
         }
 
-        // Busiest GPU engine, the number Task Manager shows.
+    }
+
+    // Busiest GPU engine, the number Task Manager shows. One per thread that reads it: the widgets read it on
+    // the UI thread, the game overlay on its own sampling thread, and a PDH query must not be shared.
+    sealed class GpuCounter
+    {
+        IntPtr gpuQuery, gpuCounter; bool gpuFailed;
         [DllImport("pdh.dll", CharSet = CharSet.Unicode)] static extern int PdhOpenQuery(string src, IntPtr user, out IntPtr query);
         [DllImport("pdh.dll", CharSet = CharSet.Unicode)] static extern int PdhAddEnglishCounter(IntPtr query, string path, IntPtr user, out IntPtr counter);
         [DllImport("pdh.dll")] static extern int PdhCollectQueryData(IntPtr query);
         [DllImport("pdh.dll", CharSet = CharSet.Unicode)] static extern int PdhGetFormattedCounterArray(IntPtr counter, uint format, ref int bufferSize, out int count, IntPtr buffer);
-        static int? GpuPercent()
+        public int? Read()
         {
             if (gpuFailed) return null;
             try

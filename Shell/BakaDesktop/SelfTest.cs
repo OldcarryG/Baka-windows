@@ -41,11 +41,10 @@ namespace Baka.Desktop
             resultPath = Environment.GetEnvironmentVariable("BAKA_SELFTEST_RESULT") ?? Path.Combine(Paths.Local, "selftest.json");
             var steps = new List<Action>
             {
-                () => { Check(App.Bar.IsVisible && App.Bar.ActualHeight <= 34, "menu bar is visible and slim"); Check(App.Dock.IsVisible, "dock is visible"); Check(App.Dock.ActualWidth < 110, "dock is only as wide as its icons (" + Math.Round(App.Dock.ActualWidth) + " px)"); Check(AppCatalog.Apps.Count > 10, "Launchpad lists the installed apps (" + AppCatalog.Apps.Count + ")"); },
+                () => { Check(App.Bar.IsVisible && TopBar.BarHeight <= 56, "menu bar islands are visible and slim"); Check(App.Dock.IsVisible, "dock is visible"); Check(App.Dock.ActualWidth < 110, "dock is only as wide as its icons (" + Math.Round(App.Dock.ActualWidth) + " px)"); Check(AppCatalog.Apps.Count > 10, "Launchpad lists the installed apps (" + AppCatalog.Apps.Count + ")"); },
                 () => {
                     var ids = Icons.Library.Select(d => d.Id).ToList();
                     Check(ids.Count == ids.Distinct().Count(), "every BAKA icon has its own id (" + ids.Count + " icons)");
-                    var hashes = new HashSet<string>(); int dup = 0;
                     var dupNames = new List<string>(); var seen = new Dictionary<string, string>();
                     foreach (var d in Icons.Library) { var bmp = (BitmapSource)Icons.Draw(d, null, d.Id, 48); var px = new byte[48 * 48 * 4]; bmp.CopyPixels(px, 48 * 4, 0); string h = Convert.ToBase64String(System.Security.Cryptography.MD5.Create().ComputeHash(px)); if (seen.TryGetValue(h, out var other)) dupNames.Add(other + "=" + d.Id); else seen[h] = d.Id; }
                     Check(dupNames.Count == 0, "no two apps share the same icon drawing" + (dupNames.Count > 0 ? " (" + string.Join(", ", dupNames) + ")" : ""));
@@ -66,7 +65,24 @@ namespace Baka.Desktop
                 () => { ControlCenter.Current?.Close(); Check(!ControlCenter.IsOpen, "Control Center closes"); Profiles.Set("CompetitiveGaming", "selftest"); Check(Profiles.Active == "CompetitiveGaming", "Gaming profile applies"); App.EnterGame("Self test game"); Check(!App.Bar.IsVisible && !App.Dock.IsVisible, "menu bar and dock hide while a game runs"); },
                 () => { App.LeaveGame(); Check(Profiles.Active == "Desktop" && App.Bar.IsVisible && App.Dock.IsVisible, "leaving the game restores the Desktop profile, menu bar and dock"); Profiles.Manual = null; },
                 () => { SettingsWindow.Open(); foreach (var p in SettingsWindow.PageNames) { SettingsWindow.Current.Go(p); SettingsWindow.Current.UpdateLayout(); } Check(SettingsWindow.Current.CurrentPage == "About", "every Settings page opens"); SettingsWindow.Current.Close(); },
-                () => { Files.Open(null); var f = Files.Last; Check(f != null && Directory.Exists(f.CurrentFolder) && f.ItemCount > 0, "BAKA Files opens the home folder with items"); f.Navigate(Environment.GetFolderPath(Environment.SpecialFolder.Windows), true); Check(f.CurrentFolder.EndsWith("Windows", StringComparison.OrdinalIgnoreCase) && f.ItemCount > 10, "BAKA Files navigates to C:\\Windows"); f.Navigate(Paths.Local, true); try { f.TestNewFolderAndDelete("BAKA self test folder"); Check(true, "new folder appears and is removed"); } catch (Exception e) { Fail(e.Message); } f.Close(); },
+                () => { Files.Open(null); var f = Files.Last; Check(f != null && Directory.Exists(f.CurrentFolder) && f.ItemCount > 0, "BAKA Files opens the home folder with items"); f.Navigate(Environment.GetFolderPath(Environment.SpecialFolder.Windows), true); Check(f.CurrentFolder.EndsWith("Windows", StringComparison.OrdinalIgnoreCase) && f.ItemCount > 10, "BAKA Files navigates to C:\\Windows"); Check(f.TestMultiSelect() == 2, "BAKA Files can select more than one file at once"); f.Navigate(Paths.Local, true); try { f.TestNewFolderAndDelete("BAKA self test folder"); Check(true, "new folder appears and is removed"); } catch (Exception e) { Fail(e.Message); } f.Close(); },
+                () => {
+                    // Recycle Bin and ZIP files open inside BAKA Files, not in Windows File Explorer
+                    Files.Open("shell:RecycleBinFolder"); var f = Files.Last;
+                    Check(f != null && f.CurrentFolder.StartsWith("shell|"), "Recycle Bin opens in BAKA Files (" + f?.CurrentFolder + ")");
+                    string zip = Path.Combine(Paths.Local, "BAKA self test.zip");
+                    try
+                    {
+                        using (var z = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create)) using (var w = new StreamWriter(z.CreateEntry("inside.txt").Open())) w.Write("BAKA");
+                        f.Navigate(zip, true);
+                        Check(f.CurrentFolder.StartsWith("shell|") && f.ItemCount == 1, "a ZIP file opens as a folder in BAKA Files (" + f.ItemCount + " item)");
+                    }
+                    catch (Exception e) { Fail("ZIP view threw " + e.Message); }
+                    f.Close();
+                    bool explorerWindow = false;
+                    Native.EnumWindows((h, l) => { if (Native.IsWindowVisible(h) && Native.ClassName(h) == "CabinetWClass") explorerWindow = true; return true; }, IntPtr.Zero);
+                    Check(!explorerWindow, "no Windows File Explorer window was opened");
+                },
                 () => { Arena.Open(); Check(Arena.Current != null && Arena.Current.IsVisible, "Arena opens"); Arena.Current.Close(); },
                 () => { captionTestStart = DateTime.Now.AddSeconds(-1); try { System.Diagnostics.Process.Start("notepad.exe"); } catch (Exception e) { Fail("notepad did not start: " + e.Message); } },
                 () => {
@@ -83,13 +99,30 @@ namespace Baka.Desktop
                     Check(ok, "BAKA buttons sit over a Store app's buttons (Calculator: " + detail + ")");
                     foreach (var p in System.Diagnostics.Process.GetProcessesByName("CalculatorApp")) { try { p.Kill(); } catch { } }
                 },
-                () => { App.Settings.Widgets["enabled"] = true; foreach (var i in App.Settings.WidgetItems.Select(Json.Obj)) i["enabled"] = true; Widgets.ShowEnabled(); Check(Widgets.Open.Count == 6, "all six widgets open (" + Widgets.Open.Count + ")"); },
+                () => { App.Settings.Widgets["enabled"] = true; foreach (var i in App.Settings.WidgetItems.Select(Json.Obj)) i["enabled"] = true; Widgets.ShowEnabled(); Check(Widgets.Open.Count == Widgets.Ids.Length, "all widgets open (" + Widgets.Open.Count + "/" + Widgets.Ids.Length + ")"); },
                 () => {
                     var t = Widgets.Open["timer"]; t.ToggleTimer(); Check(t.TimerRunning, "focus timer starts"); t.ToggleTimer(); Check(!t.TimerRunning && t.TimerLeft >= 1490, "focus timer pauses with the time left");
                     t.ToggleTimer(); t.FinishTimerForTest(); Check(!t.TimerRunning && t.TimerText == "Done", "focus timer finishes");
                 },
                 () => { foreach (var a in new[] { "Center", "Right", "Left" }) { App.Settings.Dock["alignment"] = a; App.Dock.Build(); App.Dock.UpdateLayout(); } Check(App.Dock.IsVisible, "dock moves to the bottom, right and left"); Widgets.CloseAll(); },
                 () => { var m = Metrics.Read(); System.Threading.Thread.Sleep(300); m = Metrics.Read(); Check(m.Cpu != null && m.MemoryTotalGb > 1, "CPU and memory numbers are read from Windows"); },
+                // 12.27: Focus, the game overlay and per-app volume
+                () => {
+                    bool autoHide = Json.Bool(App.Settings.Dock, "autoHide");
+                    FocusMode.Set(true, "selftest"); Check(FocusMode.On && Dock.AutoHiding, "Focus turns on and tucks the dock away");
+                    FocusMode.Set(false, "selftest"); Check(!FocusMode.On && Dock.AutoHiding == autoHide, "Focus turns off and the dock comes back");
+                    App.EnterGame("Self test game"); Check(FocusMode.On, "Focus turns on by itself in a game");
+                    App.LeaveGame(); Check(!FocusMode.On && App.Dock.IsVisible, "Focus turned on by a game goes off with the game"); Profiles.Manual = null;
+                },
+                () => { App.Settings.Overlay["enabled"] = true; App.Settings.Overlay["when"] = "Always"; App.Settings.Overlay["detail"] = "Full"; GameOverlay.Apply(); Check(GameOverlay.Visible && GameOverlay.ClickThrough, "the game overlay shows as a click-through window"); },
+                () => { System.Threading.Thread.Sleep(900); },
+                () => {
+                    var s = OverlayStats.Latest;
+                    Check(s != null && s.Cpu != null && s.Ram != null, "the overlay reads CPU (" + s?.Cpu + "%), GPU (" + s?.Gpu + "%) and RAM (" + s?.Ram + "%)");
+                    Check(GameOverlay.ShownText.Contains("CPU"), "the overlay shows its numbers (" + GameOverlay.ShownText + ")");
+                    App.Settings.Overlay["enabled"] = false; GameOverlay.Update(); Check(!GameOverlay.Visible, "the overlay hides when turned off");
+                },
+                () => { var apps = AppVolume.List(); Check(apps != null, "apps playing sound are listed (" + apps.Count + ": " + string.Join(", ", apps.Select(a => a.Name)) + ")"); foreach (var a in apps) a.Dispose(); ControlCenter.Toggle(App.Bar); Check(ControlCenter.IsOpen, "Control Center opens with the per-app volume list"); ControlCenter.Current?.Close(); },
                 () => Finish(),
             };
             int i = 0;

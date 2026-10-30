@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -19,11 +19,51 @@ namespace Baka.Desktop
         static readonly Regex Hidden = new Regex(@"^(uninstall|read ?me|help|website|release notes|license)\b|uninstall|\buninst\b", RegexOptions.IgnoreCase);
 
         public static IReadOnlyList<AppRef> Apps => apps;
+        public static DateTime Loaded => loaded;
 
+        // One load at a time; a request during a load runs one more load right after it.
+        static int loading; static volatile bool again;
         public static void Refresh(bool wait = false)
         {
-            var task = Task.Factory.StartNew(Load, System.Threading.CancellationToken.None, TaskCreationOptions.LongRunning, StaScheduler.Instance);
+            if (System.Threading.Interlocked.Exchange(ref loading, 1) == 1) { again = true; return; }
+            var task = Task.Factory.StartNew(() =>
+            {
+                try { do { again = false; Load(); } while (again); }
+                finally { System.Threading.Interlocked.Exchange(ref loading, 0); }
+            }, System.Threading.CancellationToken.None, TaskCreationOptions.LongRunning, StaScheduler.Instance);
             if (wait) task.Wait(15000);
+        }
+        // The list follows installs and uninstalls by itself: desktop programs add or remove a Start menu
+        // shortcut, Store apps add or remove their package folder. R15 read the list only once at sign-in,
+        // so new apps were missing from search and removed ones stayed.
+        static readonly List<FileSystemWatcher> watchers = new List<FileSystemWatcher>();
+        static System.Windows.Threading.DispatcherTimer settle;
+        public static void Watch()
+        {
+            if (Paths.Preview || watchers.Count > 0) return;
+            settle = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            // Windows adds a new shortcut to its app list some seconds after the file appears (measured: the
+            // list read 3 s after an install did not have it yet), so the list is read once more a bit later.
+            var recheck = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(12) };
+            recheck.Tick += (o, e) => { recheck.Stop(); Refresh(); };
+            settle.Tick += (o, e) => { settle.Stop(); Log.Write("apps-changed"); Refresh(); recheck.Stop(); recheck.Start(); };
+            void Add(string dir, bool sub)
+            {
+                try
+                {
+                    if (!Directory.Exists(dir)) return;
+                    var w = new FileSystemWatcher(dir) { IncludeSubdirectories = sub, NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName, InternalBufferSize = 32768 };
+                    FileSystemEventHandler h = (o, e) => { try { System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() => { settle.Stop(); settle.Start(); })); } catch { } };
+                    w.Created += h; w.Deleted += h; w.Renamed += (o, e) => h(o, e);
+                    w.Error += (o, e) => h(o, null);
+                    w.EnableRaisingEvents = true; watchers.Add(w);
+                }
+                catch (Exception e) { Log.Write("apps-watch-failed dir=\"" + dir + "\" error=\"" + e.Message + "\""); }
+            }
+            Add(Environment.GetFolderPath(Environment.SpecialFolder.Programs), true);
+            Add(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), true);
+            Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages"), false);
+            Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WindowsApps"), false);
         }
         static void Load()
         {
@@ -40,15 +80,28 @@ namespace Baka.Desktop
                     var app = new AppRef { Name = name, AppId = id };
                     // Desktop programs are listed by a path (or a known-folder GUID + relative path).
                     if (id.Contains("\\") && !id.Contains("!")) app.Exe = ResolveKnownFolder(id);
+                    // Entries listed by an app id instead of a path: ask Windows which program they start, so a
+                    // pin of them can be matched to its windows (otherwise the dock showed the app twice).
+                    else if (!id.Contains("!"))
+                    {
+                        try { object t = item.ExtendedProperty("System.Link.TargetParsingPath"); if (t is string s && s.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) app.Target = s; } catch { }
+                    }
                     list.Add(app);
                 }
                 Marshal.FinalReleaseComObject(folder); Marshal.FinalReleaseComObject(shell);
             }
             catch (Exception e) { Log.Write("apps-list-failed error=\"" + e.Message + "\""); }
             list = list.GroupBy(a => a.Name, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).OrderBy(a => a.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
-            if (list.Count > 0) { apps = list; loaded = DateTime.Now; }
-            Log.Write("apps-listed count=" + list.Count);
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() => Updated?.Invoke()));
+            if (list.Count == 0) { Log.Write("apps-listed count=0 (kept the previous list)"); return; }
+            string before = string.Join("\n", apps.Select(a => a.Key)), after = string.Join("\n", list.Select(a => a.Key));
+            loaded = DateTime.Now;
+            if (before == after) return; // nothing installed or removed: nothing to redraw
+            var added = list.Where(a => !apps.Any(b => b.Key == a.Key)).Select(a => a.Name).ToList();
+            var removed = apps.Where(a => !list.Any(b => b.Key == a.Key)).Select(a => a.Name).ToList();
+            bool first = apps.Count == 0;
+            apps = list;
+            Log.Write("apps-listed count=" + list.Count + (first ? "" : " added=\"" + string.Join(", ", added) + "\" removed=\"" + string.Join(", ", removed) + "\""));
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() => { Icons.ForgetMissing(); Updated?.Invoke(); }));
         }
         static string ResolveKnownFolder(string id)
         {
@@ -61,15 +114,20 @@ namespace Baka.Desktop
 
         public static void Launch(AppRef app, bool admin = false)
         {
-            try
+            // Off the UI thread: shell/UWP activation can block for seconds and would freeze BAKA when it is
+            // the shell (this is what hung the whole desktop when opening the Microsoft Store).
+            Launcher.Run(app.Name, () =>
             {
+                // a Store app (its id carries "!"): start it the shell-free way so it also works when BAKA is
+                // the shell and Explorer is not running
+                if (!admin && (string.IsNullOrEmpty(app.Exe) || !File.Exists(app.Exe)) && !string.IsNullOrEmpty(app.AppId) && app.AppId.Contains("!") && Native.LaunchAppId(app.AppId, null))
+                { Log.Write("app-launched name=\"" + app.Name + "\" via=aumid"); return; }
                 var target = !string.IsNullOrEmpty(app.Exe) && File.Exists(app.Exe) ? app.Exe : app.ParsingName;
                 var psi = new ProcessStartInfo(target) { UseShellExecute = true };
                 if (admin) psi.Verb = "runas";
                 Process.Start(psi);
                 Log.Write("app-launched name=\"" + app.Name + "\"");
-            }
-            catch (Exception e) { Log.Write("app-launch-failed name=\"" + app.Name + "\" error=\"" + e.Message + "\""); }
+            });
         }
         public static void OpenLocation(AppRef app)
         {
@@ -168,9 +226,13 @@ namespace Baka.Desktop
     static class Windows
     {
         static readonly HashSet<string> Skip = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Windows.UI.Core.CoreWindow", "Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "XamlExplorerHostIslandWindow" };
+        static readonly int me = Process.GetCurrentProcess().Id;
+        // A window's program and app id do not change, so they are read once per window instead of on every
+        // refresh (opening each process and asking the shell for each window's properties is the costly part).
+        static readonly Dictionary<IntPtr, (uint pid, string exe, string appId, DateTime at)> known = new Dictionary<IntPtr, (uint, string, string, DateTime)>();
         public static List<OpenWindow> List()
         {
-            var result = new List<OpenWindow>(); int me = Process.GetCurrentProcess().Id;
+            var result = new List<OpenWindow>(); var seen = new HashSet<IntPtr>();
             Native.EnumWindows((h, p) =>
             {
                 try
@@ -182,14 +244,23 @@ namespace Baka.Desktop
                     string cls = Native.ClassName(h); if (Skip.Contains(cls)) return true;
                     Native.GetWindowThreadProcessId(h, out uint pid);
                     if (pid == me) return true;
-                    var w = new OpenWindow { Handle = h, Title = Native.WindowText(h), Pid = pid, Minimized = Native.IsIconic(h), Exe = Native.ProcessPath(pid) ?? "", AppId = Native.WindowAppId(h) };
-                    // Explorer's own windows are not shown: BAKA Files replaces them.
-                    if (cls == "CabinetWClass" && Path.GetFileName(w.Exe).Equals("explorer.exe", StringComparison.OrdinalIgnoreCase)) { }
-                    result.Add(w);
+                    seen.Add(h);
+                    // Store apps get their app id a moment after the window appears: re-read it for a few seconds.
+                    if (!known.TryGetValue(h, out var info) || info.pid != pid || (string.IsNullOrEmpty(info.appId) && (DateTime.Now - info.at).TotalSeconds < 8))
+                    {
+                        var at = known.TryGetValue(h, out var old) && old.pid == pid ? old.at : DateTime.Now;
+                        string exe = Native.ProcessPath(pid) ?? "";
+                        // a window without an app id of its own takes its packaged process's app id (WhatsApp)
+                        string appId = Native.WindowAppId(h);
+                        if (string.IsNullOrEmpty(appId) && !exe.EndsWith("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase)) appId = Native.ProcessAppId(pid);
+                        info = (pid, exe, appId, at); known[h] = info;
+                    }
+                    result.Add(new OpenWindow { Handle = h, Title = Native.WindowText(h), Pid = pid, Minimized = Native.IsIconic(h), Exe = info.exe, AppId = info.appId });
                 }
                 catch { }
                 return true;
             }, IntPtr.Zero);
+            foreach (var h in known.Keys.Where(k => !seen.Contains(k)).ToList()) known.Remove(h);
             return result;
         }
         public static void Toggle(OpenWindow w)

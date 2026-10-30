@@ -16,7 +16,7 @@ namespace Baka.Desktop
         static ControlCenter current;
         public static bool IsOpen => current != null && current.IsVisible;
         public static ControlCenter Current => current;
-        Slider volume; Button mute;
+        Slider volume; Button mute; MixerPanel mixer;
 
         public static void Toggle(Window anchor)
         {
@@ -29,19 +29,29 @@ namespace Baka.Desktop
         {
             Title = "BAKA Control Center"; Width = 380; SizeToContent = SizeToContent.Height; Topmost = true;
             Build();
-            Deactivated += (o, e) => { if (!SelfTest.Running) Close(); };
-            KeyDown += (o, e) => { if (e.Key == Key.Escape) Close(); };
-            Closed += (o, e) => { if (current == this) current = null; };
-            Ui.FadeIn(Frame, 150);
+            // Deactivated also fires while the window is already closing (a quick action closes it, which
+            // deactivates it): a second Close() then threw "Cannot ... while a Window is closing" (logged).
+            bool closing = false;
+            Closing += (o, e) => closing = true;
+            Deactivated += (o, e) => { if (!SelfTest.Running && !closing) { closing = true; try { Close(); } catch { } } };
+            KeyDown += (o, e) => { if (e.Key == Key.Escape && !closing) Close(); };
+            Closed += (o, e) => { if (current == this) current = null; mixer?.Dispose(); mixer = null; };
+            Ui.FadeIn(Frame, 170, 0.96, -12); // drops down from the menu bar
         }
 
         void Build()
         {
             var sp = new StackPanel { Margin = new Thickness(14) };
+            // Focus and the game overlay are switches with a state, so they get the wide tiles; the
+            // Windows Focus settings page moved to Settings > Focus & games.
+            var switches = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 8) };
+            switches.Children.Add(Switch(0xE708, "Focus", FocusMode.On, FocusMode.On ? "On  ·  no pop-ups" : "Off", () => FocusMode.Toggle("control center")));
+            switches.Children.Add(Switch(0xEC4A, "Game overlay", GameOverlay.Enabled, !GameOverlay.Enabled ? "Off" : GameOverlay.When == "Always" ? "On" : "On in games", () => GameOverlay.SetEnabled(!GameOverlay.Enabled, "control center")));
+            sp.Children.Add(switches);
             var quick = new UniformGrid4();
-            quick.Add(Quick(0xE701, "Wi-Fi", "ms-availablenetworks:")); quick.Add(Quick(0xE702, "Bluetooth", "ms-settings:bluetooth"));
-            quick.Add(Quick(0xE708, "Focus", "ms-settings:quiethours")); quick.Add(Quick(0xE706, "Night light", "ms-settings:nightlight"));
-            quick.Add(QuickAction(0xE70E, "Tray", App.PeekTray)); quick.Add(QuickAction(0xE7F4, "Display", () => Run("ms-settings:display")));
+            quick.Add(QuickAction(0xE701, "Wi-Fi", () => { Close(); NetworkFlyout.Toggle(App.Bar); })); quick.Add(Quick(0xE702, "Bluetooth", "ms-settings:bluetooth"));
+            quick.Add(QuickAction(0xE7FC, "Arena", () => { Close(); Arena.Open(); })); quick.Add(Quick(0xE706, "Night light", "ms-settings:nightlight"));
+            quick.Add(QuickAction(0xE70E, "Tray", () => { Close(); TrayFlyout.Toggle(this); })); quick.Add(QuickAction(0xE7F4, "Display", () => Run("ms-settings:display")));
             quick.Add(QuickAction(0xE72E, "Ad block", () => SettingsWindow.Open("Privacy & ads"))); quick.Add(QuickAction(0xE713, "Settings", () => Run("ms-settings:")));
             sp.Children.Add(quick.Panel);
 
@@ -53,6 +63,10 @@ namespace Baka.Desktop
             Grid.SetColumn(volume, 1); vr.Children.Add(volume);
             var outDev = Ui.Icon(0xE7F5, "Sound output", () => Run("ms-settings:sound"), 32, 13); Grid.SetColumn(outDev, 2); vr.Children.Add(outDev);
             sp.Children.Add(vr);
+            // each app's own volume (Windows' volume mixer, in the panel)
+            mixer?.Dispose();
+            try { mixer = new MixerPanel(); mixer.Root.Margin = new Thickness(0, 6, 0, 0); sp.Children.Add(mixer.Root); }
+            catch (Exception e) { Log.Write("mixer-failed error=\"" + e.Message + "\""); }
             int? bright = Brightness.Get();
             if (bright != null)
             {
@@ -75,7 +89,7 @@ namespace Baka.Desktop
                 Profiles.Manual = p == "Desktop" ? null : p;
                 Profiles.Set(p, "manual");
             }));
-            var plans = PowerPlans.List();
+            var plans = PowerPlans.ListCached();
             if (plans.Count > 0)
             {
                 sp.Children.Add(Caption("Power plan"));
@@ -108,8 +122,26 @@ namespace Baka.Desktop
         }
         void UpdateVolume() { if (mute?.Content is TextBlock t) t.Text = char.ConvertFromUtf32(Audio.Muted || volume?.Value == 0 ? 0xE74F : 0xE995); }
         static TextBlock Caption(string t) { var c = Ui.Text(t.ToUpperInvariant(), 10.5, FontWeights.Bold, Theme.Muted); c.Margin = new Thickness(2, 14, 0, 6); return c; }
-        static void Run(string uri) { try { System.Diagnostics.Process.Start(uri); } catch { } }
+        // off the UI thread: ms-settings:/shell URIs can block when BAKA is the shell
+        static void Run(string uri) => Launcher.Run(uri, () => System.Diagnostics.Process.Start(uri));
         FrameworkElement Quick(int glyph, string label, string uri) => QuickAction(glyph, label, () => { Close(); Run(uri); });
+        // A wide on/off tile: the round icon fills with the accent while it is on. Right-click opens its settings.
+        FrameworkElement Switch(int glyph, string title, bool on, string state, Action toggle)
+        {
+            var g = new Grid(); g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); g.ColumnDefinitions.Add(new ColumnDefinition());
+            var circle = new Border { Width = 34, Height = 34, CornerRadius = new CornerRadius(11), Background = on ? Theme.Accent : Theme.SurfaceAlt, BorderBrush = on ? Theme.Accent : Theme.Border, BorderThickness = new Thickness(1), Child = Ui.Glyph(glyph, 14, on ? Theme.OnColor(Theme.AccentHex) : Theme.Text), VerticalAlignment = VerticalAlignment.Center };
+            g.Children.Add(circle);
+            var text = new StackPanel { Margin = new Thickness(9, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            text.Children.Add(Ui.Text(title, 12.5, FontWeights.SemiBold));
+            text.Children.Add(Ui.Text(state, 10.5, null, on ? Theme.Accent : Theme.Muted));
+            Grid.SetColumn(text, 1); g.Children.Add(text);
+            var b = new Border { Child = g, Cursor = Cursors.Hand, Padding = new Thickness(8), Margin = new Thickness(3), CornerRadius = new CornerRadius(14), Background = Theme.B(Theme.Current.SurfaceAlt, 110), BorderBrush = Theme.B(Theme.Current.Border, 70), BorderThickness = new Thickness(1), ToolTip = title + ": click to turn " + (on ? "off" : "on") + ", right-click for settings" };
+            b.MouseEnter += (o, e) => b.Background = Theme.B(Theme.AccentHex, 40); b.MouseLeave += (o, e) => b.Background = Theme.B(Theme.Current.SurfaceAlt, 110);
+            Ui.OnClick(b, () => { try { toggle(); } catch (Exception ex) { Log.Write("control-center-failed item=" + title + " error=\"" + ex.Message + "\""); } Build(); });
+            b.MouseRightButtonUp += (o, e) => { e.Handled = true; Close(); SettingsWindow.Open("Focus & games"); };
+            System.Windows.Automation.AutomationProperties.SetName(b, title);
+            return b;
+        }
         FrameworkElement QuickAction(int glyph, string label, Action act)
         {
             var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
@@ -133,9 +165,14 @@ namespace Baka.Desktop
     // Laptop screen brightness (WMI); not shown on desktop monitors.
     static class Brightness
     {
+        // Desktop monitors have no brightness control through WMI; once that is known the (slow, 0.1 to
+        // 0.5 s) WMI query is not run again on every Control Center open.
+        static bool unsupported;
         public static int? Get()
         {
+            if (unsupported) return null;
             try { using (var s = new ManagementObjectSearcher(@"root\WMI", "SELECT CurrentBrightness FROM WmiMonitorBrightness")) foreach (ManagementObject o in s.Get()) return Convert.ToInt32(o["CurrentBrightness"]); } catch { }
+            unsupported = true;
             return null;
         }
         public static void Set(int v)
@@ -148,21 +185,25 @@ namespace Baka.Desktop
     class CalendarFlyout : GlassPanel
     {
         static CalendarFlyout current;
+        public static bool IsOpen => current != null && current.IsVisible;
         DateTime month = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         public static void Toggle(Window anchor)
         {
             if (current != null && current.IsVisible) { current.Close(); return; }
             current = new CalendarFlyout();
-            current.Left = SystemParameters.PrimaryScreenWidth - current.Width - 150; current.Top = TopBar.BarHeight + 8;
+            // opens under the clock island, which sits in the middle of the screen
+            current.Left = (SystemParameters.PrimaryScreenWidth - current.Width) / 2; current.Top = TopBar.BarHeight + 4;
             current.Show(); current.Activate();
         }
         CalendarFlyout() : base(18)
         {
             Title = "BAKA Calendar"; Width = 320; SizeToContent = SizeToContent.Height; Topmost = true;
             Build();
-            Deactivated += (o, e) => Close();
-            KeyDown += (o, e) => { if (e.Key == Key.Escape) Close(); };
-            Ui.FadeIn(Frame, 140);
+            bool closing = false;
+            Closing += (o, e) => closing = true;
+            Deactivated += (o, e) => { if (!closing) { closing = true; try { Close(); } catch { } } };
+            KeyDown += (o, e) => { if (e.Key == Key.Escape && !closing) Close(); };
+            Ui.FadeIn(Frame, 170, 0.96, -12);
         }
         void Build()
         {
@@ -187,7 +228,7 @@ namespace Baka.Desktop
                 grid.Children.Add(new Border { Height = 32, Width = 32, CornerRadius = new CornerRadius(16), Background = today ? Theme.Accent : Brushes.Transparent, Child = t });
             }
             sp.Children.Add(grid);
-            var settings = Ui.Labeled(0xE787, "Date and time settings", () => { Close(); try { System.Diagnostics.Process.Start("ms-settings:dateandtime"); } catch { } });
+            var settings = Ui.Labeled(0xE787, "Date and time settings", () => { Close(); Launcher.Run("ms-settings:dateandtime", () => System.Diagnostics.Process.Start("ms-settings:dateandtime")); });
             settings.Margin = new Thickness(0, 10, 0, 0); settings.HorizontalAlignment = HorizontalAlignment.Left;
             sp.Children.Add(settings);
             Content = sp;

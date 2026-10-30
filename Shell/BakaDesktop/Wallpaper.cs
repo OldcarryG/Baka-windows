@@ -20,6 +20,21 @@ namespace Baka.Desktop
         public static VideoPlayer Current => video;
         public static string State => video == null ? "off" : video.Suspended ? "suspended" : video.Playing ? "playing" : "paused";
 
+        // A path that exists and ends in a format Windows can show as a wallpaper. Used to reject a missing
+        // file or a leftover video path before it is handed to Windows (which would paint the desktop black).
+        static bool IsImageFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return false;
+            switch (Path.GetExtension(path).ToLowerInvariant())
+            {
+                case ".png": case ".jpg": case ".jpeg": case ".bmp": case ".gif": case ".tif": case ".tiff": case ".jfif": case ".dib": return true;
+                default: return false;
+            }
+        }
+        // The shipped picture used whenever a video wallpaper stops (failed / display reset), so the fallback
+        // is a real image and never the now-dead video path.
+        static string FallbackImage() => Paths.Shipped("BAKA-BlackGlass-4K.png") ?? Paths.Shipped("BAKA-Stealth-4K.png") ?? "";
+
         public static void Apply(bool force)
         {
             var w = App.Settings.Wallpaper;
@@ -31,8 +46,16 @@ namespace Baka.Desktop
             {
                 if (mode == "Image")
                 {
-                    if (!File.Exists(path)) path = Paths.Shipped("BAKA-Stealth-4K.png") ?? Paths.Shipped("BAKA-BlackGlass-4K.png");
-                    if (path == null) return;
+                    // The stored path must be a real picture. A missing file, or a leftover video path (for
+                    // example after a video wallpaper failed and fell back to Image), would otherwise be
+                    // handed to Windows as the wallpaper and paint the desktop solid black. Fall back to a
+                    // shipped picture and remember the correction so the desktop is never black.
+                    if (!IsImageFile(path))
+                    {
+                        path = Paths.Shipped("BAKA-BlackGlass-4K.png") ?? Paths.Shipped("BAKA-Stealth-4K.png");
+                        if (path == null) return;
+                        if (!string.Equals(Json.Str(w, "path"), path, StringComparison.OrdinalIgnoreCase)) { w["path"] = path; App.Settings.Save(); }
+                    }
                     string current = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop")?.GetValue("WallPaper") as string;
                     if (!force && string.Equals(current, path, StringComparison.OrdinalIgnoreCase)) return;
                     var style = fit switch { "Fit" => ("6", "0"), "Stretch" => ("2", "0"), "Center" => ("0", "0"), "Span" => ("22", "0"), _ => ("10", "0") };
@@ -66,7 +89,9 @@ namespace Baka.Desktop
             video.Failed += why => Post(() =>
             {
                 Stop();
-                App.Settings.Wallpaper["mode"] = "Image"; App.Settings.Wallpaper["lastVideoError"] = why; App.Settings.Save();
+                App.Settings.Wallpaper["mode"] = "Image"; App.Settings.Wallpaper["lastVideoError"] = why;
+                App.Settings.Wallpaper["path"] = FallbackImage();
+                App.Settings.Save();
                 Apply(true);
             });
             video.Open(host, PrimaryInHost());
@@ -75,7 +100,7 @@ namespace Baka.Desktop
                 watch = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
                 watch.Tick += (o, e) => Update();
                 Microsoft.Win32.SystemEvents.SessionSwitch += (o, e) => { locked = e.Reason == Microsoft.Win32.SessionSwitchReason.SessionLock || e.Reason == Microsoft.Win32.SessionSwitchReason.ConsoleDisconnect || e.Reason == Microsoft.Win32.SessionSwitchReason.RemoteDisconnect; Post(Update); };
-                Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (o, e) => Post(() => video?.Place(PrimaryInHost()));
+                Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (o, e) => Post(OnDisplayChanged);
             }
             watch.Start();
             Log.Write("video-wallpaper-started path=\"" + path + "\" fit=" + fit);
@@ -95,11 +120,14 @@ namespace Baka.Desktop
             onBattery = Json.Bool(w, "pauseOnBattery", true) && System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Offline;
             if (inGame && Json.Bool(w, "pauseInGames", true)) { if (!video.Suspended) { video.Suspend(); Log.Write("video-wallpaper-suspended reason=game"); } return; }
             if (video.Suspended) { video.Resume(); Log.Write("video-wallpaper-resumed"); return; }
-            bool play = !coveredNow && !onBattery && !locked;
+            bool focus = FocusMode.PausesWallpaper;
+            bool play = !coveredNow && !onBattery && !locked && !focus;
             if (!video.Ready) return;
             if (play && !video.Playing) { video.Play(); Log.Write("video-wallpaper-playing"); }
-            else if (!play && video.Playing) { video.Pause(); Log.Write("video-wallpaper-paused reason=" + (locked ? "locked" : onBattery ? "battery" : "covered")); }
+            else if (!play && video.Playing) { video.Pause(); Log.Write("video-wallpaper-paused reason=" + (locked ? "locked" : focus ? "focus" : onBattery ? "battery" : "covered")); }
         }
+        // Focus mode changed: play or pause now instead of on the next 1 s check.
+        public static void Refresh() => Update();
         // Any visible, not minimized window (not BAKA's own, not the shell) that is maximized or covers the whole
         // primary monitor hides the wallpaper, whether or not it is the window in front.
         static readonly uint myPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
@@ -137,7 +165,31 @@ namespace Baka.Desktop
                 if (Native.FindWindowEx(h, IntPtr.Zero, "SHELLDLL_DefView", null) != IntPtr.Zero) found = Native.FindWindowEx(IntPtr.Zero, h, "WorkerW", null);
                 return found == IntPtr.Zero;
             }, IntPtr.Zero);
-            return found;
+            if (found != IntPtr.Zero) return found;
+            // BAKA is the shell: Explorer's desktop WorkerW is gone, so the video goes into BAKA's own backdrop.
+            return ShellMode.Active ? BakaBackdrop.EnsureHost() : found;
+        }
+        // The display driver resetting (a recovered GPU hang / TDR) fires DisplaySettingsChanged. The logs
+        // showed a display watchdog event and then a hard freeze while the 4K video wallpaper was decoding, so
+        // if the display resets twice within a short window the video is stopped and the picture is shown
+        // instead, rather than feeding a struggling GPU a continuous 4K decode. The user can switch it back on.
+        static readonly System.Collections.Generic.List<DateTime> displayResets = new System.Collections.Generic.List<DateTime>();
+        static void OnDisplayChanged()
+        {
+            if (video == null) return;
+            displayResets.Add(DateTime.Now); displayResets.RemoveAll(t => t < DateTime.Now.AddSeconds(45));
+            if (displayResets.Count >= 2)
+            {
+                Log.Write("video-wallpaper-stopped reason=display-reset count=" + displayResets.Count);
+                displayResets.Clear();
+                App.Settings.Wallpaper["mode"] = "Image";
+                App.Settings.Wallpaper["path"] = FallbackImage();
+                App.Settings.Wallpaper["lastVideoError"] = "The video wallpaper was stopped because the display driver reset, which can go with a freeze. Turn it back on in Settings \u203a Wallpaper if you want it.";
+                App.Settings.Save();
+                Apply(true);
+                return;
+            }
+            video.Place(PrimaryInHost());
         }
         static void Post(Action a) { try { App.Ui?.BeginInvoke(a); } catch { } }
         // called when a game starts (true) and ends (false)

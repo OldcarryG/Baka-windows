@@ -6,7 +6,9 @@ Windows itself is not modified: it is Microsoft's own Windows 11 Pro 26H2 (build
 
 [![Source validation](https://github.com/OldcarryG/Baka-windows/actions/workflows/source-validation.yml/badge.svg?branch=main)](https://github.com/OldcarryG/Baka-windows/actions/workflows/source-validation.yml)
 
-**Download:** the full ISO (11.2 GB) is on MEGA, linked from the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest) together with its SHA-256.
+**Download:** the full ISO (11.2 GB) is on MEGA, linked from the [R15 release](https://github.com/OldcarryG/Baka-windows/releases/tag/r15-20261029) together with its SHA-256. The newest BAKA Desktop update is in the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest).
+
+> **No more new ISOs.** R15 is the last ISO for now. From here on BAKA Windows is updated through BAKA Desktop releases: download the zip, run the installer, done ([Update BAKA Desktop](#update-baka-desktop)). A new ISO is only made if Microsoft releases a Windows update that is worth building into the image.
 
 - [Screenshots](#screenshots)
 - [Features](#features)
@@ -16,6 +18,7 @@ Windows itself is not modified: it is Microsoft's own Windows 11 Pro 26H2 (build
 - [4K video wallpaper](#4k-video-wallpaper)
 - [System requirements](#system-requirements)
 - [Install](#install)
+- [Update BAKA Desktop](#update-baka-desktop)
 - [First start](#first-start)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Undo BAKA](#undo-baka)
@@ -53,10 +56,12 @@ BAKA buttons on other apps (Notepad, Calculator, Media Player), captured in the 
 - **4K video wallpaper**: MP4, MOV, MKV, WebM, WMV and AVI with H.264, HEVC, VP9 or AV1, up to 4K (higher if your graphics card decodes it). Details [below](#4k-video-wallpaper).
 - **Launchpad** (Windows key): every installed app in a grid, and one search box for apps, Windows settings pages and files. It tolerates typos ("setings", "discrod"), knows program names ("cmd", "regedit") and initials ("vsc" for Visual Studio Code). Ctrl+Esc still opens the Windows Start menu.
 - **BAKA Files**: sidebar with places and drives (with free space), sortable list, search in the folder and subfolders, copy/cut/paste with the Windows clipboard, drag and drop, delete to the Recycle Bin, rename, new folder or text file, ZIP compress and extract, Open with, Properties, Open Terminal here. Win+E and folders opened from any app open here.
-- **Control Center**: Wi-Fi, Bluetooth, focus, night light, tray icons, display, volume, brightness (laptops), media controls, profile, power plan, theme and widgets.
-- **BAKA Settings** pages: Appearance (theme, accent, glass, motion, icons), Wallpaper (BAKA wallpapers, any picture, a looping video or a colour, plus the pause options), Dock, Menu bar, Widgets, Windows (BAKA buttons, Windows key, Leave BAKA), Privacy & ads, Power (power plan, Desktop/Gaming/Benchmark profile) and About.
+- **Control Center**: Focus and Game overlay switches, Wi-Fi, Bluetooth, Arena, night light, tray icons, display, ad block, volume with **per-app volume** (one slider, mute button and level meter for each app playing sound), brightness (laptops), media controls, profile, power plan, theme and widgets.
+- **Notifications**: BAKA reads Windows' own notification list and shows each notification as a BAKA pop-up and in the bell panel (Win+N). Windows' duplicate banners are switched off while BAKA shows the pop-ups, and put back when you leave BAKA.
+- **Keyboard shortcut cheat sheet**: hold the Windows key for about 0.7 s (Win+/ keeps it open).
+- **BAKA Settings** pages: Appearance (theme, accent, glass, motion, icons), Wallpaper (BAKA wallpapers, any picture, a looping video or a colour, plus the pause options), Dock, Menu bar, Widgets, Windows (BAKA buttons, Windows key, BAKA as the shell, Explorer in the background, Leave BAKA), Privacy & ads, Focus & games (Focus, game overlay, FPS counter permission, Windows banners), Power (power plan, Desktop/Gaming/Benchmark profile) and About.
 - **BAKA Arena**: all installed Steam and Epic games in one grid, Desktop and Gaming profiles, live CPU, GPU, memory and network numbers.
-- **Widgets**: clock, calendar, system monitor (CPU, GPU, memory, disk, network), notes, media controls, focus timer. No news feed and no ads.
+- **Widgets**: clock, calendar, system monitor (CPU, GPU, memory, disk, network), GPU, network, storage, quick toggles, search, notes, media controls, focus timer. No news feed and no ads.
 - **125 hand-drawn app icons** (Steam, Discord, Spotify, Settings, Store, Terminal, Git, Python, NVIDIA, Riot, VALORANT, Roblox, browsers and more), each drawn in the style of the theme. Apps without a BAKA icon keep their own icon on a BAKA tile.
 - **12 themes**: Carbon, Carbon Red, Liquid Glass, four Pop themes, Obsidian, Liquid, Violet, Minimal and Gaming, with accent colours and glass and motion levels.
 - BAKA's own windows use the Mica backdrop, so they move as smoothly as Windows 11 apps.
@@ -71,6 +76,8 @@ BAKA buttons on other apps (Notepad, Calculator, Media Player), captured in the 
   - BAKA Desktop runs at below-normal priority.
 
   Everything comes back when the game closes. Arena's Gaming card does the same by hand.
+- **Game overlay** (Ctrl+Alt+F): FPS, 1% low, frame time, CPU, GPU load, GPU temperature, video memory, GPU power and RAM in a small see-through strip that clicks pass through. FPS comes from Windows' own graphics event log (ETW, like Xbox Game Bar and PresentMon); nothing is injected into games. FPS needs a one-time permission in Settings > Focus & games (it adds your account to Windows' Performance Log Users group). Temperature, power and video memory need an NVIDIA GPU.
+- **Focus** (Ctrl+Alt+D): no notification pop-ups, the dock tucks away and the video wallpaper pauses. It turns on by itself while a game runs.
 - **BAKA Gaming power plan**: based on Ultimate Performance, no core parking, games kept on performance cores, no USB selective suspend. Laptops keep Balanced on battery.
 - Game Mode on, hardware-accelerated GPU scheduling on, optimizations for windowed games, foreground priority, no network throttling for games.
 - Raw mouse input (no acceleration), no Sticky Keys, Filter Keys or Toggle Keys pop-ups.
@@ -217,13 +224,25 @@ The same as Windows 11 Pro; nothing is bypassed:
 
 ## Install
 
-1. Download the ISO from the MEGA link in the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest).
-2. Check it: `Get-FileHash .\BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R14-20261029.iso` in PowerShell must print the SHA-256 shown in the release.
+1. Download the ISO from the MEGA link in the [R15 release](https://github.com/OldcarryG/Baka-windows/releases/tag/r15-20261029).
+2. Check it: `Get-FileHash .\BAKA-Windows-Gaming-Edition-26H2-x64-BakaDesktop-R15-20261029.iso` in PowerShell must print `D33C2E3900710A96347F47ABE905911E372B5D19C034AC49260B9217E1E18107`, the SHA-256 shown in the release.
 3. Write it to a USB stick with [Rufus](https://rufus.ie) (partition scheme GPT, target UEFI), or mount it in a VM (Hyper-V Generation 2 with Secure Boot and a virtual TPM, or VMware with UEFI and a vTPM).
 4. Boot from it. Setup asks which disk to install to; it never erases a disk on its own. **Back up your data first** if you install over an existing system.
 5. After about 10 minutes you are on the BAKA desktop.
+6. Install the newest BAKA Desktop update (next section).
 
 To build the ISO yourself from Microsoft's official ISO, follow [docs/GITHUB_WORKFLOW.md](docs/GITHUB_WORKFLOW.md) and run the scripts in `Scripts/` (needs the Windows ADK Deployment Tools and the .NET SDK).
+
+## Update BAKA Desktop
+
+BAKA Desktop (the menu bar, dock, Launchpad, Files, Control Center, Settings and widgets) is updated on its own, without reinstalling Windows. Settings, wallpapers and pinned apps are kept.
+
+1. Open the [latest release](https://github.com/OldcarryG/Baka-windows/releases/latest) and download **BakaDesktop-&lt;version&gt;.zip**.
+2. Right-click the zip > **Extract All**.
+3. In the extracted folder, double-click **Install-BakaDesktop.cmd** and approve the administrator prompt. If Windows SmartScreen says "Windows protected your PC", click **More info** > **Run anyway** (the files are not code-signed).
+4. BAKA Desktop closes for a few seconds and starts again. BAKA Settings > About shows the new version.
+
+The installer only replaces `C:\ProgramData\BAKA\Desktop\BakaDesktop.exe`. It checks that the PC has BAKA Windows, checks the new file against `SHA256.txt` from the zip, keeps the current one as `BakaDesktop.exe.previous` and pre-compiles the new one (NGen). To go back to the previous version, run `Install-BakaDesktop.cmd rollback` from the same folder. What changed in each version: [docs/CHANGELOG_DESKTOP.md](docs/CHANGELOG_DESKTOP.md).
 
 ## First start
 
@@ -238,8 +257,13 @@ To build the ISO yourself from Microsoft's official ISO, follow [docs/GITHUB_WOR
 | Keys | Action |
 |---|---|
 | Windows key | Launchpad (apps and search) |
+| Hold the Windows key (about 0.7 s) | Keyboard shortcut cheat sheet; Win+/ keeps it open |
 | Win+S | Search |
 | Win+E | BAKA Files |
+| Win+N | Notifications (bell panel) |
+| Ctrl+Alt+D | Focus on or off |
+| Ctrl+Alt+F | Game overlay (FPS, CPU, GPU) on or off, also inside games |
+| Ctrl+Alt+G | Leave a game mode you started by hand |
 | Ctrl+Esc | Windows Start menu |
 | Win+D, Alt+Tab, Win+Tab, Win+L and other Windows shortcuts | Work as usual |
 
@@ -257,14 +281,15 @@ To build the ISO yourself from Microsoft's official ISO, follow [docs/GITHUB_WOR
 - **Microsoft Edge** is removed and its reinstall blocked by policy, but in one R12 install Windows put Edge back, so removal is not guaranteed on this Windows build.
 - **Store apps that need Edge**, such as Netflix, do not install while Edge is removed (error 0x80073D31).
 - **AV1 4K wallpapers** need hardware AV1 decoding (see above).
-- **Game FPS, frame times, mouse latency and media keys** were not tested; the test VMs have no GPU and no sound device.
+- **Game FPS, frame times, mouse latency and media keys** were not benchmarked; the test VMs have no GPU and no sound device. The game overlay's FPS counter was checked on a real PC at 60 FPS (a Direct3D 9 window and a DXGI app on a 60 Hz screen), but not yet inside a real game, and not with Vulkan or OpenGL games.
+- **Game overlay** shows over borderless and windowed games; a game in exclusive fullscreen draws above it. GPU temperature, power and video memory are read only on NVIDIA GPUs.
 - **Windows Pro telemetry**: "required" diagnostic data is still sent; BAKA does not claim zero telemetry.
 - **Apps running as administrator** and dialogs keep Windows' own window buttons.
 - The ISO is not signed by Microsoft. Check its SHA-256 against the release.
 
 ## FAQ
 
-**Does BAKA affect anti-cheat?** BAKA does not load anything into other processes. The BAKA buttons are separate windows that follow the app, and since R15 BAKA uses no keyboard hook at all (it only listens with raw input, and stops listening while a game runs). Secure Boot, TPM, VBS and Defender stay on.
+**Does BAKA affect anti-cheat?** BAKA does not load anything into other processes. The BAKA buttons are separate windows that follow the app. With Explorer running in the background (the default) BAKA only listens to the keyboard with raw input; only when you turn Explorer off completely does it use a keyboard hook, on its own thread. Either way it stops listening while a game runs. The game overlay reads FPS from Windows' graphics event log instead of hooking into the game. Secure Boot, TPM, VBS and Defender stay on.
 
 **Is it activated?** BAKA includes no licence key. Activate it with your own Windows 11 Pro licence, as with Microsoft's ISO.
 
@@ -280,7 +305,8 @@ To build the ISO yourself from Microsoft's official ISO, follow [docs/GITHUB_WOR
 
 | Release | Main changes |
 |---|---|
-| **R15** (2026-10-29) | Fast Startup back on; BAKA Desktop starts with Explorer (desktop ready about 1.7 s sooner); no false crash at every shutdown; Windows key only listened to, not hooked; Launchpad opens in under 20 ms; native image for BAKA Desktop |
+| **BAKA Desktop 12.27.1** (2026-10-30, no new ISO) | Update for R15 PCs: game overlay with FPS, Focus, per-app volume, BAKA notification pop-ups without Windows' duplicate banners, shortcut cheat sheet, optional BAKA-as-shell mode with its own tray and Win+Tab, many fixes. [Changelog](docs/CHANGELOG_DESKTOP.md), [how to install](#update-baka-desktop) |
+| **R15** (2026-10-29, last ISO) | Fast Startup back on; BAKA Desktop starts with Explorer (desktop ready about 1.7 s sooner); no false crash at every shutdown; Windows key only listened to, not hooked; Launchpad opens in under 20 ms; native image for BAKA Desktop |
 | R14 (2026-10-29) | 4K video wallpaper decoded on the GPU; keyboard hook on its own time-critical thread (25–42 ms → 0.75 ms with BAKA busy) and removed in games; AI tuning prompt; ISO on MEGA |
 | R13 (2026-10-29) | BAKA buttons on every app window, Mica backdrop for BAKA windows, more privacy checks, Store apps tested, Gaming-mode benchmark, Baka Browser 1.6.2 |
 | R12 (2026-10-28) | Baka Browser 1.6.1 |
@@ -298,7 +324,11 @@ All releases: [github.com/OldcarryG/Baka-windows/releases](https://github.com/Ol
 | `--video-test <file> <result.json> [s]` | check that this PC plays a video with the wallpaper player (writes CPU use, size, pause/resume) |
 | `--status <file>` | what the desktop looks like, as JSON |
 | `--tray` | show the Windows tray icons for a few seconds |
-| `--preview`, `--selftest` | run the desktop in a throwaway profile / click through every surface (50 checks) |
+| `--preview`, `--selftest` | run the desktop in a throwaway profile / click through every surface and check it |
+| `--focus on\|off\|toggle` | Focus on the running desktop (what Ctrl+Alt+D does) |
+| `--overlay on\|off\|toggle` | the game overlay on the running desktop (what Ctrl+Alt+F does) |
+| `--overlay-test <result.json>` | check the overlay, the NVIDIA sensors and the per-app volume list on this PC |
+| `--fps-probe <seconds> <result.json>` | what Windows' graphics event log reports for each running app (run as administrator) |
 | `--restore-windows` | put the normal Windows desktop back |
 
 ## Build and source checks
@@ -323,4 +353,5 @@ Project layout:
 - `Modules/` power plan, system tuning, update control, gaming profile rules
 - `Config/` answer file, debloat, privacy, block list, performance profiles, themes, applications (pinned Baka Browser installer)
 - `Tests/` the checks above and the benchmark scripts
+- `Tools/` the BAKA Desktop updater that goes into each release zip (`Install-BakaDesktop.cmd`, `Update-BakaDesktop.ps1`) and the wallpaper generator
 - `docs/` comparison with stock Windows, benchmark, release notes, AI tuning prompt, checklist, decisions, screenshots

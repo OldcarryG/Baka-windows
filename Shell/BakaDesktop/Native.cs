@@ -52,6 +52,27 @@ namespace Baka.Desktop
         [DllImport("user32.dll")] public static extern bool UnregisterHotKey(IntPtr hwnd, int id);
         [DllImport("user32.dll")] public static extern bool LockWorkStation();
         [DllImport("powrprof.dll")] public static extern bool SetSuspendState(bool hibernate, bool force, bool disableWake);
+
+        // ---- reliable shut down / restart / sign out (no dependency on shutdown.exe or the /hybrid flag) ----
+        [DllImport("user32.dll", SetLastError = true)] public static extern bool ExitWindowsEx(uint flags, uint reason);
+        [StructLayout(LayoutKind.Sequential)] struct LUID { public uint Low; public int High; }
+        [StructLayout(LayoutKind.Sequential)] struct TOKEN_PRIVILEGES { public uint Count; public LUID Luid; public uint Attributes; }
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)] static extern bool LookupPrivilegeValue(string system, string name, out LUID luid);
+        [DllImport("advapi32.dll", SetLastError = true)] static extern bool AdjustTokenPrivileges(IntPtr token, bool disableAll, ref TOKEN_PRIVILEGES newState, uint len, IntPtr prev, IntPtr prevLen);
+        [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
+        // ExitWindowsEx needs SeShutdownPrivilege enabled in the process token; the user has it, but it is off
+        // by default and must be switched on first.
+        public static bool EnableShutdownPrivilege()
+        {
+            if (!OpenProcessToken(GetCurrentProcess(), 0x0020 /*ADJUST_PRIVILEGES*/ | 0x0008 /*QUERY*/, out IntPtr tok)) return false;
+            try
+            {
+                if (!LookupPrivilegeValue(null, "SeShutdownPrivilege", out LUID luid)) return false;
+                var tp = new TOKEN_PRIVILEGES { Count = 1, Luid = luid, Attributes = 0x0002 /*SE_PRIVILEGE_ENABLED*/ };
+                return AdjustTokenPrivileges(tok, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
+            }
+            finally { CloseHandle(tok); }
+        }
         [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
         [DllImport("user32.dll")] public static extern bool SystemParametersInfo(uint action, uint param, ref RECT value, uint winIni);
         [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", CharSet = CharSet.Unicode)] public static extern bool SystemParametersInfoString(uint action, uint param, string value, uint winIni);
@@ -74,6 +95,7 @@ namespace Baka.Desktop
         public delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
         [DllImport("user32.dll")] public static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr module, WinEventProc proc, uint pid, uint thread, uint flags);
         [DllImport("user32.dll")] public static extern bool UnhookWinEvent(IntPtr hook);
+        [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
         public const uint WINEVENT_OUTOFCONTEXT = 0, WINEVENT_SKIPOWNPROCESS = 2;
         public const uint EVENT_SYSTEM_MOVESIZESTART = 0x000A, EVENT_SYSTEM_MOVESIZEEND = 0x000B, EVENT_SYSTEM_MINIMIZESTART = 0x0016, EVENT_SYSTEM_MINIMIZEEND = 0x0017;
         public const uint EVENT_OBJECT_DESTROY = 0x8001, EVENT_OBJECT_SHOW = 0x8002, EVENT_OBJECT_HIDE = 0x8003, EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
@@ -117,6 +139,17 @@ namespace Baka.Desktop
         public static long ExStyle(IntPtr hwnd) => GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
         public static bool IsCloaked(IntPtr hwnd) { return DwmGetWindowAttribute(hwnd, 14, out int c, 4) == 0 && c != 0; }
 
+        // The app id of a packaged program's process (WhatsApp, Spotify from the Store...). Their windows often
+        // carry no app id of their own, so this is what ties the window to the app's dock pin.
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern int GetApplicationUserModelId(IntPtr process, ref int length, StringBuilder id);
+        public static string ProcessAppId(uint pid)
+        {
+            IntPtr h = OpenProcess(0x1000, false, pid);
+            if (h == IntPtr.Zero) return null;
+            try { int len = 256; var sb = new StringBuilder(len); return GetApplicationUserModelId(h, ref len, sb) == 0 ? sb.ToString() : null; }
+            catch { return null; }
+            finally { CloseHandle(h); }
+        }
         public static string ProcessPath(uint pid)
         {
             IntPtr h = OpenProcess(0x1000, false, pid); // PROCESS_QUERY_LIMITED_INFORMATION
@@ -163,6 +196,22 @@ namespace Baka.Desktop
             finally { Marshal.FreeHGlobal(p); }
         }
         public static void RoundCorners(IntPtr hwnd) { int pref = 2; DwmSetWindowAttribute(hwnd, 33, ref pref, 4); }
+
+        // ---- launching a Store app by its app id, the shell-free way ----
+        // Process.Start on "shell:AppsFolder\<id>" leans on the running shell; this COM call is the documented
+        // way to start a packaged app and works when BAKA is the shell (Explorer not running).
+        [ComImport, Guid("2E941141-7F97-4756-BA1D-9DECDE894A3D"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        interface IApplicationActivationManager
+        {
+            int ActivateApplication([MarshalAs(UnmanagedType.LPWStr)] string appUserModelId, [MarshalAs(UnmanagedType.LPWStr)] string arguments, int options, out uint processId);
+        }
+        [ComImport, Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C")] class ApplicationActivationManager { }
+        public static bool LaunchAppId(string aumid, string args)
+        {
+            if (string.IsNullOrEmpty(aumid)) return false;
+            try { var mgr = (IApplicationActivationManager)new ApplicationActivationManager(); return mgr.ActivateApplication(aumid, args ?? "", 0, out _) == 0; }
+            catch (Exception e) { Log.Write("activate-appid-failed id=\"" + aumid + "\" error=\"" + e.Message + "\""); return false; }
+        }
         public static void DarkFrame(IntPtr hwnd) { int on = 1; DwmSetWindowAttribute(hwnd, 20, ref on, 4); }
 
         // Windows falls back to outline dragging when "show window contents while dragging" is off.
@@ -255,6 +304,26 @@ namespace Baka.Desktop
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)] public static extern int SHEmptyRecycleBin(IntPtr hwnd, string root, uint flags);
         [DllImport("shell32.dll")] public static extern void SHChangeNotify(int eventId, uint flags, IntPtr item1, IntPtr item2);
 
+        // ---- the process list with each process's parent (one Toolhelp snapshot, a few ms) ----
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        struct PROCESSENTRY32W { public uint dwSize, cntUsage, th32ProcessID; public IntPtr th32DefaultHeapID; public uint th32ModuleID, cntThreads, th32ParentProcessID; public int pcPriClassBase; public uint dwFlags; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string szExeFile; }
+        [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint pid);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32FirstW(IntPtr snap, ref PROCESSENTRY32W e);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32NextW(IntPtr snap, ref PROCESSENTRY32W e);
+        public static Dictionary<uint, (uint parent, string exe)> Processes()
+        {
+            var r = new Dictionary<uint, (uint, string)>();
+            IntPtr snap = CreateToolhelp32Snapshot(0x00000002 /*TH32CS_SNAPPROCESS*/, 0);
+            if (snap == IntPtr.Zero || snap == new IntPtr(-1)) return r;
+            try
+            {
+                var e = new PROCESSENTRY32W { dwSize = (uint)Marshal.SizeOf(typeof(PROCESSENTRY32W)) };
+                for (bool ok = Process32FirstW(snap, ref e); ok; ok = Process32NextW(snap, ref e)) r[e.th32ProcessID] = (e.th32ParentProcessID, e.szExeFile ?? "");
+            }
+            finally { CloseHandle(snap); }
+            return r;
+        }
+
         // ---- system numbers ----
         [StructLayout(LayoutKind.Sequential)] public struct MEMORYSTATUSEX { public uint dwLength, dwMemoryLoad; public ulong ullTotalPhys, ullAvailPhys, ullTotalPageFile, ullAvailPageFile, ullTotalVirtual, ullAvailVirtual, ullAvailExtendedVirtual; }
         [DllImport("kernel32.dll")] public static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX m);
@@ -269,6 +338,7 @@ namespace Baka.Desktop
         [DllImport("user32.dll")] public static extern bool UnhookWindowsHookEx(IntPtr hook);
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr GetModuleHandle(string name);
         [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vk);
+        [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT p);
     }
 
     // Windows' master volume (Core Audio).
@@ -289,17 +359,22 @@ namespace Baka.Desktop
             int GetChannelVolumeLevel(uint ch, out float level); int GetChannelVolumeLevelScalar(uint ch, out float level);
             int SetMute([MarshalAs(UnmanagedType.Bool)] bool mute, ref Guid ctx); int GetMute(out bool mute);
         }
+        // The default output device, looked up again every few seconds (so switching speakers / headphones is
+        // followed) instead of on every call: the volume slider calls this for every pixel it moves.
+        static IAudioEndpointVolume endpoint; static DateTime endpointAt;
         static IAudioEndpointVolume Endpoint()
         {
+            if (endpoint != null && (DateTime.Now - endpointAt).TotalSeconds < 5) return endpoint;
             try
             {
                 var e = (IMMDeviceEnumerator)new MMDeviceEnumerator();
-                if (e.GetDefaultAudioEndpoint(0, 1, out IMMDevice dev) != 0) return null;
+                if (e.GetDefaultAudioEndpoint(0, 1, out IMMDevice dev) != 0) { endpoint = null; return null; }
                 var iid = typeof(IAudioEndpointVolume).GUID;
                 dev.Activate(ref iid, 23, IntPtr.Zero, out object o);
-                return o as IAudioEndpointVolume;
+                endpoint = o as IAudioEndpointVolume; endpointAt = DateTime.Now;
+                return endpoint;
             }
-            catch { return null; }
+            catch { endpoint = null; return null; }
         }
         public static int? Level { get { var v = Endpoint(); if (v == null) return null; v.GetMasterVolumeLevelScalar(out float l); return (int)Math.Round(l * 100); } }
         public static bool Muted { get { var v = Endpoint(); if (v == null) return false; v.GetMute(out bool m); return m; } }

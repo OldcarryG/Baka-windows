@@ -34,9 +34,14 @@ namespace Baka.Desktop
         public static void Toggle(bool focusSearch = false)
         {
             if (App.GameRunning) return;
+            // Win+S / Win+Q / the search widget: an open Launchpad focuses its search box instead of closing
+            if (IsOpen && focusSearch) { try { current.Activate(); Native.Activate(new WindowInteropHelper(current).Handle); current.search.Focus(); current.search.SelectAll(); } catch { } return; }
             if (IsOpen) { current.Close(); return; }
             if (current != null && current.themeKey != ThemeKey()) { current.Dispose(); current = null; }
             if (current == null) current = new Launchpad();
+            // a backstop for installs the folder watch could not see; the list is read in the background and
+            // the Launchpad updates itself if anything changed
+            if ((DateTime.Now - AppCatalog.Loaded).TotalSeconds > 90) AppCatalog.Refresh();
             current.Reset();
             current.Show(); current.Activate();
             // BAKA only listens to the keyboard, so Windows does not count it as the app that got the key
@@ -52,15 +57,17 @@ namespace Baka.Desktop
             var h = new WindowInteropHelper(current); h.EnsureHandle();
             Log.Write("launchpad-prepared apps=" + AppCatalog.Apps.Count);
         }
-        // Frees the hidden Launchpad (games: its memory goes back to the game).
-        public static void Release() { if (current != null && !current.IsVisible) { current.Dispose(); current = null; } }
         void Dispose() { reallyClose = true; try { Close(); } catch { } }
+        bool stale;
         void Reset()
         {
-            if (!string.IsNullOrEmpty(search.Text)) search.Text = ""; else if (grid.Visibility != Visibility.Visible) ShowAll();
+            if (!string.IsNullOrEmpty(search.Text)) search.Text = ""; else if (grid.Visibility != Visibility.Visible || stale) ShowAll();
             if (selected >= 0 && selected < focusable.Count) ((Border)focusable[selected]).Background = Brushes.Transparent;
             selected = -1; scroll.ScrollToTop();
-            Ui.FadeIn((UIElement)Content, 90, 1.0);
+            Ui.FadeIn((UIElement)Content, 150, 0.95); // zooms in a little, like a launcher opening
+            // the first rows of apps rise in one after another (desktop profile only; ~0.4 s in total)
+            if (Theme.Motion && grid.Visibility == Visibility.Visible)
+                for (int i = 0; i < Math.Min(28, grid.Children.Count); i++) Ui.FadeIn(grid.Children[i], 170, 0.88, 10, 40 + i * 11);
         }
         public static void HideIfOpen() { if (IsOpen) current.Close(); }
         public static Launchpad Current => current;
@@ -95,7 +102,12 @@ namespace Baka.Desktop
             Closed += (o, e) => AppCatalog.Updated -= OnAppsUpdated;
             Log.Write("launchpad-built apps=" + AppCatalog.Apps.Count);
         }
-        void OnAppsUpdated() { if (string.IsNullOrEmpty(search.Text)) ShowAll(); }
+        // A hidden Launchpad is redrawn when it is next opened; an open one at once (and a search runs again).
+        void OnAppsUpdated()
+        {
+            if (!IsVisible) { stale = true; return; }
+            if (string.IsNullOrEmpty(search.Text)) ShowAll(); else Query(search.Text);
+        }
 
         void Build()
         {
@@ -132,6 +144,7 @@ namespace Baka.Desktop
 
         void ShowAll()
         {
+            stale = false;
             grid.Children.Clear(); focusable.Clear(); selected = -1;
             results.Visibility = Visibility.Collapsed; grid.Visibility = Visibility.Visible;
             if (AppCatalog.Apps.Count == 0) { var t = Ui.Text("Loading apps…", 14, null, Theme.Muted); t.Margin = new Thickness(0, 40, 0, 0); grid.Children.Add(t); return; }
@@ -166,7 +179,7 @@ namespace Baka.Desktop
                 Ui.Item(pinned ? "Remove from dock" : "Keep in dock", pinned ? 0xE77A : 0xE718, () => { if (pinned) Dock.Unpin(app); else Dock.Pin(app); }),
                 Ui.Item("Open file location", 0xE838, () => { Close(); AppCatalog.OpenLocation(app); }, null, !string.IsNullOrEmpty(app.Exe) && File.Exists(app.Exe)),
                 "-",
-                Ui.Item("Uninstall…", 0xE74D, () => { Close(); try { System.Diagnostics.Process.Start("ms-settings:appsfeatures"); } catch { } }));
+                Ui.Item("Uninstall…", 0xE74D, () => { Close(); Launcher.Run("ms-settings:appsfeatures", () => System.Diagnostics.Process.Start("ms-settings:appsfeatures")); }));
         }
 
         // ---- search ----
@@ -184,7 +197,7 @@ namespace Baka.Desktop
             var sections = new List<(int best, Action draw)>();
             if (apps.Count > 0) sections.Add((apps[0].s, () => { Section("Apps"); foreach (var (a, _) in apps) Result(Icons.For(a), a.Name, AppKind(a), () => AppCatalog.Launch(a), b => AppMenu(b, a)); }));
             if (baka.Count > 0) sections.Add((baka[0].s - 1, () => { Section("BAKA"); foreach (var (x, _) in baka) Result(Icons.ForId(x.icon), x.name, x.detail, x.run, null); }));
-            if (pages.Count > 0) sections.Add((pages[0].s - 2, () => { Section("Settings"); foreach (var (p, _) in pages) Result(Icons.ForId("settings"), p.name, "Windows Settings", () => { try { System.Diagnostics.Process.Start(p.uri); } catch { } }, null); }));
+            if (pages.Count > 0) sections.Add((pages[0].s - 2, () => { Section("Settings"); foreach (var (p, _) in pages) { var uri = p.uri; Result(Icons.ForId("settings"), p.name, "Windows Settings", () => Launcher.Run(uri, () => System.Diagnostics.Process.Start(uri)), null); } }));
             foreach (var s in sections.OrderByDescending(s => s.best)) s.draw();
             if (apps.Count + pages.Count + baka.Count == 0) { var none = Ui.Text("No apps or settings match \"" + text + "\". Looking in your files…", 13, null, Theme.Muted); none.Margin = new Thickness(8, 6, 0, 10); results.Children.Add(none); }
             if (focusable.Count > 0) Select(0);

@@ -13,6 +13,12 @@ namespace Baka.Desktop
     class AppRef
     {
         public string Name = "", AppId = "", Exe = "";
+        // Only for matching open windows to a dock pin: the program a shortcut starts, and the window
+        // identity of apps pinned by a link (Windows Settings).
+        public string Process = "", MatchId = "";
+        // The program a Start-menu entry listed by app id (Discord, Kiro, NVIDIA App...) really starts, as
+        // Windows reports it. Only used to match open windows; launching still goes through the app id.
+        public string Target = "";
         public string ParsingName => string.IsNullOrEmpty(AppId) ? Exe : "shell:AppsFolder\\" + AppId;
         public string Key => (Name + "|" + AppId + "|" + Exe).ToLowerInvariant();
     }
@@ -53,7 +59,11 @@ namespace Baka.Desktop
     static partial class Icons
     {
         static readonly Dictionary<string, ImageSource> cache = new Dictionary<string, ImageSource>();
-        public static void ClearCache() => cache.Clear();
+        // Apps whose own icon could not be read (an installer still writing it, an app just removed) get a
+        // placeholder; it is read again later instead of being kept for the whole session.
+        static readonly Dictionary<string, DateTime> missing = new Dictionary<string, DateTime>();
+        public static void ClearCache() { cache.Clear(); missing.Clear(); }
+        public static void ForgetMissing() { foreach (var k in missing.Keys) cache.Remove(k); missing.Clear(); }
         public static string Style => App.Settings == null ? "Themed" : Json.Str(App.Settings.Appearance, "iconStyle", "Themed") == "Original" ? "Original" : "Themed";
 
         public static IconDef Find(AppRef app) => Library.FirstOrDefault(d => d.Matches(app));
@@ -61,35 +71,43 @@ namespace Baka.Desktop
 
         // The icon for an app: its hand-made BAKA icon when there is one, otherwise the app's own icon on the
         // theme's tile (or untouched with the Original style).
-        public static ImageSource For(AppRef app, int size = 96)
+        // flat=true draws the icon with no tile behind it: a clean mark (or the app's own logo) on
+        // transparent, for the dock, so the dock reads as one surface instead of a column of dark boxes.
+        public static ImageSource For(AppRef app, int size = 96, bool flat = false)
         {
-            string key = Style + "|" + app.Key + "|" + size;
-            if (cache.TryGetValue(key, out var hit)) return hit;
-            ImageSource result = null;
+            string key = (flat ? "F|" : "") + Style + "|" + app.Key + "|" + size;
+            if (cache.TryGetValue(key, out var hit) && !(missing.TryGetValue(key, out var since) && (DateTime.Now - since).TotalSeconds > 45)) return hit;
+            ImageSource result = null; bool found = true;
             try
             {
                 var def = Style == "Themed" ? Find(app) : null;
-                if (def != null) result = Draw(def, null, app.Name, size);
+                if (def != null) result = Draw(def, null, app.Name, size, flat);
                 else
                 {
                     var shell = ShellIcon(app.ParsingName, 64) ?? (string.IsNullOrEmpty(app.Exe) ? null : ShellIcon(app.Exe, 64));
-                    result = Style == "Original" ? (shell ?? Draw(null, null, app.Name, size)) : Draw(null, shell, app.Name, size);
+                    found = shell != null;
+                    // flat: show the app's own logo straight, with no BAKA tile around it
+                    if (flat && shell != null) result = shell;
+                    else result = Style == "Original" ? (shell ?? Draw(null, null, app.Name, size, flat)) : Draw(null, shell, app.Name, size, flat);
                 }
             }
-            catch (Exception e) { Log.Write("icon-failed app=\"" + app.Name + "\" error=\"" + e.Message + "\""); }
+            catch (Exception e) { found = false; Log.Write("icon-failed app=\"" + app.Name + "\" error=\"" + e.Message + "\""); }
+            if (result == null) { try { result = Draw(null, null, app.Name, size, flat); } catch { } }
             cache[key] = result;
+            if (found) missing.Remove(key); else missing[key] = DateTime.Now;
             return result;
         }
-        public static ImageSource ForId(string id, int size = 96)
+        public static ImageSource ForId(string id, int size = 96, bool flat = false)
         {
-            string key = "id|" + id + "|" + size;
+            string key = "id|" + (flat ? "F|" : "") + id + "|" + size;
             if (cache.TryGetValue(key, out var hit)) return hit;
             var def = ById(id);
-            return cache[key] = def == null ? null : Draw(def, null, id, size);
+            return cache[key] = def == null ? null : Draw(def, null, id, size, flat);
         }
-        public static ImageSource ForFile(string path, int size = 32)
+        public static ImageSource ForFile(string path, int size = 32, bool folder = false)
         {
-            string ext = System.IO.Directory.Exists(path) ? "<dir>" + (path.Length <= 3 ? path : "") : System.IO.Path.GetExtension(path).ToLowerInvariant();
+            if (string.IsNullOrEmpty(path)) return null;
+            string ext = folder || System.IO.Directory.Exists(path) ? "<dir>" + (path.Length <= 3 ? path : "") : System.IO.Path.GetExtension(path).ToLowerInvariant();
             bool own = ext == ".exe" || ext == ".lnk" || ext == ".ico" || ext == ".url" || ext.StartsWith("<dir>") && path.Length <= 3;
             string key = "file|" + (own ? path : ext) + "|" + size;
             if (cache.TryGetValue(key, out var hit)) return hit;
@@ -125,20 +143,24 @@ namespace Baka.Desktop
         static Color WithA(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
         static Color Gray(Color c) { byte v = (byte)(0.3 * c.R + 0.59 * c.G + 0.11 * c.B); return Color.FromArgb(c.A, v, v, v); }
 
-        public static BitmapSource Draw(IconDef def, BitmapSource real, string name, int n)
+        public static BitmapSource Draw(IconDef def, BitmapSource real, string name, int n, bool flat = false)
         {
             var t = Theme.Current;
             Color accent = Theme.C(Theme.AccentHex), accent2 = Theme.C(t.Accent2), text = Theme.C(t.Text), canvas = Theme.C(t.Canvas), surface = Theme.C(t.Surface), surfaceAlt = Theme.C(t.SurfaceAlt), shadow = Theme.C(t.Shadow);
             Color hue = def?.Hue != null ? Theme.C(def.Hue) : accent;
             if (t.Mono) hue = Theme.Mix(Gray(hue), text, 0.35);
             double drop = t.Shape == "Keycap" ? n * 0.05 : 0, pad = t.Fill == "Neon" ? n * 0.085 : n * 0.05;
+            if (flat) { drop = 0; pad = n * 0.03; }
             double s = n - pad * 2 - drop, x = pad, y = pad;
             var shape = TileShape(t.Shape, x, y, s);
             var dv = new DrawingVisual(); RenderOptions.SetBitmapScalingMode(dv, BitmapScalingMode.HighQuality);
             using (var dc = dv.RenderOpen())
             {
-                // 1. the tile: the theme's material, tinted by the app's colour where the material allows it
+                // 1. the tile: the theme's material, tinted by the app's colour where the material allows it.
+                // In flat mode (the dock) the tile is skipped entirely, so the mark sits on the dock's glass.
                 Color tileColor = canvas;
+                if (!flat)
+                {
                 if (drop > 0) { var sh = shape.Clone(); sh.Transform = new TranslateTransform(0, drop); dc.DrawGeometry(new SolidColorBrush(WithA(shadow, 235)), null, sh); }
                 switch (t.Fill)
                 {
@@ -171,9 +193,10 @@ namespace Baka.Desktop
                             tileColor = Theme.Mix(surfaceAlt, canvas, 0.4); break;
                         }
                 }
+                }
                 double cx = x + s / 2, cy = y + s / 2;
                 // 2. the mark
-                Brush main, soft, sig, cut = new SolidColorBrush(tileColor);
+                Brush main, soft, sig, cut = new SolidColorBrush(flat ? Colors.Transparent : tileColor);
                 switch (t.Mark)
                 {
                     case "Silver": main = Grad(Colors.White, Color.FromRgb(0xA4, 0xA6, 0xAE)); soft = new SolidColorBrush(Color.FromArgb(120, 230, 230, 235)); sig = new SolidColorBrush(Theme.Mix(hue, Colors.White, 0.35)); break;
@@ -186,7 +209,7 @@ namespace Baka.Desktop
                 if (t.Fill == "Glass" || t.Fill == "Candy") sig = t.Fill == "Candy" ? (Brush)Brushes.White : new SolidColorBrush(Theme.Mix(hue, Colors.White, 0.55));
                 if (def != null)
                 {
-                    double box = s * (t.Shape == "Hexagon" ? 0.56 : 0.64), k = box / 100.0;
+                    double box = s * (flat ? 0.9 : (t.Shape == "Hexagon" ? 0.56 : 0.64)), k = box / 100.0;
                     var map = new TransformGroup(); map.Children.Add(new ScaleTransform(k, k)); map.Children.Add(new TranslateTransform(cx - box / 2, cy - box / 2)); map.Freeze();
                     dc.PushTransform(map);
                     if (t.Mark == "Glow") foreach (var l in def.Layers.Where(l => l.Role == "m")) dc.DrawGeometry(null, new Pen(new SolidColorBrush(WithA(accent, 60)), (l.Stroke > 0 ? l.Stroke : 0) + 6) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, l.Geometry);
@@ -200,16 +223,16 @@ namespace Baka.Desktop
                 }
                 else if (real != null)
                 {
-                    double box = s * (t.Shape == "Hexagon" ? 0.58 : 0.66);
+                    double box = s * (flat ? 1.0 : (t.Shape == "Hexagon" ? 0.58 : 0.66));
                     var rect = new Rect(cx - box / 2, cy - box / 2, box, box);
                     var mask = new ImageBrush(real) { Stretch = Stretch.Uniform };
-                    if (t.Fill != "Outline") { dc.PushOpacityMask(mask); dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(110, 0, 0, 0)), null, new Rect(rect.X, rect.Y + n * 0.025, box, box)); dc.Pop(); }
+                    if (!flat && t.Fill != "Outline") { dc.PushOpacityMask(mask); dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(110, 0, 0, 0)), null, new Rect(rect.X, rect.Y + n * 0.025, box, box)); dc.Pop(); }
                     dc.DrawImage(real, rect);
                 }
                 else
                 {
                     string mono = Monogram(name);
-                    var ft = new FormattedText(mono, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface(Ui.Display, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal), s * (mono.Length > 1 ? 0.34 : 0.44), main, 1.0);
+                    var ft = new FormattedText(mono, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface(Ui.Display, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal), s * (flat ? (mono.Length > 1 ? 0.5 : 0.62) : (mono.Length > 1 ? 0.34 : 0.44)), main, 1.0);
                     dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - ft.Height / 2));
                 }
             }

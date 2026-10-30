@@ -95,7 +95,7 @@ namespace Baka.Desktop
                 else { knob.BeginAnimation(FrameworkElement.MarginProperty, null); knob.Margin = to; }
             }
             Paint(false);
-            track.MouseLeftButtonUp += (o, e) => { state = !state; Paint(true); changed?.Invoke(state); };
+            OnClick(track, () => { state = !state; Paint(true); try { changed?.Invoke(state); } catch (Exception ex) { Log.Write("toggle-failed error=\"" + ex.Message + "\""); } });
             return track;
         }
 
@@ -159,20 +159,48 @@ namespace Baka.Desktop
             foreach (var i in items) menu.Items.Add(i is string s && s == "-" ? new Separator() : i);
             menu.IsOpen = true;
         }
+        // A BAKA menu where the pointer is (the desktop's right-click menu).
+        public static void ShowMenuAtPointer(params object[] items)
+        {
+            var menu = new ContextMenu { Placement = PlacementMode.MousePoint, HasDropShadow = false, StaysOpen = false };
+            foreach (var i in items) menu.Items.Add(i is string s && s == "-" ? new Separator() : i);
+            menu.IsOpen = true;
+        }
 
-        public static void FadeIn(UIElement e, double ms = 160, double fromScale = 0.97)
+        // fromY: also slides in from that many pixels above (negative) or below, for flyouts that drop down
+        // from the menu bar. Everything is off when motion is off (Settings, Windows' own setting, a game or
+        // the gaming / benchmark profile).
+        public static void FadeIn(UIElement e, double ms = 160, double fromScale = 0.97, double fromY = 0, double delayMs = 0)
         {
             if (!Theme.Motion) { e.Opacity = 1; return; }
             e.Opacity = 0;
-            e.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(ms)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
-            if (e is FrameworkElement fe && fromScale < 1)
+            var begin = TimeSpan.FromMilliseconds(delayMs);
+            e.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(ms)) { BeginTime = begin, EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            if (!(e is FrameworkElement fe) || (fromScale >= 1 && fromY == 0)) return;
+            var st = new ScaleTransform(fromScale, fromScale); fe.RenderTransformOrigin = new Point(0.5, fromY < 0 ? 0 : 0.5);
+            if (fromY == 0) fe.RenderTransform = st;
+            else
             {
-                var st = new ScaleTransform(fromScale, fromScale); fe.RenderTransformOrigin = new Point(0.5, 0.5); fe.RenderTransform = st;
-                var a = new DoubleAnimation(1, TimeSpan.FromMilliseconds(ms + 40)) { EasingFunction = new BackEase { Amplitude = 0.25, EasingMode = EasingMode.EaseOut } };
+                var tt = new TranslateTransform(0, fromY);
+                fe.RenderTransform = new TransformGroup { Children = { st, tt } };
+                tt.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(fromY, 0, TimeSpan.FromMilliseconds(ms + 60)) { BeginTime = begin, EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            }
+            if (fromScale < 1)
+            {
+                var a = new DoubleAnimation(fromScale, 1, TimeSpan.FromMilliseconds(ms + 40)) { BeginTime = begin, EasingFunction = new BackEase { Amplitude = 0.25, EasingMode = EasingMode.EaseOut } };
                 st.BeginAnimation(ScaleTransform.ScaleXProperty, a); st.BeginAnimation(ScaleTransform.ScaleYProperty, a);
             }
         }
         public static double Scale(Visual v) { var s = PresentationSource.FromVisual(v); return s?.CompositionTarget?.TransformToDevice.M11 ?? 1.0; }
+
+        // Runs an action once the input has been quiet for a moment: a slider that is dragged applies once
+        // when it stops instead of rebuilding the desktop and writing the settings file on every pixel.
+        public static Action Debounce(Action run, int ms = 220)
+        {
+            var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ms) };
+            t.Tick += (o, e) => { t.Stop(); try { run(); } catch (Exception ex) { Log.Write("debounced-failed error=\"" + ex.Message + "\""); } };
+            return () => { t.Stop(); t.Start(); };
+        }
     }
 
     // Small floating BAKA surfaces (dock, menus, Control Center, widgets): per-pixel transparent with the
@@ -212,28 +240,32 @@ namespace Baka.Desktop
         }
         public new object Content { get => Frame.Child; set => Frame.Child = (UIElement)value; }
         public virtual void Paint() { Frame.Background = Theme.Glass; Frame.BorderBrush = Theme.Current.Pop ? Theme.B(Theme.Current.Border, 230) : Theme.Rim; Frame.BorderThickness = new Thickness(Theme.Current.Pop ? 1.6 : 1); }
+        // The panel's rounded shape comes only from the WPF frame, drawn anti-aliased on a see-through window.
+        // R16 also asked Windows for its flyout blur and clipped the window with a hard-edged region: on
+        // Windows 11 that blur fills the whole rectangle, so a square showed at the corners of the dock and
+        // the widgets. No system blur and no region: the corners are the frame's own, smooth and clean.
         public void UpdateBlur()
         {
             if (Handle == IntPtr.Zero) return;
-            double s = Ui.Scale(this);
-            int w = (int)Math.Ceiling(ActualWidth * s), h = (int)Math.Ceiling(ActualHeight * s), r = (int)Math.Round(Radius * s);
-            if (w <= 0 || h <= 0) return;
-            Native.SetWindowRgn(Handle, Native.CreateRoundRectRgn(0, 0, w + 1, h + 1, r * 2, r * 2), true);
-            if (Theme.Current.Backdrop != "Opaque" && !App.GameRunning) Native.SetBlur(Handle, true);
+            if (!cleared) { cleared = true; Native.SetBlur(Handle, false); Native.SetWindowRgn(Handle, IntPtr.Zero, true); }
         }
-        // Dragging a layered window with live blur makes it trail the cursor; the blur pauses while it moves.
+        bool cleared;
         public void Drag()
         {
-            // While moving, the panel is a solid card instead of see-through glass: no blur that trails the
-            // cursor and no flash to fully transparent (the old behaviour switched the blur off and on).
-            if (Handle != IntPtr.Zero) Native.SetBlur(Handle, false);
+            // While moving, the panel is a solid card instead of see-through glass.
             var glass = Frame.Background;
             Frame.Background = Theme.B(Theme.Current.Surface, 248);
             try { DragMove(); } catch { }
             Frame.Background = glass;
             UpdateBlur();
         }
-        public void Pin(bool bottom) { if (Handle != IntPtr.Zero) Native.SetWindowPos(Handle, bottom ? Native.HWND_BOTTOM : Native.HWND_TOPMOST, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE); }
+        public void Pin(bool bottom)
+        {
+            if (Handle == IntPtr.Zero) return;
+            Native.SetWindowPos(Handle, bottom ? Native.HWND_BOTTOM : Native.HWND_TOPMOST, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+            // bottom of the stack, from the bottom up: wallpaper, the invisible desktop-menu layer, then this widget
+            if (bottom) { DesktopMenu.Sink(); BakaBackdrop.Sink(); }
+        }
     }
 
     // Full BAKA app windows (Files, Settings, Arena): a real Windows frame, so moving, snapping, resizing,
@@ -265,6 +297,13 @@ namespace Baka.Desktop
                 Handle = new WindowInteropHelper(this).Handle;
                 var src = HwndSource.FromHwnd(Handle); if (src?.CompositionTarget != null) src.CompositionTarget.BackgroundColor = Colors.Transparent;
                 Native.DarkFrame(Handle); Native.RoundCorners(Handle);
+                // The glass frame covers the whole window, so Windows would also draw its own minimize /
+                // maximize / close buttons faintly behind the BAKA title strip (two sets of buttons, the
+                // Windows ones not clickable). Without the system menu style Windows draws none; Alt+F4,
+                // Win+arrow snapping and the BAKA buttons keep working.
+                long style = Native.GetWindowLongPtr(Handle, Native.GWL_STYLE).ToInt64();
+                Native.SetWindowLongPtr(Handle, Native.GWL_STYLE, new IntPtr(style & ~0x00080000L /*WS_SYSMENU*/));
+                Native.SetWindowPos(Handle, IntPtr.Zero, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE | 0x0020 /*FRAMECHANGED*/);
                 ApplyBackdrop();
             };
             StateChanged += (o, e) => Root.Margin = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
@@ -306,7 +345,8 @@ namespace Baka.Desktop
             var mark = Ui.Glyph(glyph, 7, Theme.B("#3A1410", 220)); mark.Opacity = 0;
             var b = new Border { Width = 13, Height = 13, CornerRadius = new CornerRadius(6.5), Background = Theme.B(color), Margin = new Thickness(0, 0, 8, 0), Child = mark, Cursor = Cursors.Hand, ToolTip = tip };
             b.MouseEnter += (o, e) => mark.Opacity = 1; b.MouseLeave += (o, e) => mark.Opacity = 0;
-            b.MouseLeftButtonUp += (o, e) => click();
+            Ui.OnClick(b, () => { try { click(); } catch (Exception ex) { Log.Write("title-button-failed error=\"" + ex.Message + "\""); } });
+            System.Windows.Automation.AutomationProperties.SetName(b, tip);
             WindowChrome.SetIsHitTestVisibleInChrome(b, true);
             return b;
         }

@@ -43,7 +43,6 @@ namespace Baka.Desktop
                 Active = profile;
                 Log.Write("profile=" + profile + " reason=" + reason);
                 try { Process.GetCurrentProcess().PriorityClass = profile == "Desktop" ? ProcessPriorityClass.Normal : ProcessPriorityClass.BelowNormal; } catch { }
-                if (profile != "Desktop") App.TrimMemory("game-start");
             }
             catch (Exception e) { Log.Write("profile-change-failed profile=" + profile + " error=\"" + e.Message + "\""); }
             Changed?.Invoke();
@@ -106,7 +105,24 @@ namespace Baka.Desktop
                 helper = new Regex(Json.Str(g, "helperPattern", helper.ToString()));
             }
             catch (Exception e) { Log.Write("game-rules-unreadable error=\"" + e.Message + "\""); }
+            // Launchers and stores live inside the game folders too. R15 took the Riot Client window for a game
+            // (it is in "\Riot Games\"), so opening it hid the dock and menu bar and switched profiles.
+            foreach (var p in BuiltInNonGames) nonGames.Add(p);
+            // VALORANT was excluded only for the VMware tests (Vanguard does not run in a VM). On a real PC it
+            // gets Gaming mode like every game, which also removes BAKA's input listener while it runs.
+            excluded.RemoveWhere(p => p.StartsWith("VALORANT", StringComparison.OrdinalIgnoreCase));
+            named["VALORANT-Win64-Shipping"] = "VALORANT";
+            nonGames.Add("VALORANT"); // the small start-up program, not the game
         }
+        static readonly string[] BuiltInNonGames =
+        {
+            "Riot Client", "RiotClientServices", "RiotClientUx", "RiotClientUxRender", "RiotClientCrashHandler", "vgtray",
+            "steam", "steamwebhelper", "steamservice", "EpicGamesLauncher", "EpicWebHelper", "GalaxyClient", "GalaxyClient Helper",
+            "EADesktop", "EABackgroundService", "Origin", "upc", "UplayWebCore", "UbisoftConnect", "Battle.net", "Agent",
+            "XboxPcApp", "XboxApp", "GameBar", "GamingServices", "Playnite.DesktopApp", "Playnite.FullscreenApp", "itch", "Amazon Games UI",
+            "HoYoPlay", "launcher", "WhatsApp", "WhatsApp.Root", "Spotify", "Telegram", "Slack", "Zoom", "Notepad", "Photos", "Video.UI",
+            "Microsoft.Photos", "SnippingTool", "ScreenClippingHost", "mspaint", "CalculatorApp", "BakaDesktop", "msedgewebview2"
+        };
 
         // A game is the foreground app when it is a named title, an executable inside a game library, or a
         // fullscreen / borderless window that is not a browser, player or tool.
@@ -125,14 +141,20 @@ namespace Baka.Desktop
             string lower = exe.ToLowerInvariant();
             if (library.Any(p => lower.Contains(p))) return Native.WindowText(fg) is string t && t.Length > 0 ? t : proc;
             // fullscreen: the window covers its whole monitor and is not the desktop
-            if (Native.GetWindowRect(fg, out Native.RECT r))
-            {
-                var m = Native.MonitorRect(fg, false);
-                string cls = Native.ClassName(fg);
-                if (r.Left <= m.Left && r.Top <= m.Top && r.Right >= m.Right && r.Bottom >= m.Bottom && cls != "Progman" && cls != "WorkerW" && fg != Native.GetShellWindow())
-                    return Native.WindowText(fg) is string t2 && t2.Length > 0 ? t2 : proc;
-            }
+            if (IsFullscreen(fg)) return Native.WindowText(fg) is string t2 && t2.Length > 0 ? t2 : proc;
             return null;
+        }
+        // A window that covers its whole monitor. A maximized window with a title bar is a normal app, not a
+        // fullscreen game, even though its frame reaches past the screen edge.
+        public static bool IsFullscreen(IntPtr h)
+        {
+            if (h == IntPtr.Zero || !Native.GetWindowRect(h, out Native.RECT r)) return false;
+            string cls = Native.ClassName(h);
+            if (cls == "Progman" || cls == "WorkerW" || h == Native.GetShellWindow()) return false;
+            long style = Native.GetWindowLongPtr(h, Native.GWL_STYLE).ToInt64();
+            if (Native.IsZoomed(h) && (style & 0x00C00000) == 0x00C00000) return false;
+            var m = Native.MonitorRect(h, false);
+            return r.Left <= m.Left && r.Top <= m.Top && r.Right >= m.Right && r.Bottom >= m.Bottom;
         }
     }
 
@@ -147,7 +169,15 @@ namespace Baka.Desktop
                 r.Add((m.Groups[1].Value.ToLowerInvariant(), m.Groups[2].Value, m.Groups[3].Success));
             return r;
         }
-        public static void Activate(string guid) { if (!Paths.Preview) Run("/setactive " + guid); Log.Write("power-plan-active guid=" + guid + (Paths.Preview ? " (preview)" : "")); }
+        // powercfg takes 50-100 ms; Control Center and Settings read the list from a short cache instead of
+        // running it on every open.
+        static List<(string guid, string name, bool active)> cached; static DateTime cachedAt;
+        public static List<(string guid, string name, bool active)> ListCached()
+        {
+            if (cached == null || (DateTime.Now - cachedAt).TotalSeconds > 20) { cached = List(); cachedAt = DateTime.Now; }
+            return cached;
+        }
+        public static void Activate(string guid) { if (!Paths.Preview) Run("/setactive " + guid); cached = null; Log.Write("power-plan-active guid=" + guid + (Paths.Preview ? " (preview)" : "")); }
         static string Run(string args)
         {
             try

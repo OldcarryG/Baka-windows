@@ -20,6 +20,7 @@ namespace Baka.Desktop
     class Files : AppWindow
     {
         static readonly List<Files> open = new List<Files>();
+        readonly DateTime opened = DateTime.Now; string requested;
         string current;
         readonly Stack<string> back = new Stack<string>(), forward = new Stack<string>();
         TextBox address, filter;
@@ -31,26 +32,64 @@ namespace Baka.Desktop
         FileSystemWatcher watcher;
         System.Windows.Threading.DispatcherTimer reloadTimer;
 
-        class Entry { public string Path, Name, Type; public bool Dir; public long Size; public DateTime Modified; }
+        class Entry { public string Path, Name, Type; public bool Dir; public long Size; public DateTime Modified; public object Item; }
+
+        // ---- places that are not plain folders on disk ----
+        // Recycle Bin, Network, inside a .zip, libraries and shell: names are listed through the Windows shell
+        // itself, inside BAKA Files. R15 handed all of them to Windows File Explorer.
+        const string ShellPrefix = "shell|";
+        static bool IsZip(string p) => p != null && p.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && File.Exists(p);
+        static bool IsInsideZip(string p)
+        {
+            if (p == null) return false;
+            int i = p.IndexOf(".zip\\", StringComparison.OrdinalIgnoreCase);
+            return i > 0 && File.Exists(p.Substring(0, i + 4));
+        }
+        static bool IsShellFile(string p) => p != null && (p.EndsWith(".library-ms", StringComparison.OrdinalIgnoreCase) || p.EndsWith(".search-ms", StringComparison.OrdinalIgnoreCase));
+        static bool IsShellTarget(string p) => p.StartsWith(ShellPrefix) || p.StartsWith("::") || (p.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) && !Directory.Exists(p))
+            || IsZip(p) || IsInsideZip(p) || IsShellFile(p) || (p.StartsWith(@"\\") && !Directory.Exists(p));
+        // Control Panel and its pages are Windows' own windows; they stay with Windows.
+        static bool IsControlPanel(string p) => p.IndexOf("26EE0668-A00A-44D7-9371-BEB064C98683", StringComparison.OrdinalIgnoreCase) >= 0 || p.IndexOf("21EC2020-3AEA-1069-A2DD-08002B30309D", StringComparison.OrdinalIgnoreCase) >= 0 || p.StartsWith("shell:ControlPanel", StringComparison.OrdinalIgnoreCase);
+        static bool IsRecycleBin(string p) => p.IndexOf("RecycleBin", StringComparison.OrdinalIgnoreCase) >= 0 || p.IndexOf("645FF040-5081-101B-9F08-00AA002F954E", StringComparison.OrdinalIgnoreCase) >= 0;
+        static dynamic shellApp;
+        static dynamic ShellFolder(string target)
+        {
+            try
+            {
+                if (shellApp == null) shellApp = Activator.CreateInstance(Type.GetTypeFromProgID("Shell.Application"));
+                return shellApp.NameSpace(target);
+            }
+            catch { return null; }
+        }
+        bool InShell => current != null && current.StartsWith(ShellPrefix);
+        string ShellTarget => InShell ? current.Substring(ShellPrefix.Length) : null;
+        string shellTitle;
 
         public static void Open(string path, string select = null)
         {
             if (string.IsNullOrEmpty(path)) path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             path = Paths.Expand(path.Trim('"'));
-            // Shell places that are not folders on disk (Control Panel, Recycle Bin…) stay with Windows.
-            if (path.StartsWith("::") || path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) && !Directory.Exists(path))
-            { try { Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), path); } catch { } return; }
-            if (File.Exists(path)) { select = path; path = System.IO.Path.GetDirectoryName(path); }
-            var w = new Files(); open.Add(w); w.Closed += (o, e) => open.Remove(w);
+            if (IsControlPanel(path)) { try { Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), path); } catch { } return; }
+            if (!IsShellTarget(path) && File.Exists(path)) { select = path; path = System.IO.Path.GetDirectoryName(path); }
+            // The same folder asked for again within a moment (Win+E or a folder link pressed several times):
+            // the window that just opened comes to the front instead of a pile of identical windows.
+            var recent = open.LastOrDefault(x => (DateTime.Now - x.opened).TotalSeconds < 2.5 && x.requested != null && string.Equals(x.requested, path, StringComparison.OrdinalIgnoreCase));
+            if (recent != null) { if (recent.WindowState == WindowState.Minimized) recent.WindowState = WindowState.Normal; recent.Activate(); return; }
+            var w = new Files { requested = path }; open.Add(w); w.Closed += (o, e) => { open.Remove(w); App.Dock?.Refresh(false); };
             w.Show(); w.Activate();
             try { Native.Activate(new System.Windows.Interop.WindowInteropHelper(w).Handle); } catch { }
             w.Navigate(path, true, select);
+            App.Dock?.Refresh(false);
         }
         public static void OpenItem(string path)
         {
-            if (Directory.Exists(path)) { Open(path); return; }
-            try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true, WorkingDirectory = System.IO.Path.GetDirectoryName(path) }); Log.Write("file-opened ext=" + System.IO.Path.GetExtension(path)); }
-            catch (Exception e) { if (e is System.ComponentModel.Win32Exception w && w.NativeErrorCode == 1155) Native.ShellVerb(path, "openas"); else Log.Write("file-open-failed error=\"" + e.Message + "\""); }
+            if (Directory.Exists(path) || IsZip(path) || IsShellFile(path)) { Open(path); return; }
+            // off the UI thread: ShellExecute can block for seconds when BAKA is the shell
+            Launcher.Run(path, () =>
+            {
+                try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true, WorkingDirectory = System.IO.Path.GetDirectoryName(path) }); Log.Write("file-opened ext=" + System.IO.Path.GetExtension(path)); }
+                catch (Exception e) { if (e is System.ComponentModel.Win32Exception w && w.NativeErrorCode == 1155) Native.ShellVerb(path, "openas"); else Log.Write("file-open-failed error=\"" + e.Message + "\""); }
+            });
         }
         public static Files Last => open.LastOrDefault();
 
@@ -74,7 +113,7 @@ namespace Baka.Desktop
             tools.Children.Add(Ui.Icon(0xE72C, "Refresh (F5)", () => Load(null), 30, 12));
             tools.Children.Add(Ui.Icon(0xE8F4, "New folder (Ctrl+Shift+N)", NewFolder, 30, 12));
             tools.Children.Add(Ui.Icon(0xE890, "Show hidden files", () => { showHidden = !showHidden; Load(null); }, 30, 12));
-            tools.Children.Add(Ui.Icon(0xE756, "Open Terminal here", () => { try { Process.Start(new ProcessStartInfo("wt.exe", "-d \"" + current + "\"") { UseShellExecute = true }); } catch { try { Process.Start(new ProcessStartInfo("powershell.exe") { WorkingDirectory = current, UseShellExecute = true }); } catch { } } }, 30, 12));
+            tools.Children.Add(Ui.Icon(0xE756, "Open Terminal here", () => { if (InShell || current == null) return; try { Process.Start(new ProcessStartInfo("wt.exe", "-d \"" + current + "\"") { UseShellExecute = true }); } catch { try { Process.Start(new ProcessStartInfo("powershell.exe") { WorkingDirectory = current, UseShellExecute = true }); } catch { } } }, 30, 12));
             TitleExtra = tools; RefreshTitle();
 
             var g = new Grid { Margin = new Thickness(0, 0, 0, 0) };
@@ -107,7 +146,16 @@ namespace Baka.Desktop
             list.MouseRightButtonUp += (o, e) => ItemMenu();
             list.Drop += OnDrop; list.DragOver += (o, e) => { e.Effects = (e.KeyStates & DragDropKeyStates.ControlKey) != 0 ? DragDropEffects.Copy : DragDropEffects.Move; e.Handled = true; };
             list.PreviewMouseMove += StartDrag;
-            Grid.SetRow(list, 2); main.Children.Add(list);
+            list.PreviewMouseLeftButtonDown += (o, e) => BeginMarquee(e);
+            list.PreviewMouseLeftButtonUp += (o, e) => EndMarquee();
+            list.MouseLeave += (o, e) => { if (marqueeing && Mouse.LeftButton != MouseButtonState.Pressed) EndMarquee(); };
+            var listCell = new Grid();
+            listCell.Children.Add(list);
+            marqueeLayer = new Canvas { IsHitTestVisible = false };
+            marqueeBox = new System.Windows.Shapes.Rectangle { Visibility = Visibility.Collapsed, Fill = Theme.B(Theme.AccentHex, 40), Stroke = Theme.Accent, StrokeThickness = 1 };
+            marqueeLayer.Children.Add(marqueeBox);
+            listCell.Children.Add(marqueeLayer);
+            Grid.SetRow(listCell, 2); main.Children.Add(listCell);
             status = Ui.Text("", 11.5, null, Theme.Muted); status.Margin = new Thickness(6, 6, 0, 0); Grid.SetRow(status, 3); main.Children.Add(status);
             g.Children.Add(main);
             Body.Content = g;
@@ -133,7 +181,7 @@ namespace Baka.Desktop
         {
             sidebar.Children.Clear();
             void Label(string t) { var l = Ui.Text(t, 10.5, FontWeights.Bold, Theme.Muted); l.Margin = new Thickness(8, 12, 0, 4); sidebar.Children.Add(l); }
-            void Place(int glyph, string name, string path) { if (path == null) return; var b = SideItem(glyph, name); b.MouseLeftButtonUp += (o, e) => Navigate(path, true); b.Tag = path; sidebar.Children.Add(b); }
+            void Place(int glyph, string name, string path) { if (path == null) return; var b = SideItem(glyph, name); Ui.OnClick(b, () => Navigate(path, true)); b.Tag = path; sidebar.Children.Add(b); }
             string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             Label("PLACES");
             Place(0xE80F, "Home", home); Place(0xE8FC, "Desktop", Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
@@ -150,13 +198,16 @@ namespace Baka.Desktop
                 double used = 1 - (double)d.AvailableFreeSpace / Math.Max(1, d.TotalSize);
                 var meter = new Border { Height = 3, CornerRadius = new CornerRadius(1.5), Background = Theme.B(Theme.Current.Border, 80), Margin = new Thickness(34, 2, 8, 2), Child = new Border { HorizontalAlignment = HorizontalAlignment.Left, Width = 140 * used, Background = used > 0.9 ? Theme.B("#E5484D") : Theme.Accent, CornerRadius = new CornerRadius(1.5) } };
                 var sp = new StackPanel(); sp.Children.Add(b); sp.Children.Add(meter);
-                var root = d.Name; b.MouseLeftButtonUp += (o, e) => Navigate(root, true); b.Tag = root;
+                var root = d.Name; Ui.OnClick(b, () => Navigate(root, true)); b.Tag = root;
                 b.ToolTip = FormatSize(d.AvailableFreeSpace) + " free of " + FormatSize(d.TotalSize);
                 sidebar.Children.Add(sp);
             }
             Label("MORE");
-            var bin = SideItem(0xE74D, "Recycle Bin"); bin.MouseLeftButtonUp += (o, e) => { try { Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), "shell:RecycleBinFolder"); } catch { } }; sidebar.Children.Add(bin);
-            var net = SideItem(0xE968, "Network"); net.MouseLeftButtonUp += (o, e) => { try { Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), "shell:NetworkPlacesFolder"); } catch { } }; sidebar.Children.Add(net);
+            foreach (var (glyph, name, target) in new[] { (0xE74D, "Recycle Bin", "shell:RecycleBinFolder"), (0xE968, "Network", "shell:NetworkPlacesFolder") })
+            {
+                var b = SideItem(glyph, name); string t = target;
+                Ui.OnClick(b, () => Navigate(t, true)); b.Tag = ShellPrefix + t; sidebar.Children.Add(b);
+            }
         }
         static string KnownDownloads() { var p = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"); return Directory.Exists(p) ? p : null; }
         Border SideItem(int glyph, string name)
@@ -177,6 +228,10 @@ namespace Baka.Desktop
         public void Navigate(string path, bool remember, string select = null)
         {
             path = Paths.Expand((path ?? "").Trim().Trim('"'));
+            if (path.StartsWith(ShellPrefix)) path = path.Substring(ShellPrefix.Length);
+            if (InShell && string.Equals(path, shellTitle, StringComparison.OrdinalIgnoreCase)) { Load(null); return; } // Enter in the address bar
+            if (IsControlPanel(path)) { Open(path); return; }
+            if (IsShellTarget(path)) { NavigateShell(path, remember); return; }
             if (path.Length == 2 && path[1] == ':') path += "\\";
             if (!Directory.Exists(path)) { if (File.Exists(path)) { OpenItem(path); return; } MessageBox.Show(this, "BAKA Files cannot find\n" + path, "BAKA Files", MessageBoxButton.OK, MessageBoxImage.Information); if (address != null) address.Text = current; return; }
             if (remember && current != null && !string.Equals(current, path, StringComparison.OrdinalIgnoreCase)) { back.Push(current); forward.Clear(); }
@@ -187,9 +242,61 @@ namespace Baka.Desktop
             Load(select);
             HighlightSidebar();
         }
+        void NavigateShell(string target, bool remember)
+        {
+            dynamic folder = ShellFolder(target);
+            if (folder == null) { MessageBox.Show(this, "BAKA Files cannot open\n" + target, "BAKA Files", MessageBoxButton.OK, MessageBoxImage.Information); if (address != null) address.Text = InShell ? shellTitle : current; return; }
+            // a shell name for an ordinary folder (shell:Downloads, a library's folder): the normal folder view
+            try { string real = folder.Self.Path; if (!IsRecycleBin(target) && !IsZip(real) && !IsInsideZip(real) && Directory.Exists(real)) { Navigate(real, remember); return; } } catch { }
+            string key = ShellPrefix + target;
+            if (remember && current != null && !string.Equals(current, key, StringComparison.OrdinalIgnoreCase)) { back.Push(current); forward.Clear(); }
+            current = key;
+            try { shellTitle = folder.Title; } catch { shellTitle = target; }
+            watcher?.Dispose(); watcher = null;
+            if (filter != null && filter.Text.Length > 0) filter.Text = "";
+            Title = shellTitle + " – BAKA Files";
+            Load(null);
+            HighlightSidebar();
+        }
         void Go(Stack<string> from, Stack<string> to) { if (from.Count == 0) return; to.Push(current); var p = from.Pop(); Navigate(p, false); }
-        void Up() { var parent = Directory.GetParent(current.TrimEnd('\\') + (current.EndsWith(":\\") ? "\\" : "")); if (parent != null) Navigate(parent.FullName, true, current); }
-        void Activate(Entry e) { if (e == null) return; if (e.Dir) Navigate(e.Path, true); else OpenItem(e.Path); }
+        void Up()
+        {
+            if (InShell)
+            {
+                string t = ShellTarget;
+                if (IsZip(t) || IsInsideZip(t)) Navigate(Path.GetDirectoryName(t), true, IsZip(t) ? t : null);
+                else Navigate(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), true);
+                return;
+            }
+            var parent = Directory.GetParent(current.TrimEnd('\\') + (current.EndsWith(":\\") ? "\\" : "")); if (parent != null) Navigate(parent.FullName, true, current);
+        }
+        void Activate(Entry e)
+        {
+            if (e == null) return;
+            if (InShell) { ActivateShell(e); return; }
+            if (e.Dir) { Navigate(e.Path, true); return; }
+            if (IsZip(e.Path) || IsShellFile(e.Path)) { NavigateShell(e.Path, true); return; }
+            // a shortcut to a folder opens the folder here, not in a new window
+            if (e.Path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)) { var t = AppCatalog.ShortcutTarget(e.Path); if (t != null && Directory.Exists(t)) { Navigate(t, true); return; } }
+            OpenItem(e.Path);
+        }
+        void ActivateShell(Entry e)
+        {
+            dynamic item = e.Item;
+            try
+            {
+                if (IsRecycleBin(ShellTarget)) { item.InvokeVerb("properties"); return; } // like Windows: a deleted item shows where it came from
+                if (e.Dir)
+                {
+                    string p = e.Path ?? "";
+                    if (Directory.Exists(p) && !IsInsideZip(p)) Navigate(p, true); else NavigateShell(p, true);
+                    return;
+                }
+                item.InvokeVerb(); // a file inside a .zip: Windows copies it out and opens it with its app
+                Log.Write("file-opened ext=" + Path.GetExtension(e.Name) + " (shell)");
+            }
+            catch (Exception ex) { Log.Write("shell-item-failed error=\"" + ex.Message + "\""); }
+        }
 
         void Watch()
         {
@@ -204,10 +311,44 @@ namespace Baka.Desktop
             catch { }
         }
 
+        void LoadShell(HashSet<string> keep)
+        {
+            address.Text = shellTitle;
+            var entries = new List<Entry>();
+            string f = filter?.Text ?? "";
+            bool bin = IsRecycleBin(ShellTarget);
+            dynamic folder = ShellFolder(ShellTarget);
+            if (folder == null) { status.Text = "This place is not available."; list.Items.Clear(); return; }
+            try
+            {
+                foreach (dynamic item in folder.Items())
+                {
+                    try
+                    {
+                        string name = item.Name;
+                        if (f.Length > 0 && name.IndexOf(f, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                        bool dir = item.IsFolder;
+                        string path = item.Path;
+                        long size = 0; try { size = item.Size; } catch { }
+                        DateTime modified = DateTime.MinValue; try { modified = item.ModifyDate; } catch { }
+                        string type = "";
+                        try { type = bin ? "From " + folder.GetDetailsOf(item, 1) : (string)item.Type; } catch { }
+                        if (bin) { try { DateTime.TryParse(((string)folder.GetDetailsOf(item, 2)).Replace("\u200e", "").Replace("\u200f", ""), out modified); } catch { } }
+                        entries.Add(new Entry { Path = path, Name = name, Dir = dir, Size = dir ? -1 : size, Modified = modified, Type = string.IsNullOrEmpty(type) ? (dir ? "Folder" : "File") : type, Item = item });
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception e) { status.Text = e.Message; }
+            Fill(entries.OrderByDescending(e => e.Dir).ThenBy(e => e.Name, NaturalComparer.Instance).ToList(), keep);
+            status.Text = bin ? (entries.Count == 0 ? "The Recycle Bin is empty." : entries.Count + " deleted items · right-click to restore or delete for good")
+                              : entries.Count(e => e.Dir) + " folders, " + entries.Count(e => !e.Dir) + " items" + (IsZip(ShellTarget) || IsInsideZip(ShellTarget) ? " in the ZIP · right-click a file to extract it" : "");
+        }
         void Load(string select)
         {
             if (current == null || list == null) return;
-            var keep = select != null ? new HashSet<string>(new[] { select }, StringComparer.OrdinalIgnoreCase) : new HashSet<string>(list.SelectedItems.OfType<ListBoxItem>().Select(i => ((Entry)i.Tag).Path), StringComparer.OrdinalIgnoreCase);
+            var keep = select != null ? new HashSet<string>(new[] { select }, StringComparer.OrdinalIgnoreCase) : new HashSet<string>(list.SelectedItems.OfType<ListBoxItem>().Select(i => ((Entry)i.Tag).Path ?? ""), StringComparer.OrdinalIgnoreCase);
+            if (InShell) { LoadShell(keep); return; }
             address.Text = current;
             var entries = new List<Entry>();
             string f = filter?.Text ?? "";
@@ -246,10 +387,10 @@ namespace Baka.Desktop
             foreach (var e in entries)
             {
                 var g = Columns();
-                var img = new Image { Source = Icons.ForFile(e.Path, 32), Width = 20, Height = 20, HorizontalAlignment = HorizontalAlignment.Left };
+                var img = new Image { Source = Icons.ForFile(e.Path, 32, e.Dir), Width = 20, Height = 20, HorizontalAlignment = HorizontalAlignment.Left };
                 g.Children.Add(img);
                 var n = Ui.Text(e.Name, 13); Grid.SetColumn(n, 1); g.Children.Add(n);
-                var d = Ui.Text(e.Modified.ToString("d MMM yyyy  HH:mm"), 12, null, Theme.Muted); Grid.SetColumn(d, 2); g.Children.Add(d);
+                var d = Ui.Text(e.Modified.Year < 1990 ? "" : e.Modified.ToString("d MMM yyyy  HH:mm"), 12, null, Theme.Muted); Grid.SetColumn(d, 2); g.Children.Add(d);
                 var t = Ui.Text(e.Type, 12, null, Theme.Muted); Grid.SetColumn(t, 3); g.Children.Add(t);
                 var s = Ui.Text(e.Dir ? "" : FormatSize(e.Size), 12, null, Theme.Muted); s.TextAlignment = TextAlignment.Right; Grid.SetColumn(s, 4); g.Children.Add(s);
                 var item = new ListBoxItem { Content = g, Tag = e, Padding = new Thickness(10, 5, 10, 5), Foreground = Theme.Text };
@@ -301,8 +442,58 @@ namespace Baka.Desktop
 
         // ---- actions ----
         List<string> Selection() => list.SelectedItems.OfType<ListBoxItem>().Select(i => ((Entry)i.Tag).Path).ToList();
+        List<Entry> SelectedEntries() => list.SelectedItems.OfType<ListBoxItem>().Select(i => (Entry)i.Tag).ToList();
+        // Recycle Bin, ZIP and network items: the actions Windows offers for them (Restore, Delete, Extract…).
+        void ShellMenu()
+        {
+            var sel = SelectedEntries(); var items = new List<object>();
+            bool bin = IsRecycleBin(ShellTarget);
+            if (sel.Count == 1 && !bin) items.Add(Ui.Item("Open", 0xE8E5, () => ActivateShell(sel[0]), "Enter"));
+            if (bin && sel.Count > 0)
+            {
+                items.Add(Ui.Item("Restore", 0xE777, () => { foreach (var e in sel) Verb(e, "undelete"); }));
+                items.Add(Ui.Item("Delete for good", 0xE74D, () => { foreach (var e in sel) Verb(e, "delete"); }));
+            }
+            else if (sel.Count == 1)
+            {
+                try
+                {
+                    foreach (dynamic v in ((dynamic)sel[0].Item).Verbs())
+                    {
+                        string n = ((string)v.Name ?? "").Replace("&", "").Trim(); dynamic verb = v;
+                        if (n.Length == 0 || n.Equals("Open", StringComparison.OrdinalIgnoreCase)) continue;
+                        items.Add(Ui.Item(n, 0, () => { try { verb.DoIt(); } catch { } ReloadSoon(); }));
+                    }
+                }
+                catch { }
+            }
+            if (sel.Count > 0 && (IsZip(ShellTarget) || IsInsideZip(ShellTarget)))
+                items.Add(Ui.Item("Extract to " + Path.GetFileName(Path.GetDirectoryName(ZipFile(ShellTarget))), 0xE8B7, () => ExtractItems(sel)));
+            if (bin)
+            {
+                if (items.Count > 0) items.Add("-");
+                items.Add(Ui.Item("Restore all", 0xE777, () => { foreach (var e in AllEntries()) Verb(e, "undelete"); }, null, list.Items.Count > 0));
+                items.Add(Ui.Item("Empty Recycle Bin", 0xE74D, () => { Native.SHEmptyRecycleBin(Handle, null, 0); ReloadSoon(); }, null, list.Items.Count > 0));
+            }
+            if (sel.Count == 1 && !bin) { if (items.Count > 0) items.Add("-"); items.Add(Ui.Item("Properties", 0xE946, () => Verb(sel[0], "properties"))); }
+            if (items.Count > 0) Ui.ShowMenu(list, items.ToArray());
+        }
+        List<Entry> AllEntries() => list.Items.OfType<ListBoxItem>().Select(i => (Entry)i.Tag).ToList();
+        void Verb(Entry e, string verb) { try { ((dynamic)e.Item).InvokeVerb(verb); } catch (Exception x) { Log.Write("shell-verb-failed verb=" + verb + " error=\"" + x.Message + "\""); } ReloadSoon(); }
+        void ReloadSoon() { reloadTimer.Stop(); reloadTimer.Interval = TimeSpan.FromMilliseconds(700); reloadTimer.Start(); }
+        static string ZipFile(string p) { int i = p.IndexOf(".zip", StringComparison.OrdinalIgnoreCase); return i > 0 ? p.Substring(0, i + 4) : p; }
+        // Copies items out of the ZIP into the folder that holds it (Windows does the unpacking).
+        void ExtractItems(List<Entry> sel)
+        {
+            string target = Path.GetDirectoryName(ZipFile(ShellTarget));
+            dynamic dest = ShellFolder(target);
+            if (dest == null) return;
+            foreach (var e in sel) { try { dest.CopyHere(e.Item, 16 /*yes to all*/); } catch (Exception x) { Log.Write("zip-extract-failed error=\"" + x.Message + "\""); } }
+            status.Text = "Extracted " + sel.Count + " item" + (sel.Count == 1 ? "" : "s") + " to " + target;
+        }
         void ItemMenu()
         {
+            if (InShell) { ShellMenu(); return; }
             var sel = Selection();
             var items = new List<object>();
             if (sel.Count > 0)
@@ -319,10 +510,11 @@ namespace Baka.Desktop
                 items.Add(Ui.Item("Cut", 0xE8C6, () => ToClipboard(sel, true), "Ctrl+X"));
                 items.Add(Ui.Item("Copy", 0xE8C8, () => ToClipboard(sel, false), "Ctrl+C"));
             }
-            items.Add(Ui.Item("Paste", 0xE77F, Paste, "Ctrl+V", Clipboard.ContainsFileDropList()));
+            bool canPaste; try { canPaste = Clipboard.ContainsFileDropList(); } catch { canPaste = false; }
+            items.Add(Ui.Item("Paste", 0xE77F, Paste, "Ctrl+V", canPaste));
             if (sel.Count > 0)
             {
-                items.Add(Ui.Item("Copy path", 0xE71B, () => Clipboard.SetText(string.Join(Environment.NewLine, sel))));
+                items.Add(Ui.Item("Copy path", 0xE71B, () => { try { Clipboard.SetText(string.Join(Environment.NewLine, sel)); } catch { status.Text = "The clipboard is in use by another app. Try again."; } }));
                 if (sel.Count == 1) items.Add(Ui.Item("Rename", 0xE8AC, () => Rename(sel[0]), "F2"));
                 items.Add(Ui.Item("Delete", 0xE74D, () => Delete(sel, false), "Del"));
                 if (sel.Count == 1 && sel[0].EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) items.Add(Ui.Item("Extract here", 0xE8B7, () => Extract(sel[0])));
@@ -343,12 +535,15 @@ namespace Baka.Desktop
         {
             var data = new DataObject(); var col = new StringCollection(); col.AddRange(paths.ToArray()); data.SetFileDropList(col);
             data.SetData("Preferred DropEffect", new MemoryStream(BitConverter.GetBytes(cut ? 2 : 5)));
-            Clipboard.SetDataObject(data, true);
+            // the clipboard can be briefly held by another app (clipboard managers, remote desktop): retry
+            for (int i = 0; ; i++) { try { Clipboard.SetDataObject(data, true); break; } catch (System.Runtime.InteropServices.COMException) when (i < 5) { System.Threading.Thread.Sleep(60); } catch (Exception e) { status.Text = "The clipboard is in use by another app. Try again."; Log.Write("clipboard-failed error=\"" + e.Message + "\""); return; } }
             status.Text = (cut ? "Cut " : "Copied ") + paths.Count + " item" + (paths.Count == 1 ? "" : "s");
         }
         void Paste()
         {
-            if (!Clipboard.ContainsFileDropList()) return;
+            if (InShell) return;
+            bool has; try { has = Clipboard.ContainsFileDropList(); } catch { return; } // another app holding the clipboard
+            if (!has) return;
             var files = Clipboard.GetFileDropList().Cast<string>().ToList();
             bool cut = false;
             try { if (Clipboard.GetData("Preferred DropEffect") is MemoryStream ms) { var b = new byte[4]; ms.Read(b, 0, 4); cut = (BitConverter.ToInt32(b, 0) & 2) != 0; } } catch { }
@@ -358,15 +553,18 @@ namespace Baka.Desktop
         void Transfer(List<string> files, string target, bool move)
         {
             var h = Handle;
-            Task.Run(() => Native.FileOperation(h, move ? Native.FO_MOVE : Native.FO_COPY, files, target, true)).ContinueWith(t => Dispatcher.BeginInvoke(new Action(() => { Load(null); Log.Write("files-" + (move ? "moved" : "copied") + " count=" + files.Count + " ok=" + t.Result); })));
+            ShellTask(() => Native.FileOperation(h, move ? Native.FO_MOVE : Native.FO_COPY, files, target, true)).ContinueWith(t => Dispatcher.BeginInvoke(new Action(() => { Load(null); Log.Write("files-" + (move ? "moved" : "copied") + " count=" + files.Count + " ok=" + t.Result); })));
         }
         void Delete(List<string> paths, bool permanent)
         {
             if (paths.Count == 0) return;
             var h = Handle;
             // Windows asks for confirmation itself (and puts the items in the Recycle Bin).
-            Task.Run(() => Native.FileOperation(h, Native.FO_DELETE, paths, null, !permanent)).ContinueWith(t => Dispatcher.BeginInvoke(new Action(() => Load(null))));
+            ShellTask(() => Native.FileOperation(h, Native.FO_DELETE, paths, null, !permanent)).ContinueWith(t => Dispatcher.BeginInvoke(new Action(() => Load(null))));
         }
+        // Windows' copy engine (progress, "replace or skip", Recycle Bin) expects a single-threaded apartment
+        // thread; on a pool thread it sometimes fails without saying why.
+        static Task<bool> ShellTask(Func<bool> op) => Task.Factory.StartNew(() => { try { return op(); } catch (Exception e) { Log.Write("file-operation-failed error=\"" + e.Message + "\""); return false; } }, System.Threading.CancellationToken.None, TaskCreationOptions.LongRunning, StaScheduler.Instance);
         void Rename(string path)
         {
             string old = Path.GetFileName(path);
@@ -379,6 +577,7 @@ namespace Baka.Desktop
         }
         void NewFolder()
         {
+            if (InShell || current == null) return;
             string name = "New folder"; int i = 2;
             while (Directory.Exists(Path.Combine(current, name)) || File.Exists(Path.Combine(current, name))) name = "New folder (" + i++ + ")";
             try { var p = Path.Combine(current, name); Directory.CreateDirectory(p); Load(p); Rename(p); }
@@ -422,6 +621,21 @@ namespace Baka.Desktop
             bool ctrl = (Keyboard.Modifiers & ModifierKeys.Control) != 0, alt = (Keyboard.Modifiers & ModifierKeys.Alt) != 0, shift = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
             var key = e.Key == Key.System ? e.SystemKey : e.Key;
             if (address.IsKeyboardFocused || (filter.IsKeyboardFocused && key != Key.Escape)) { if (ctrl && key == Key.F) { filter.Focus(); e.Handled = true; } return; }
+            if (InShell)
+            {
+                // only navigation here: the shell items have no paths on disk to copy, rename or delete
+                if (alt && key == Key.Left) Go(back, forward);
+                else if (alt && key == Key.Right) Go(forward, back);
+                else if ((alt && key == Key.Up) || key == Key.Back) Up();
+                else if (key == Key.Enter && list.SelectedItem is ListBoxItem si) Activate(si.Tag as Entry);
+                else if (key == Key.F5) Load(null);
+                else if (ctrl && key == Key.F) filter.Focus();
+                else if (ctrl && key == Key.L) { address.Focus(); address.SelectAll(); }
+                else if (ctrl && key == Key.W) Close();
+                else if (key == Key.Escape) { if (filter.Text.Length > 0) filter.Clear(); else Close(); }
+                else return;
+                e.Handled = true; return;
+            }
             var sel = Selection();
             if (alt && key == Key.Left) Go(back, forward);
             else if (alt && key == Key.Right) Go(forward, back);
@@ -447,19 +661,62 @@ namespace Baka.Desktop
 
         // ---- drag and drop ----
         Point dragStart; bool dragArmed;
+        Canvas marqueeLayer; System.Windows.Shapes.Rectangle marqueeBox; Point marqueeStart; bool marqueeing;
         void StartDrag(object sender, MouseEventArgs e)
         {
-            if (e.LeftButton != MouseButtonState.Pressed) { dragArmed = false; return; }
+            if (marqueeing) { UpdateMarquee(e.GetPosition(list)); return; }
+            if (e.LeftButton != MouseButtonState.Pressed || InShell) { dragArmed = false; return; }
             var pos = e.GetPosition(list);
             if (!dragArmed) { dragStart = pos; dragArmed = Ancestor<ListBoxItem>(e.OriginalSource as DependencyObject) != null; return; }
             if (Math.Abs(pos.X - dragStart.X) < 6 && Math.Abs(pos.Y - dragStart.Y) < 6) return;
-            var sel = Selection(); if (sel.Count == 0) return;
+            var sel = Selection(); if (sel.Count == 0) { dragArmed = false; return; }
             dragArmed = false;
             DragDrop.DoDragDrop(list, new DataObject(DataFormats.FileDrop, sel.ToArray()), DragDropEffects.Copy | DragDropEffects.Move | DragDropEffects.Link);
         }
+
+        // Rubber-band selection, like File Explorer: dragging from empty space draws a box and selects the
+        // file rows it touches. Dragging from a row still moves the selected files. Ctrl/Shift+click and
+        // Ctrl+A keep working (the ListBox is in Extended mode). R15 had no marquee, so the only way to pick
+        // several files was Ctrl+click, which is easy to miss.
+        void BeginMarquee(MouseButtonEventArgs e)
+        {
+            if (marqueeLayer == null || Ancestor<ListBoxItem>(e.OriginalSource as DependencyObject) != null) return;
+            marqueeing = true; marqueeStart = e.GetPosition(list);
+            if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == 0) list.SelectedItems.Clear();
+            Canvas.SetLeft(marqueeBox, marqueeStart.X); Canvas.SetTop(marqueeBox, marqueeStart.Y);
+            marqueeBox.Width = 0; marqueeBox.Height = 0; marqueeBox.Visibility = Visibility.Visible;
+            list.CaptureMouse();
+        }
+        void UpdateMarquee(Point p)
+        {
+            double x = Math.Min(p.X, marqueeStart.X), y = Math.Min(p.Y, marqueeStart.Y), w = Math.Abs(p.X - marqueeStart.X), h = Math.Abs(p.Y - marqueeStart.Y);
+            Canvas.SetLeft(marqueeBox, x); Canvas.SetTop(marqueeBox, y); marqueeBox.Width = w; marqueeBox.Height = h;
+            var box = new Rect(x, y, w, h);
+            bool additive = (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0;
+            for (int i = 0; i < list.Items.Count; i++)
+            {
+                if (!(list.ItemContainerGenerator.ContainerFromIndex(i) is ListBoxItem row) || !row.IsVisible) continue;
+                Rect r; try { r = row.TransformToVisual(list).TransformBounds(new Rect(0, 0, row.ActualWidth, row.ActualHeight)); } catch { continue; }
+                bool hit = box.IntersectsWith(r);
+                if (hit) row.IsSelected = true; else if (!additive) row.IsSelected = false;
+            }
+        }
+        void EndMarquee()
+        {
+            if (!marqueeing) return;
+            marqueeing = false; marqueeBox.Visibility = Visibility.Collapsed;
+            if (list.IsMouseCaptured) list.ReleaseMouseCapture();
+        }
+        // self-test: Extended multi-select works (returns 2 when the first two rows are selected)
+        public int TestMultiSelect()
+        {
+            list.UpdateLayout();
+            for (int i = 0; i < Math.Min(2, list.Items.Count); i++) if (list.ItemContainerGenerator.ContainerFromIndex(i) is ListBoxItem r) r.IsSelected = true;
+            return list.SelectedItems.Count;
+        }
         void OnDrop(object sender, DragEventArgs e)
         {
-            if (!(e.Data.GetData(DataFormats.FileDrop) is string[] files) || files.Length == 0) return;
+            if (InShell || !(e.Data.GetData(DataFormats.FileDrop) is string[] files) || files.Length == 0) return;
             string target = current;
             var onto = Ancestor<ListBoxItem>(e.OriginalSource as DependencyObject);
             if (onto?.Tag is Entry en && en.Dir) target = en.Path;

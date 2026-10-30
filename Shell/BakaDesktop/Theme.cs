@@ -23,6 +23,10 @@ namespace Baka.Desktop
         public static string AccentHex;
         public static event Action Changed;
         public static Brush Canvas, Surface, SurfaceAlt, Text, Muted, Border, Accent, Accent2, Glass, Hover, Pressed, Rim;
+        // A fixed cyan used for live data (widget graphs, meters, gaming readouts) so numbers read at a glance
+        // without fighting the mono theme. Independent of the user's accent.
+        public static Brush Data;
+        public static string DataHex = "#22D3EE";
 
         static readonly Dictionary<string, (string shape, string fill, string mark)> Packs = new Dictionary<string, (string, string, string)>
         {
@@ -65,8 +69,13 @@ namespace Baka.Desktop
             bool opaque = Current.Backdrop == "Opaque" || App.GameRunning || System.Windows.SystemParameters.HighContrast;
             byte alpha = (byte)(opaque ? 250 : Math.Max(150, 240 - glass * 2));
             Canvas = B(Current.Canvas); Surface = B(Current.Surface, alpha); SurfaceAlt = B(Current.SurfaceAlt, 230); Text = B(Current.Text); Muted = B(Current.Muted);
-            Border = B(Current.Border, 110); Accent = B(AccentHex); Accent2 = B(Current.Accent2); Glass = B(Current.Surface, alpha);
+            // Glass / transparency: the slider (appearance.glassIntensity, 0-90) sets how see-through the
+            // dock, menu bar and widgets are. There is no system blur behind them (it drew square corners),
+            // so this is a straight tint over the wallpaper: 0 = solid, 90 = very see-through.
+            byte glassAlpha = (byte)(opaque ? 250 : Math.Max(70, 245 - glass * 2));
+            Border = B(Current.Border, 110); Accent = B(AccentHex); Accent2 = B(Current.Accent2); Glass = B(Current.Surface, glassAlpha);
             Hover = B(Current.Text, 22); Pressed = B(Current.Text, 40); Rim = B("#FFFFFF", (byte)(Current.Pop ? 210 : 40));
+            Data = B(DataHex);
             Icons.ClearCache();
             Changed?.Invoke();
         }
@@ -81,6 +90,9 @@ namespace Baka.Desktop
         public static Color Mix(Color a, Color b, double t) => Color.FromArgb((byte)(a.A + (b.A - a.A) * t), (byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
         // Readable text on a coloured background (dark ink on light accents, white on dark).
         public static Brush OnColor(string hex) { var c = C(hex); return (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) > 150 ? B("#0B0B0E") : B("#FFFFFF"); }
-        public static bool Motion => App.Settings != null && Json.Str(App.Settings.Appearance, "animationIntensity", "Full") != "Off" && !Json.Bool(App.Settings.Appearance, "reducedMotion") && !App.GameRunning && System.Windows.SystemParameters.ClientAreaAnimation;
+        // Animations run in the Desktop profile only: a game, or the Gaming / Benchmark profile chosen by hand,
+        // turns them all off (nothing animates, nothing redraws in the background).
+        public static bool Motion => App.Settings != null && Json.Str(App.Settings.Appearance, "animationIntensity", "Full") != "Off" && !Json.Bool(App.Settings.Appearance, "reducedMotion") && !App.GameRunning
+            && Profiles.Active != "CompetitiveGaming" && Profiles.Active != "Benchmark" && System.Windows.SystemParameters.ClientAreaAnimation;
     }
 }

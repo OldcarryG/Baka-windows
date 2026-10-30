@@ -1,6 +1,11 @@
 # BAKA Windows Gaming Edition: decisions
 
-Updated: 2026-10-29 (R13)
+Updated: 2026-10-30 (BAKA Desktop 12.27.1)
+
+## Releases (2026-10-30)
+
+- **No more new ISOs.** R15 is the last ISO for now. Every change since R15 is inside BakaDesktop.exe, so BAKA Windows is updated through BAKA Desktop releases on GitHub: a zip with BakaDesktop.exe, its SHA-256 and an installer (`Tools/Install-BakaDesktop.cmd`, `Tools/Update-BakaDesktop.ps1`) that replaces only `C:\ProgramData\BAKA\Desktop\BakaDesktop.exe`, keeps the previous file for a rollback and pre-compiles the new one with NGen. A new ISO is built only when Microsoft releases a Windows update worth building into the image (a new build or a feature that BAKA should ship with). Windows' own monthly updates arrive through Windows Update as on any PC.
+- BAKA Desktop releases are tagged `desktop-<version>`; ISO releases keep the `r<number>-<date>` tags. Changes are listed in `docs/CHANGELOG_DESKTOP.md`.
 
 ## Base image
 
@@ -21,6 +26,12 @@ Updated: 2026-10-29 (R13)
 - **Video wallpaper (R14)** uses MFPlay (Media Foundation) drawing into a native child window of the desktop's WorkerW, instead of WPF's MediaElement. MediaElement copies every decoded frame into WPF's composition, which costs CPU at 4K; MFPlay presents GPU-decoded frames directly through the Enhanced Video Renderer. MFPlay is documented by Microsoft as legacy (IMFMediaEngine is the successor), but it is still part of Windows 11 26H2 and needs no extra runtime; switching to IMFMediaEngine would need a D3D11 swap chain and is left for later. The player thread runs without MMCSS priority so it never competes with the app in front. The wallpaper pauses when any maximized or fullscreen window covers the primary monitor (not only the foreground one), on battery and when locked, and is shut down in games.
 - **Keyboard hook (R14)** is uninstalled while a game runs and reinstalled after, because a low-level keyboard hook delays every key press of every app until BAKA's thread answers. It runs on its own time-critical thread with an empty message loop, not on the UI thread: on the UI thread a busy frame (layout, rendering) held key presses back, which showed as 0.7 to 1.1 ms at the 99th percentile in Desktop mode. With "Windows key opens Launchpad" off, no hook is installed at all. BAKA's window-event hooks (BAKA window buttons) are also removed during games.
 - **Window moves (R13)**: BAKA Files, Settings and Arena use the Mica backdrop instead of Acrylic, because Acrylic re-blurs the screen behind the window on every frame of a drag. BAKA's glass panels show a solid card while they are dragged instead of turning transparent.
+
+## Desktop (BAKA Desktop 12.27)
+
+- **FPS counter** reads Windows' graphics event log (ETW: DXGI present events, Direct3D 9 present events, and the kernel's DxgKrnl present events as a fallback for Vulkan and OpenGL), with Windows' event-ID filter so only one event per frame reaches BAKA. Injecting into games (the way RTSS works) was rejected because of anti-cheat. Reading these events needs membership in the built-in Performance Log Users group; BAKA asks once (Settings > Focus & games, an administrator prompt) instead of running an elevated helper all the time.
+- **GPU temperature, power and video memory** come from NVIDIA's NVML library that ships with the driver. Other GPUs show the load from Windows' GPU performance counters only.
+- **Windows' duplicate notification banners** are turned off per app (`HKCU\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\<app>\ShowBanner=0`) while BAKA shows its own pop-ups; the previous values are saved and restored. Windows' global Do Not Disturb has no public API, and turning toasts off globally would also empty Windows' notification list, which BAKA reads.
 
 ## Apps
 
