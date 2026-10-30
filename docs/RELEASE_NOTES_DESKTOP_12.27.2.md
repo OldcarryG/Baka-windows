@@ -42,7 +42,8 @@ On a real PC (Intel i5-14400F, RTX 5060, Windows 11 Pro 26H2 build 26300.9711):
 - Installed over 12.27.1 from this zip with Install-BakaDesktop.cmd (extracted into a folder with a space in its name). It checked the SHA-256, kept 12.27.1 as `BakaDesktop.exe.previous`, pre-compiled the new one and restarted BAKA Desktop as 12.27.2. No errors in BAKA's log afterwards.
 - WebP: a WebP picture set with `--wallpaper` was converted by "Microsoft Webp Decoder" in about 60 ms (a 550×368 picture) and became the desktop picture through its PNG. The setting kept the WebP file. The previous video wallpaper was then put back and played again.
 - Date switch: the update set it to off once (settings revision 18), and the clock island read "20:15", the time only, as before.
-- Source checks (project configuration, desktop configuration, dock contrast, game detection, gaming profiles, system tuning, release-pipeline guards) pass, and GitHub Actions runs the BAKA Desktop self-test, including the new date check, for this commit.
+- Source checks pass: project configuration (97 passed, 3 skipped for the ISO inputs), desktop configuration, dock contrast, game detection, gaming profiles, system tuning and release-pipeline guards.
+- GitHub Actions built this commit and ran the BAKA Desktop self-test: 66 passed, 0 failed. That includes the new date check in both positions ("Fri 30 Oct   14:49" with the switch on, "14:49" with it off).
 
 ## Known issues
 
