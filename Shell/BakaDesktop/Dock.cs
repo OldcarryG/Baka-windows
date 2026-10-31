@@ -438,7 +438,10 @@ namespace Baka.Desktop
         void AutoHideTick()
         {
             if (Handle == IntPtr.Zero || !IsVisible) return;
-            bool on = AutoHiding && !App.GameRunning;
+            // a fullscreen game is in front and the dock waits behind it: the pointer at the screen edge (aiming
+            // in a game) must not slide it in and out
+            if (App.BehindFullscreen) return;
+            bool on = AutoHiding && !App.BakaHidden;
             // auto-hide off: the edge check stops completely (it ran 8 times a second for nothing, part of the
             // idle CPU the benchmark showed); Place / Show start it again when auto-hide is turned on
             if (!on) { if (collapsed) Slide(false); else autoHideTimer.Stop(); return; }
@@ -508,7 +511,7 @@ namespace Baka.Desktop
             // Auto-hide: if it is on and the pointer isn't on the dock or its screen edge, tuck the whole
             // window off-screen right now (not just on the next timer tick), so enabling it hides immediately
             // and no icon-less bar is ever left behind.
-            if (AutoHiding && !App.GameRunning && !IsMouseOver && !CursorAtEdge())
+            if (AutoHiding && !App.BakaHidden && !IsMouseOver && !CursorAtEdge())
             {
                 collapsed = true;
                 if (Edge == "Left") Left = -(ActualWidth + 60);

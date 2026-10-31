@@ -18,7 +18,7 @@ namespace Baka.Desktop
         static Snip current;
         public static void Start()
         {
-            if (current != null || App.GameRunning) return;
+            if (current != null || App.BakaHidden) return;
             try { current = new Snip(); current.Show(); current.Activate(); }
             catch (Exception e) { current = null; Log.Write("snip-failed error=\"" + e.Message + "\""); }
         }

@@ -23,9 +23,93 @@ namespace Baka.Desktop
             (@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "EnableTransparency", 0),
             (@"Control Panel\Desktop", "MinAnimate", "0"),
             (@"Software\Microsoft\GameBar", "AutoGameModeEnabled", 1),
-            (@"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications", "GlobalUserDisabled", 1),
+            // Windows' global "Let apps run in the background" switch (GlobalUserDisabled) is no longer used: it
+            // stopped every Store app at once (WhatsApp lost its messages during a game) with no way to keep one.
+            // Background apps are now paused one by one, below, so the ones the user needs keep running. A
+            // baseline saved by an earlier version still lists GlobalUserDisabled and puts it back on restore.
             (@"System\GameConfigStore", "GameDVR_Enabled", 0),
         };
+
+        // ---- background apps: Store apps Windows lets run in the background, paused one by one in games ----
+        // Each app's own switch is what Windows' "Background app permissions: Never" sets (Disabled and
+        // DisabledByUser under the app's key). Desktop programs (Discord, Steam, Salad, Honeygain...) are not
+        // Store apps and are never touched. Windows' own parts (Start, Windows Security, Xbox sign-in, the
+        // Store's purchase helper, the app runtime) are left alone.
+        const string BackgroundKey = @"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications";
+        static readonly string[] SystemPackages =
+        {
+            "Microsoft.Windows.", "MicrosoftWindows.", "MicrosoftCorporationII.WinAppRuntime.", "Microsoft.SecHealthUI_",
+            "Microsoft.XboxIdentityProvider_", "Microsoft.Xbox.TCUI_", "Microsoft.StorePurchaseApp_", "Microsoft.DesktopAppInstaller_",
+            "Microsoft.WindowsAppRuntime.", "Microsoft.VCLibs.", "Microsoft.UI.Xaml."
+        };
+        public static bool PauseBackgroundApps => App.Settings == null || Json.Bool(App.Settings.Gaming, "pauseBackgroundApps", true);
+        static List<object> AllowedList => Json.Arr(App.Settings == null ? null : Json.Get(App.Settings.Gaming, "backgroundAllowed"));
+        public static bool AllowedInBackground(string pfn) => AllowedList.Any(x => string.Equals(x?.ToString(), pfn, StringComparison.OrdinalIgnoreCase));
+        public static void SetAllowedInBackground(string pfn, bool allowed)
+        {
+            var list = AllowedList.Where(x => !string.Equals(x?.ToString(), pfn, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (allowed) list.Add(pfn);
+            App.Settings.Gaming["backgroundAllowed"] = list;
+            App.Settings.Save();
+            BackgroundAppsChanged();
+        }
+        // The Store apps Windows knows about for background access, by package family name.
+        public static List<string> BackgroundPackages()
+        {
+            try
+            {
+                using (var k = Registry.CurrentUser.OpenSubKey(BackgroundKey))
+                    return (k?.GetSubKeyNames() ?? new string[0]).Where(n => !SystemPackages.Any(s => n.StartsWith(s, StringComparison.OrdinalIgnoreCase)))
+                        .OrderBy(PackageName, StringComparer.OrdinalIgnoreCase).ToList();
+            }
+            catch { return new List<string>(); }
+        }
+        // "5319275A.WhatsAppDesktop_cv1g1gvanyjgm" -> "WhatsApp" (the name in the app list), else "WhatsAppDesktop"
+        public static string PackageName(string pfn)
+        {
+            var app = AppCatalog.Apps.FirstOrDefault(a => !string.IsNullOrEmpty(a.AppId) && a.AppId.StartsWith(pfn + "!", StringComparison.OrdinalIgnoreCase));
+            if (app != null) return app.Name;
+            string n = pfn.Split('_')[0]; int dot = n.IndexOf('.');
+            return dot >= 0 && dot < n.Length - 1 ? n.Substring(dot + 1) : n;
+        }
+        static List<object> SnapshotBackgroundApps() => BackgroundPackages().Select(pfn =>
+        {
+            string p = BackgroundKey + "\\" + pfn; object d = Read(p, "Disabled"), u = Read(p, "DisabledByUser");
+            return (object)new Dictionary<string, object> { ["pfn"] = pfn, ["disabledExisted"] = d != null, ["disabled"] = d, ["byUserExisted"] = u != null, ["byUser"] = u };
+        }).ToList();
+        static void RestoreBackgroundApp(Dictionary<string, object> a)
+        {
+            string p = BackgroundKey + "\\" + Json.Str(a, "pfn");
+            if (Json.Bool(a, "disabledExisted")) Write(p, "Disabled", Json.Get(a, "disabled")); else Delete(p, "Disabled");
+            if (Json.Bool(a, "byUserExisted")) Write(p, "DisabledByUser", Json.Get(a, "byUser")); else Delete(p, "DisabledByUser");
+        }
+        // Pauses every app of the saved baseline that is not allowed, and gives allowed ones their own setting back.
+        static void ApplyBackgroundApps(IEnumerable<Dictionary<string, object>> apps)
+        {
+            int paused = 0, kept = 0;
+            foreach (var a in apps)
+            {
+                string pfn = Json.Str(a, "pfn"); if (pfn.Length == 0) continue;
+                try
+                {
+                    if (PauseBackgroundApps && !AllowedInBackground(pfn)) { string p = BackgroundKey + "\\" + pfn; Write(p, "Disabled", 1); Write(p, "DisabledByUser", 1); paused++; }
+                    else { RestoreBackgroundApp(a); kept++; }
+                }
+                catch (Exception e) { Log.Write("background-app-failed pfn=" + pfn + " error=\"" + e.Message + "\""); }
+            }
+            Log.Write("background-apps paused=" + paused + " kept=" + kept);
+        }
+        static IEnumerable<Dictionary<string, object>> BaselineApps()
+        {
+            try { return Json.Arr(Json.Get(Json.Obj(Json.Parse(File.ReadAllText(StatePath))), "apps")).Select(Json.Obj).Where(a => a != null).ToList(); }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+        // Settings changed while the Gaming profile is on: pause or let go of apps at once.
+        public static void BackgroundAppsChanged()
+        {
+            if (Active != "CompetitiveGaming" || !File.Exists(StatePath)) return;
+            ApplyBackgroundApps(BaselineApps());
+        }
         static string StatePath => Path.Combine(Paths.State, "profile-baseline.json");
         static Dictionary<string, object> preview = new Dictionary<string, object>();
 
@@ -54,9 +138,10 @@ namespace Baka.Desktop
             if (!File.Exists(StatePath))
             {
                 var snap = Values.Select(v => (object)new Dictionary<string, object> { ["path"] = v.path, ["name"] = v.name, ["existed"] = Read(v.path, v.name) != null, ["value"] = Read(v.path, v.name) }).ToList();
-                File.WriteAllText(StatePath, Json.Write(new Dictionary<string, object> { ["schemaVersion"] = 1, ["values"] = snap, ["savedAt"] = DateTime.Now.ToString("o") }));
+                File.WriteAllText(StatePath, Json.Write(new Dictionary<string, object> { ["schemaVersion"] = 1, ["values"] = snap, ["apps"] = SnapshotBackgroundApps(), ["savedAt"] = DateTime.Now.ToString("o") }));
             }
             foreach (var v in Values) Write(v.path, v.name, v.value);
+            ApplyBackgroundApps(BaselineApps());
         }
         static void Restore()
         {
@@ -66,6 +151,10 @@ namespace Baka.Desktop
             {
                 string p = Json.Str(item, "path"), n = Json.Str(item, "name");
                 if (Json.Bool(item, "existed")) Write(p, n, Json.Get(item, "value")); else Delete(p, n);
+            }
+            foreach (var a in Json.Arr(Json.Get(doc, "apps")).Select(Json.Obj).Where(a => a != null))
+            {
+                try { RestoreBackgroundApp(a); } catch (Exception e) { Log.Write("background-app-restore-failed pfn=" + Json.Str(a, "pfn") + " error=\"" + e.Message + "\""); }
             }
             File.Delete(StatePath);
         }

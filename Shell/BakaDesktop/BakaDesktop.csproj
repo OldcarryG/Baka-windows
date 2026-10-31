@@ -13,7 +13,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>BakaDesktop</AssemblyName>
     <RootNamespace>Baka.Desktop</RootNamespace>
-    <Version>12.27.3</Version>
+    <Version>12.28.0</Version>
     <Company>BAKA</Company>
     <Product>BAKA Desktop</Product>
     <ApplicationManifest>app.manifest</ApplicationManifest>

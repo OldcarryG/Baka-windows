@@ -272,7 +272,7 @@ namespace Baka.Desktop
             // alarms and calls keep Windows' own banner (see WindowsBanners): no second pop-up from BAKA
             if (WindowsBanners.Wanted && WindowsBanners.Keeps(n.AppId)) return;
             if (FocusMode.On) { FocusMode.Held(); return; } // Focus (also on by itself in games): counted for the summary
-            if (App.GameRunning) return;
+            if (App.BakaHidden) return; // "Light": a game without Focus shows pop-ups as on the desktop
             if (open.Count >= 4) open[0].Dismiss(); // a burst (an app sending ten at once) keeps four on screen
             try { new NotificationPopup(n).Appear(); } catch (Exception e) { Log.Write("notification-popup-failed error=\"" + e.Message + "\""); }
         }

@@ -24,7 +24,7 @@ namespace Baka.Desktop
 
         public static void ShowEnabled()
         {
-            if (App.GameRunning) return;
+            if (App.BakaHidden) return;
             bool master = Json.Bool(App.Settings.Widgets, "enabled");
             foreach (var item in App.Settings.WidgetItems.Select(Json.Obj).Where(i => i != null))
             {
@@ -309,7 +309,8 @@ namespace Baka.Desktop
                 if (timerLeft <= 0) { timerRunning = false; timerLeft = 0; try { System.Media.SystemSounds.Asterisk.Play(); } catch { } Log.Write("focus-timer-finished minutes=" + timerMinutes); }
                 UpdateTimer();
             }
-            if (meters.Count > 0 && IsVisible && !App.GameRunning && ++ticks % Math.Max(2, Json.Int(App.Settings.Widgets, "refreshSeconds", 3)) == 0)
+            // in a game the CPU / GPU / network numbers refresh five times less often (BAKA "Light" keeps widgets)
+            if (meters.Count > 0 && IsVisible && !App.BakaHidden && ++ticks % (Math.Max(2, Json.Int(App.Settings.Widgets, "refreshSeconds", 3)) * (App.GameRunning ? 5 : 1)) == 0)
             {
                 var m = Metrics.Latest();
                 foreach (var u in meters) { try { u(m); } catch { } }

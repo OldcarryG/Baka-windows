@@ -46,7 +46,7 @@ namespace Baka.Desktop
                 hookForeground = Native.SetWinEventHook(3 /*EVENT_SYSTEM_FOREGROUND*/, 3, IntPtr.Zero, proc, 0, 0, Native.WINEVENT_OUTOFCONTEXT | Native.WINEVENT_SKIPOWNPROCESS);
                 sweep.Tick -= Sweep; sweep.Tick += Sweep;
                 recolor.Tick -= Recolor; recolor.Tick += Recolor;
-                if (!App.GameRunning) { sweep.Start(); Sweep(null, null); }
+                if (!App.BakaHidden) { sweep.Start(); Sweep(null, null); }
                 Log.Write("caption-buttons on");
             }
             else
@@ -94,7 +94,7 @@ namespace Baka.Desktop
         // in place by events, so the sweep does not touch them (only retries ones that are still hidden).
         static void Sweep(object s, EventArgs e)
         {
-            if (!Enabled || App.GameRunning) return;
+            if (!Enabled || App.BakaHidden) return;
             try
             {
                 var seen = new HashSet<IntPtr>();
@@ -191,9 +191,9 @@ namespace Baka.Desktop
             {
                 if (!Enabled) return;
                 // a window that becomes active jumps to the top, over its BAKA buttons: put them back on it at once
-                if (ev == 3) { if (overlays.Count > 0 && !App.GameRunning) { foreach (var f in overlays.Values) f.KeepAbove(); recolor.Stop(); recolor.Start(); } return; }
+                if (ev == 3) { if (overlays.Count > 0 && !App.BakaHidden) { foreach (var f in overlays.Values) f.KeepAbove(); recolor.Stop(); recolor.Start(); } return; }
                 if (idObject != 0 || idChild != 0 || h == IntPtr.Zero) return; // OBJID_WINDOW only
-                if (!overlays.TryGetValue(h, out var o)) { if (ev == Native.EVENT_OBJECT_SHOW && !App.GameRunning && Eligible(h)) Track(h); return; }
+                if (!overlays.TryGetValue(h, out var o)) { if (ev == Native.EVENT_OBJECT_SHOW && !App.BakaHidden && Eligible(h)) Track(h); return; }
                 switch (ev)
                 {
                     case Native.EVENT_OBJECT_DESTROY: case Native.EVENT_OBJECT_HIDE: Drop(h); break;
@@ -423,7 +423,7 @@ namespace Baka.Desktop
         public void Place(bool resample = false)
         {
             if (IsDisposed) return;
-            if ((moving && !clean) || suspended || App.GameRunning || !Native.IsWindow(target) || !Native.IsWindowVisible(target) || Native.IsIconic(target) || Native.IsCloaked(target)) { if (Visible) Hide(); return; }
+            if ((moving && !clean) || suspended || App.BakaHidden || !Native.IsWindow(target) || !Native.IsWindowVisible(target) || Native.IsIconic(target) || Native.IsCloaked(target)) { if (Visible) Hide(); return; }
             if (!clean && !cleanTried) TryClean();
             // Apps that draw their own title bar (Chromium / Electron like Discord and Kiro, and Store / WinUI
             // apps) cannot have their own buttons removed, so clean mode fails. By default BAKA leaves their

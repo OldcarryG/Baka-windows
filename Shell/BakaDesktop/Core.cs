@@ -140,6 +140,7 @@ namespace Baka.Desktop
         public Dictionary<string, object> Integration => Json.Section(Root, "integration");
         public Dictionary<string, object> Focus => Json.Section(Root, "focus");
         public Dictionary<string, object> Overlay => Json.Section(Root, "overlay");
+        public Dictionary<string, object> Gaming => Json.Section(Root, "gaming");
         public List<object> Pinned { get { if (!(Json.Get(Root, "pinnedApps") is List<object> l)) { l = new List<object>(); Root["pinnedApps"] = l; } return l; } }
         public List<object> WidgetItems { get { if (!(Json.Get(Widgets, "items") is List<object> l)) { l = new List<object>(); Widgets["items"] = l; } return l; } }
 
@@ -176,6 +177,9 @@ namespace Baka.Desktop
             if (Integration.ContainsKey("doNotDisturb")) { if (!Focus.ContainsKey("enabled")) Focus["enabled"] = Json.Bool(Integration, "doNotDisturb"); Integration.Remove("doNotDisturb"); }
             Def(Focus, "enabled", false); Def(Focus, "autoInGames", true); Def(Focus, "hideDock", true); Def(Focus, "pauseWallpaper", true);
             Def(Overlay, "enabled", false); Def(Overlay, "when", "Games"); Def(Overlay, "position", "TopLeft"); Def(Overlay, "detail", "Standard");
+            // 12.28: "Light" keeps the menu bar, dock and Launchpad working in games; "Hidden" is the old way.
+            // Store apps listed in backgroundAllowed keep running in the background while a game runs.
+            Def(Gaming, "desktop", "Light"); Def(Gaming, "pauseBackgroundApps", true); Def(Gaming, "backgroundAllowed", new List<object>());
             // R16: BAKA's painted window buttons can only cover windows with the standard Windows title bar, so
             // every app looked different (BAKA buttons on some, Windows buttons on others, doubled buttons on
             // some). Windows' own buttons are the default again; the BAKA ones stay available in Settings.

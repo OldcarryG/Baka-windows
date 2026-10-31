@@ -20,7 +20,7 @@ namespace Baka.Desktop
         public static void Toggle()
         {
             if (current != null) { current.Close(); return; }
-            if (App.GameRunning) return;
+            if (App.BakaHidden) return;
             current = new Switcher(false); current.Show(); current.Activate();
         }
 
@@ -28,7 +28,7 @@ namespace Baka.Desktop
         // window does not take focus, so holding Alt keeps working. Commit activates on Alt release.
         public static void Step(bool back)
         {
-            if (App.GameRunning) return;
+            if (App.BakaHidden) return;
             if (current == null) { current = new Switcher(true); current.Show(); }
             current.Move(back ? -1 : 1);
         }

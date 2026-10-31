@@ -18,7 +18,9 @@ namespace Baka.Desktop
         public static event Action Changed;
         static Dictionary<string, object> S => App.Settings.Focus;
 
-        public static bool HidesDock => On && App.Settings != null && Json.Bool(S, "hideDock", true);
+        // Focus that a game turned on with BAKA "Light" keeps the dock where it is: in Light the desktop stays
+        // as it is during a game (a fullscreen game covers it anyway)
+        public static bool HidesDock => On && App.Settings != null && Json.Bool(S, "hideDock", true) && !(automatic && App.GameRunning && App.LightGaming);
         public static bool PausesWallpaper => On && App.Settings != null && Json.Bool(S, "pauseWallpaper", true);
 
         public static void Init()

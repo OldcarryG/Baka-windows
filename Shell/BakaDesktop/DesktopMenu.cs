@@ -13,7 +13,7 @@ namespace Baka.Desktop
     static class DesktopMenu
     {
         static Catcher catcher;
-        public static bool Wanted => App.Settings != null && !Paths.Preview && !App.GameRunning
+        public static bool Wanted => App.Settings != null && !Paths.Preview && !App.BakaHidden
             && Json.Bool(App.Settings.Integration, "hideDesktopIcons", true) && Json.Bool(App.Settings.Integration, "bakaDesktopMenu", true);
 
         public static void Apply()

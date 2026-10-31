@@ -36,7 +36,7 @@ namespace Baka.Desktop
         }
         static void Open(bool pin)
         {
-            if (App.GameRunning) return;
+            if (App.BakaHidden) return;
             try
             {
                 if (current == null) { current = new CheatSheet(); current.Closed += (o, e) => { current = null; KeyHook.CheatSheetOpen = false; }; }

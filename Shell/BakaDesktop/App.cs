@@ -332,9 +332,14 @@ namespace Baka.Desktop
             {
                 if (preview) return;
                 if (TaskbarWanted && !peeking && ExplorerIntegration.TaskbarVisible()) ExplorerIntegration.HideTaskbar();
-                if (!ShellMode.Chosen || GameRunning) return; // nothing here while a game runs
+                // nothing here while BAKA is hidden for a game; with "Light" the tray icons stay in the menu bar
+                if (BakaHidden) return;
                 bool explorer = ExplorerIntegration.ExplorerRunning();
-                if (explorer) { BakaTray.Claim(); AppBars.Verify(); } // tray icons to BAKA; dock + menu bar edges kept free
+                // dock + menu bar edges kept free, with or without BAKA as the shell (not during a game: a game
+                // can change the display mode, and the repair runs when it ends)
+                if (explorer && !GameRunning && !behindFullscreen) AppBars.Verify();
+                if (!ShellMode.Chosen) return;
+                if (explorer) BakaTray.Claim(); // tray icons to BAKA
                 if (explorer != explorerSeen)
                 {
                     explorerSeen = explorer; ShellMode.ForgetActive();
@@ -378,13 +383,12 @@ namespace Baka.Desktop
         static Native.WinEventProc windowProc; // kept alive: Windows calls into it
         static void RefreshWindows()
         {
-            if (GameRunning) return;
+            if (BakaHidden) return;
             try
             {
                 CheckFullscreen();
-                // a fullscreen window came to the front: switch to the game profile now (the bars hide), not on
-                // the next 4 s game check
-                if (behindFullscreen) { CheckGame(); if (GameRunning) return; }
+                // a fullscreen window came to the front: switch to the game profile now, not on the next 4 s check
+                if (behindFullscreen && !GameRunning) { CheckGame(); if (BakaHidden) return; }
                 WindowsChanged?.Invoke();
             }
             catch (Exception ex) { Log.Write("windows-refresh-failed error=\"" + ex.Message + "\""); }
@@ -409,7 +413,7 @@ namespace Baka.Desktop
                         // A destroyed window can no longer be asked for its parent (events arrive after the fact),
                         // so a destroy always counts: a window closed from the dock menu stayed in the dock until the
                         // 4 s poll otherwise.
-                        if (idObject == 0 && idChild == 0 && !GameRunning && windowsSoon != null && !windowsSoon.IsEnabled
+                        if (idObject == 0 && idChild == 0 && !BakaHidden && windowsSoon != null && !windowsSoon.IsEnabled
                             && (ev < 0x8000 || ev == 0x8001 /*DESTROY*/ || !Native.IsWindow(h) || Native.GetAncestor(h, 2 /*GA_ROOT*/) == h)) windowsSoon.Start();
                     }
                     catch { }
@@ -446,21 +450,31 @@ namespace Baka.Desktop
             }
             if (full == behindFullscreen) { if (full) PushBarsBehind(); return; }
             behindFullscreen = full;
-            if (full) PushBarsBehind();
-            else foreach (Window w in new Window[] { Bar, Dock }) if (w != null) w.Topmost = true;
+            if (full) PushBarsBehind(); else BringBarsBack();
             Log.Write("fullscreen-app=" + full);
         }
-        // Topmost off alone is not enough: Windows then puts the window above every other normal window
-        // (HWND_NOTOPMOST), so the menu bar and dock stayed on top of a borderless fullscreen game. They are
-        // sent to the bottom of the z-order instead, under the fullscreen window.
+        // A fullscreen window is in front: the menu bar and dock are hidden from the screen (Windows' own
+        // ShowWindow, so BAKA still counts them as shown and their screen edges stay reserved). 12.27.3 sent
+        // them to the bottom of the z-order instead, and the dock often came back above the game while the
+        // menu bar stayed behind it. Hidden, neither is drawn while the game covers the screen.
         static void PushBarsBehind()
         {
             foreach (Window w in new Window[] { Bar, Dock })
             {
-                if (w == null) continue;
-                w.Topmost = false;
-                IntPtr h = new WindowInteropHelper(w).Handle;
-                if (h != IntPtr.Zero) Native.SetWindowPos(h, Native.HWND_BOTTOM, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+                IntPtr h = w == null ? IntPtr.Zero : new WindowInteropHelper(w).Handle;
+                if (h != IntPtr.Zero && Native.IsWindowVisible(h)) Native.ShowWindow(h, Native.SW_HIDE);
+            }
+        }
+        // The fullscreen window left: both come back on top (only the ones BAKA itself shows).
+        static void BringBarsBack()
+        {
+            foreach (Window w in new Window[] { Bar, Dock })
+            {
+                IntPtr h = w == null ? IntPtr.Zero : new WindowInteropHelper(w).Handle;
+                if (h == IntPtr.Zero || !w.IsVisible) continue;
+                w.Topmost = true;
+                if (!Native.IsWindowVisible(h)) Native.ShowWindow(h, Native.SW_SHOWNA);
+                Native.SetWindowPos(h, Native.HWND_TOPMOST, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
             }
         }
         // Explorer reported that a fullscreen window opened or closed (ABN_FULLSCREENAPP): check at once
@@ -469,8 +483,8 @@ namespace Baka.Desktop
         {
             Ui?.BeginInvoke(new Action(() =>
             {
-                if (GameRunning) return;
-                try { CheckFullscreen(); if (behindFullscreen) CheckGame(); } catch (Exception e) { Log.Write("fullscreen-check-failed error=\"" + e.Message + "\""); }
+                if (BakaHidden) return;
+                try { CheckFullscreen(); if (behindFullscreen && !GameRunning) CheckGame(); } catch (Exception e) { Log.Write("fullscreen-check-failed error=\"" + e.Message + "\""); }
             }));
         }
 
@@ -486,7 +500,23 @@ namespace Baka.Desktop
             Dock?.Place();
             EdgesChanged();
         }
-        // After a reserved edge came back: check the work area really has the strips (once, see AppBars.Verify)
+        // Explorer dropped a strip (AppBars.Verify found the work area without the menu bar or dock): what
+        // turning auto-hide off and on did by hand. Both bars register again, menu bar first; a second later
+        // the work area is set directly if Explorer still has not applied it, and maximized windows are fitted.
+        public static void RepairEdges()
+        {
+            if (Paths.Preview || GameRunning || Ui == null) return;
+            AppBars.Reregister();
+            if (Bar != null && Bar.IsVisible) Bar.Reserve();
+            Dock?.Reserve();
+            new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (o, e) =>
+            {
+                ((DispatcherTimer)o).Stop();
+                if (GameRunning) return;
+                try { AppBars.ForceWorkArea(); FitMaximizedWindows(); } catch (Exception ex) { Log.Write("repair-edges-failed error=\"" + ex.Message + "\""); }
+            }, Ui).Start();
+        }
+        // After a reserved edge came back: check the work area really has the strips (see AppBars.Verify)
         // and fit maximized windows into it. Twice, because Explorer applies app-bar changes a moment later.
         public static void EdgesChanged()
         {
@@ -495,7 +525,7 @@ namespace Baka.Desktop
                 new DispatcherTimer(TimeSpan.FromMilliseconds(ms), DispatcherPriority.Background, (o, e) =>
                 {
                     ((DispatcherTimer)o).Stop();
-                    if (GameRunning) return;
+                    if (GameRunning || behindFullscreen) return;
                     try { AppBars.Verify(); FitMaximizedWindows(); } catch (Exception ex) { Log.Write("fit-windows-failed error=\"" + ex.Message + "\""); }
                 }, Ui).Start();
         }
@@ -565,10 +595,10 @@ namespace Baka.Desktop
             KeyHook.MaskWin = winKey;
             KeyHook.CheatHold = cheatHold;
             KeyHook.MaskHeld = winKey || cheatHold;
-            KeyHook.Enabled = !GameRunning && (winKey || ShellMode.Chosen);
+            KeyHook.Enabled = !BakaHidden && (winKey || ShellMode.Chosen); // in a "Light" game RawOnly keeps it listening only
             if (!winKey && !ShellMode.Chosen) ShellHotkeys.Release();
             if (!KeyHook.Enabled) KeyHook.Remove(); else if (!KeyHook.Install()) Log.Write("key-hook-unavailable");
-            try { CaptionButtons.Apply(!GameRunning && Json.Bool(Settings.Integration, "captionButtons", false)); } catch (Exception e) { Log.Write("caption-buttons-failed error=\"" + e.Message + "\""); }
+            try { CaptionButtons.Apply(!BakaHidden && Json.Bool(Settings.Integration, "captionButtons", false)); } catch (Exception e) { Log.Write("caption-buttons-failed error=\"" + e.Message + "\""); }
             DesktopMenu.Apply(); // BAKA's right-click menu on the desktop instead of Windows'
         }
 
@@ -662,23 +692,76 @@ namespace Baka.Desktop
             if (GameRunning) LeaveGame();
             Profiles.Set(profile, reason);
         }
+        // Settings > Focus & games > "BAKA while gaming".
+        //   Light (default): the menu bar, dock and Launchpad keep working, so the Windows key opens the Launchpad
+        //   and never Windows' Start. BAKA only listens to the keyboard (raw input, no hook) and its window-event
+        //   hooks stay (both out of context: the game never waits for BAKA). A fullscreen game in front keeps the
+        //   bars behind it. Widgets, video wallpaper and backgrounds, animations, BAKA window buttons and pop-ups
+        //   stop, and BAKA runs at below-normal priority.
+        //   Hidden: as before 12.28, BAKA steps aside completely and stops listening to the keyboard.
+        public static bool LightGaming => Settings == null || Json.Str(Settings.Gaming, "desktop", "Light") != "Hidden";
+        // BAKA has stepped aside for a game: the menu bar, dock, Launchpad and keyboard listener are off.
+        public static bool BakaHidden => GameRunning && !LightGaming;
+
+        // The keyboard listener, window-event hooks and bars for the current game ("Light" or "Hidden"). Also
+        // called when the setting changes during a game.
+        public static void ApplyGameDesktop()
+        {
+            if (!GameRunning) return;
+            bool light = LightGaming;
+            Notifications.Pause(!light); // Light: the bell stays current (one read every 2 s)
+            if (!Paths.Preview)
+            {
+                if (light)
+                {
+                    KeyHook.RawOnly = true;
+                    KeyHook.Enabled = WinKeyOpensLaunchpad || ShellMode.Chosen;
+                    if (KeyHook.Enabled && !KeyHook.Install()) Log.Write("key-hook-unavailable");
+                    WatchWindows(true);
+                }
+                else
+                {
+                    // removed, not just switched off: a hook would make every key press of the game wait for BAKA
+                    KeyHook.Enabled = false; KeyHook.Remove(); WatchWindows(false);
+                }
+            }
+            if (light)
+            {
+                // everything stays as on the desktop: menu bar (with the tray icons), dock, widgets, BAKA window
+                // buttons and the desktop menu. Only videos and animations stop (EnterGame, Theme.Motion).
+                if (Bar != null && !Bar.IsVisible && Json.Bool(Settings.TopBar, "enabled", true)) Bar.Show();
+                if (Dock != null && !Dock.IsVisible) Dock.Show();
+                Widgets.ShowEnabled();
+                if (!Paths.Preview) { try { CaptionButtons.Apply(Json.Bool(Settings.Integration, "captionButtons", false)); } catch { } }
+                CaptionButtons.HideAll(false); DesktopMenu.Apply();
+                CheckFullscreen(); // a fullscreen game in front keeps the bars behind it
+            }
+            else
+            {
+                Bar?.Hide(); Dock?.Hide(); Launchpad.HideIfOpen(); ControlCenter.Current?.Close(); Widgets.HideAll();
+                if (!Paths.Preview) { try { CaptionButtons.Apply(false); } catch { } }
+                CaptionButtons.HideAll(true); DesktopMenu.Hide();
+            }
+            Log.Write("game-desktop " + (light ? "light keyboard=" + KeyHook.Mode : "hidden"));
+        }
+
         public static void EnterGame(string name)
         {
-            // The keyboard hook is removed, not just switched off: while it is installed every key press of the
-            // game would make a round trip through BAKA's thread before reaching the game.
-            // BAKA's window-event hooks (for the BAKA window buttons) are removed too, so Windows sends BAKA
-            // no notifications about the game's window while it runs.
-            GameRunning = true; Profiles.DetectedGame = name; KeyHook.Enabled = false;
+            // "Hidden": the keyboard listener is switched off first, so an install already waiting on another
+            // thread cannot put it back; ApplyGameDesktop then removes it. BAKA's window-event hooks go too.
+            GameRunning = true; Profiles.DetectedGame = name;
+            if (!LightGaming) KeyHook.Enabled = false;
             // the game is the window in front when it is detected (a game mode started by hand from BAKA has none)
             GameWindow = Native.GetForegroundWindow();
             Native.GetWindowThreadProcessId(GameWindow, out gamePid);
             if (gamePid == 0 || gamePid == (uint)Process.GetCurrentProcess().Id || name == "manual") { GameWindow = IntPtr.Zero; gamePid = 0; }
             gameByFullscreen = gamePid != 0 && Profiles.DetectedByFullscreen;
             Log.Write("game-start name=\"" + name + "\" pid=" + gamePid + " byFullscreen=" + gameByFullscreen);
-            Notifications.Pause(true);
-            if (!Paths.Preview) { KeyHook.Remove(); WatchWindows(false); try { CaptionButtons.Apply(false); } catch { } }
             Profiles.Set("CompetitiveGaming", "game " + name);
-            Bar?.Hide(); Dock?.Hide(); Widgets.HideAll(); Launchpad.HideIfOpen(); ControlCenter.Current?.Close(); Wallpaper.Pause(true); CaptionButtons.HideAll(true); Surfaces.Pause(true); DesktopMenu.Hide();
+            ApplyGameDesktop();
+            // to use less while the game runs: the video wallpaper and video backgrounds stop (decoder and video
+            // memory freed); animations stop through Theme.Motion; BAKA runs at below-normal priority (Profiles)
+            Wallpaper.Pause(true); Surfaces.Pause(true);
             try { CheatSheet.Escape(); } catch { }
             try { FocusMode.GameStarted(); } catch (Exception e) { Log.Write("focus-failed error=\"" + e.Message + "\""); }
             GameOverlay.Update(); // after everything else is hidden: the overlay is the one BAKA window in a game
@@ -699,10 +782,13 @@ namespace Baka.Desktop
             KeyHook.CheatHold = Json.Bool(Settings.Integration, "cheatSheetOnHold", true);
             KeyHook.MaskHeld = WinKeyOpensLaunchpad || KeyHook.CheatHold;
             KeyHook.Enabled = WinKeyOpensLaunchpad || ShellMode.Chosen;
+            KeyHook.RawOnly = false; // with Explorer off, the hook comes back so BAKA owns Alt+Tab and Win+arrows again
             if (!Paths.Preview && KeyHook.Enabled && !KeyHook.Install()) Log.Write("key-hook-unavailable");
             if (!Paths.Preview) { WatchWindows(true); try { CaptionButtons.Apply(Json.Bool(Settings.Integration, "captionButtons", false)); } catch { } }
-            if (Json.Bool(Settings.TopBar, "enabled", true)) Bar?.Show();
-            Dock?.Show(); Widgets.ShowEnabled(); Wallpaper.Pause(false); CaptionButtons.HideAll(false); Surfaces.Pause(false); DesktopMenu.Apply();
+            // "Light" kept the bars on screen: shown again only if they were hidden
+            if (Json.Bool(Settings.TopBar, "enabled", true) && Bar != null && !Bar.IsVisible) Bar.Show();
+            if (Dock != null) { if (!Dock.IsVisible) Dock.Show(); else Dock.Place(); }
+            Widgets.ShowEnabled(); Wallpaper.Pause(false); CaptionButtons.HideAll(false); Surfaces.Pause(false); DesktopMenu.Apply();
             GameOverlay.Update(); // "in games" hides it, "always" keeps it
             RefreshWindows();
             // windows maximized during the game got the whole screen (the edges were free): fit them again

@@ -1,6 +1,6 @@
 # BAKA Windows Gaming Edition
 
-A custom Windows 11 Pro 26H2 (x64) image for gaming. It replaces the taskbar, Start menu and File Explorer windows with its own desktop, adds a game overlay with an FPS counter, plays 4K video wallpapers on the graphics card, removes apps most people never use, blocks ads and trackers for every app, turns off telemetry, and ships [Baka Browser](https://github.com/OldcarryG/Baka-browser) as the default browser. When a game starts, BAKA gets out of the way: its UI, keyboard listener and video wallpaper are switched off, so it adds almost nothing while you play.
+A custom Windows 11 Pro 26H2 (x64) image for gaming. It replaces the taskbar, Start menu and File Explorer windows with its own desktop, adds a game overlay with an FPS counter, plays 4K video wallpapers on the graphics card, removes apps most people never use, blocks ads and trackers for every app, turns off telemetry, and ships [Baka Browser](https://github.com/OldcarryG/Baka-browser) as the default browser. When a game starts, BAKA keeps its desktop working but uses less: the video wallpaper and animations stop, a fullscreen game covers the menu bar and dock, and BAKA only listens to the keyboard, so the game never waits for it. (Settings > Focus & games > "Hidden" switches BAKA off completely during games instead.)
 
 Windows itself is not modified: it is Microsoft's own Windows 11 Pro 26H2 (build 26300) with Windows Security, Secure Boot, TPM, the Store, drivers and Windows Update all working. Everything BAKA changes can be undone.
 
@@ -72,15 +72,15 @@ The screenshots are from R13 to R15; BAKA Desktop 12.27 has a redesigned menu ba
 
 ### Gaming and latency
 - **Automatic game detection.** A running game (Steam, Epic, GOG, EA, Ubisoft, Xbox, Riot, Battle.net, itch, or any fullscreen app) switches BAKA to **Competitive Gaming**:
-  - menu bar, dock, widgets and BAKA window buttons are hidden;
-  - the video wallpaper is closed and its decoder and video memory freed;
-  - BAKA's **keyboard listener is removed**, so BAKA sees none of the game's key presses;
-  - the window-event hooks for the BAKA buttons are removed;
-  - transparency and animations are switched off, background apps paused, and BAKA's memory trimmed;
+  - the menu bar (with your tray icons), dock, widgets and Launchpad keep working, and the Windows key opens the Launchpad, never Windows' Start; a fullscreen game covers the menu bar and dock, and they come back on top when you Alt+Tab out;
+  - the video wallpaper and video backgrounds are closed and their decoder and video memory freed;
+  - BAKA only **listens** to the keyboard (raw input, never a hook), so no key press of the game waits for BAKA;
+  - transparency and animations are switched off, widget numbers refresh less often, and BAKA's memory is trimmed;
+  - Store apps are paused in the background, except the ones you keep running (Settings > Focus & games); desktop programs (Discord, Steam, Salad, G HUB) are never touched;
   - BAKA Desktop runs at below-normal priority;
   - Focus turns on (no pop-ups), and the game overlay shows if you turned it on.
 
-  Everything comes back when the game closes. Arena's Gaming card does the same by hand.
+  Everything comes back when the game closes. Arena's Gaming card does the same by hand. **"Hidden"** (Settings > Focus & games > Gaming mode) is the earlier behaviour: menu bar, dock, widgets and BAKA window buttons are hidden and BAKA's keyboard listener and window-event hooks are removed, so BAKA sees none of the game's key presses.
 - **Game overlay** (Ctrl+Alt+F): FPS, 1% low, frame time, CPU, GPU load, GPU temperature, video memory, GPU power and RAM in a small see-through strip that clicks pass through. FPS comes from Windows' own graphics event log (ETW, like Xbox Game Bar and PresentMon); nothing is injected into games. FPS needs a one-time permission in Settings > Focus & games (it adds your account to Windows' Performance Log Users group). Temperature, power and video memory need an NVIDIA GPU.
 - **Focus** (Ctrl+Alt+D): no notification pop-ups, the dock tucks away and the video wallpaper pauses. It turns on by itself while a game runs.
 - **BAKA Gaming power plan**: based on Ultimate Performance, no core parking, games kept on performance cores, no USB selective suspend. Laptops keep Balanced on battery.
@@ -111,7 +111,7 @@ Preinstalled and set as the default browser. Chromium engine (WebView2), uBlock 
 | Window buttons | Windows' buttons | Windows' buttons by default; optional BAKA buttons (Settings > Windows) |
 | File manager | File Explorer | BAKA Files (Explorer still runs hidden for tray, notifications, file dialogs) |
 | Wallpaper | Picture, slideshow, Spotlight | Picture, colour, or 4K video decoded on the GPU, paused when covered, closed in games |
-| While gaming | Taskbar, widgets, background apps keep running | BAKA UI, keyboard listener and video wallpaper off; BAKA Desktop uses 0.01% CPU and 34 MB |
+| While gaming | Taskbar, widgets, background apps keep running | BAKA UI stays (covered by fullscreen games), video wallpaper and animations off, chosen Store apps paused; "Hidden": BAKA UI and keyboard listener off too, BAKA Desktop uses 0.01% CPU and 34 MB (R14 measurement) |
 | Key press latency, median (VM) | 0.27 to 0.28 ms | 0.26 to 0.27 ms gaming, 0.29 to 0.33 ms desktop |
 | Windows key → start surface | 30 to 46 ms (Start) | 16 to 19 ms (Launchpad) |
 | Fast Startup | On | On (since R15) |
@@ -176,7 +176,7 @@ Time from an injected key press until the window in front receives it, 200 press
 | BAKA Desktop mode, R14 | 0.33 to 0.37 ms |
 | BAKA Desktop mode, "Windows key opens Launchpad" off | 0.26 to 0.27 ms |
 
-- **While gaming, BAKA is not in the input path at all**: the same as stock.
+- **While gaming, BAKA is not in the input path at all**: the same as stock. (Measured with BAKA hidden in games, now the "Hidden" setting. The default "Light" keeps listening with raw input, which Windows copies to BAKA without waiting for it, as on the desktop; not measured yet.)
 - **On the desktop BAKA adds 0.02 to 0.06 ms** per key, the cost of listening for the Windows key. Since R15 BAKA only listens (raw input) instead of hooking the keyboard, so Windows never waits for BAKA on a key press. Turning off "Windows key opens Launchpad" brings it to stock.
 
 | Start surface | Stock Windows 11 | BAKA R15 |
@@ -291,14 +291,14 @@ With BAKA as the shell and the background Explorer off, BAKA handles the shortcu
 - **AV1 4K wallpapers** need hardware AV1 decoding (see above).
 - **Game FPS, frame times, mouse latency and media keys** were not benchmarked; the test VMs have no GPU and no sound device. The game overlay's FPS counter was checked on a real PC at 60 FPS (a Direct3D 9 window and a DXGI app on a 60 Hz screen), but not yet inside a real game, and not with Vulkan or OpenGL games.
 - **Game overlay** shows over borderless and windowed games; a game in exclusive fullscreen draws above it. GPU temperature, power and video memory are read only on NVIDIA GPUs.
-- **BAKA Desktop 12.27.3** has a few known issues (Win+F1, a left or right dock next to the background Explorer): see [Known issues in 12.27.3](#known-issues-in-12273).
+- **BAKA Desktop 12.28.0** has a few known issues (Win+F1, a left or right dock next to the background Explorer): see [Known issues in 12.28.0](#known-issues-in-12280).
 - **Windows Pro telemetry**: "required" diagnostic data is still sent; BAKA does not claim zero telemetry.
 - **Apps running as administrator** and dialogs keep Windows' own window buttons.
 - The ISO is not signed by Microsoft. Check its SHA-256 against the release.
 
 ## FAQ
 
-**Does BAKA affect anti-cheat?** BAKA does not load anything into other processes. The BAKA buttons are separate windows that follow the app. With Explorer running in the background (the default) BAKA only listens to the keyboard with raw input; only when you turn Explorer off completely does it use a keyboard hook, on its own thread. Either way it stops listening while a game runs. The game overlay reads FPS from Windows' graphics event log instead of hooking into the game. Secure Boot, TPM, VBS and Defender stay on.
+**Does BAKA affect anti-cheat?** BAKA does not load anything into other processes. The BAKA buttons are separate windows that follow the app. With Explorer running in the background (the default) BAKA only listens to the keyboard with raw input; only when you turn Explorer off completely does it use a keyboard hook, on its own thread. During a game it only ever listens (raw input), and with Settings > Focus & games > "Hidden" it stops listening altogether. To stop Windows' Start from opening, a Windows-key press sends one unassigned key (0xE8), also inside a game; choose "Hidden" if you want BAKA to send nothing while you play. The game overlay reads FPS from Windows' graphics event log instead of hooking into the game. Secure Boot, TPM, VBS and Defender stay on.
 
 **Is it activated?** BAKA includes no licence key. Activate it with your own Windows 11 Pro licence, as with Microsoft's ISO.
 
@@ -314,7 +314,8 @@ With BAKA as the shell and the background Explorer off, BAKA handles the shortcu
 
 | Release | Main changes |
 |---|---|
-| **BAKA Desktop 12.27.3** (2026-10-31, no new ISO) | Game mode switches on by itself again, lasts while the game runs, and the Gaming buttons in Arena and Control Center really switch to it; the menu bar and dock no longer show over windowed-fullscreen games; apps no longer stay under the bars after auto-hide is turned off. [Changelog](docs/CHANGELOG_DESKTOP.md), [how to install](#update-baka-desktop) |
+| **BAKA Desktop 12.28.0** (2026-10-31, no new ISO) | BAKA keeps working during games ("Light": menu bar, dock, widgets and Launchpad stay, the Windows key never opens Start; only videos and animations stop); choose which Store apps keep running in the background during games; BAKA repairs the menu bar and dock screen edges itself when Windows drops them; a fullscreen game covers the menu bar and dock alike. [Changelog](docs/CHANGELOG_DESKTOP.md), [how to install](#update-baka-desktop) |
+| BAKA Desktop 12.27.3 (2026-10-31, no new ISO) | Game mode switches on by itself again, lasts while the game runs, and the Gaming buttons in Arena and Control Center really switch to it; the menu bar and dock no longer show over windowed-fullscreen games; apps no longer stay under the bars after auto-hide is turned off. [Changelog](docs/CHANGELOG_DESKTOP.md), [how to install](#update-baka-desktop) |
 | BAKA Desktop 12.27.2 (2026-10-30, no new ISO) | Fixes WebP wallpapers (they were replaced with the BAKA picture) and Settings > Menu bar > "Show the date" (it did nothing). Contains everything from 12.27.1. [Every change and fix](#changes-since-r15), [how to install](#update-baka-desktop) |
 | BAKA Desktop 12.27.1 (2026-10-30, no new ISO) | Update for R15 PCs: game overlay with FPS, Focus, per-app volume, BAKA notification pop-ups without Windows' duplicate banners, shortcut cheat sheet, optional BAKA-as-shell mode with its own tray and switcher, and many bug fixes. [Every change and fix](#changes-since-r15), [how to install](#update-baka-desktop) |
 | **R15** (2026-10-29, last ISO) | Fast Startup back on; BAKA Desktop starts with Explorer (desktop ready about 1.7 s sooner); no false crash at every shutdown; Windows key only listened to, not hooked; Launchpad opens in under 20 ms; native image for BAKA Desktop |
@@ -326,7 +327,7 @@ All releases: [github.com/OldcarryG/Baka-windows/releases](https://github.com/Ol
 
 ## Changes since R15
 
-Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is in **BAKA Desktop 12.27.3** ([install it](#update-baka-desktop)). Windows itself, Baka Browser 1.6.2, the system tuning and the ISO build scripts are unchanged. The list comes from the code changes between R15 and 12.27.2 (48 files). Notes for each version: [docs/CHANGELOG_DESKTOP.md](docs/CHANGELOG_DESKTOP.md).
+Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is in **BAKA Desktop 12.28.0** ([install it](#update-baka-desktop)). Windows itself, Baka Browser 1.6.2, the system tuning and the ISO build scripts are unchanged. The list comes from the code changes between R15 and 12.27.2 (48 files). Notes for each version: [docs/CHANGELOG_DESKTOP.md](docs/CHANGELOG_DESKTOP.md).
 
 ### New features
 
@@ -535,11 +536,13 @@ Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is 
 - The power plan list is cached for 20 seconds, the brightness check runs once on desktop PCs, the sound device is looked up every 5 seconds instead of for every slider step, and each window's program is read once.
 - The overlay reads its numbers once a second off the UI thread. The frame counter runs only while the overlay is shown, and Windows filters its events down to about one per frame.
 
-### Known issues in 12.27.3
+### Known issues in 12.28.0
 
-The game-mode, fullscreen and auto-hide bugs of 12.27.2 are fixed in 12.27.3 ([changelog](docs/CHANGELOG_DESKTOP.md)). Still open:
+The game-mode, fullscreen and auto-hide bugs of 12.27.2 are fixed in 12.27.3, and apps covering the screen under the menu bar and dock in 12.28.0 ([changelog](docs/CHANGELOG_DESKTOP.md)). Still open:
 
-- A game in windowed fullscreen is not minimized by Alt+Tab, so Gaming mode (no menu bar or dock) stays on while you use other apps. Ctrl+Alt+G or Arena > Desktop brings them back.
+- A game in windowed fullscreen is not minimized by Alt+Tab, so the Gaming profile stays on while you use other apps (with "Light" the menu bar and dock are there). Ctrl+Alt+G or Arena > Desktop ends it.
+- With BAKA as the shell and Explorer off, BAKA's own Alt+Tab switcher does not work during a "Light" game (it needs the keyboard hook, which games would wait on).
+- Pausing Store apps one by one uses the per-app setting of Windows' "Background app permissions"; whether every Store app honours it during a game has not been checked app by app.
 
 - Win+F1 opens the cheat sheet only when Explorer is off (otherwise it is Windows Help). Win+/ always works.
 - With the background Explorer running, Explorer can refuse a left or right dock's screen reservation on some Windows builds. BAKA then stops trying, so maximized windows may reach under the dock; the menu bar stays reserved.

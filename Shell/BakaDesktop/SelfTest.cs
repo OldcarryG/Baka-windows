@@ -20,6 +20,7 @@ namespace Baka.Desktop
         static string resultPath;
         static DateTime captionTestStart;
         static bool calculatorInstalled;
+        static string gamingDesktopBefore = "Light";
         // installed Store apps are listed for the user under ActivatableClasses\Package
         static bool CalculatorInstalled()
         {
@@ -73,8 +74,31 @@ namespace Baka.Desktop
                 () => { Launchpad.Current.TypeForTest("wifi"); Check(Launchpad.Current.FirstResultName() == "Wi-Fi", "\"wifi\" finds the Wi-Fi settings page (got " + Launchpad.Current.FirstResultName() + ")"); },
                 () => { Launchpad.Current.TypeForTest("zzzz-nothing"); Check(Launchpad.Current.ResultCount == 0 && Launchpad.Current.ClearVisible, "a search with no match shows no results and a clear button"); Launchpad.Current.TypeForTest(""); Check(Launchpad.Current.HintVisible, "clearing the search shows every app again"); Launchpad.HideIfOpen(); Check(!Launchpad.IsOpen, "Launchpad closes"); },
                 () => { ControlCenter.Toggle(App.Bar); Check(ControlCenter.IsOpen, "Control Center opens from the menu bar"); },
-                () => { ControlCenter.Current?.Close(); Check(!ControlCenter.IsOpen, "Control Center closes"); Profiles.Set("CompetitiveGaming", "selftest"); Check(Profiles.Active == "CompetitiveGaming", "Gaming profile applies"); App.EnterGame("Self test game"); Check(!App.Bar.IsVisible && !App.Dock.IsVisible, "menu bar and dock hide while a game runs"); },
+                () => {
+                    ControlCenter.Current?.Close(); Check(!ControlCenter.IsOpen, "Control Center closes");
+                    gamingDesktopBefore = Json.Str(App.Settings.Gaming, "desktop", "Light");
+                    App.Settings.Gaming["desktop"] = "Hidden";
+                    Profiles.Set("CompetitiveGaming", "selftest"); Check(Profiles.Active == "CompetitiveGaming", "Gaming profile applies");
+                    App.EnterGame("Self test game"); Check(!App.Bar.IsVisible && !App.Dock.IsVisible, "\"Hidden\": menu bar and dock hide while a game runs");
+                    Launchpad.Toggle(); Check(!Launchpad.IsOpen, "\"Hidden\": the Launchpad stays closed in a game");
+                },
                 () => { App.LeaveGame(); Check(Profiles.Active == "Desktop" && App.Bar.IsVisible && App.Dock.IsVisible, "leaving the game restores the Desktop profile, menu bar and dock"); Profiles.Manual = null; },
+                // 12.28: "Light" keeps BAKA working in games, and background apps are paused one by one
+                () => {
+                    App.Settings.Gaming["desktop"] = "Light";
+                    App.EnterGame("Self test game");
+                    Check(Profiles.Active == "CompetitiveGaming" && App.Bar.IsVisible && App.Dock.IsVisible, "\"Light\": the Gaming profile applies and the menu bar and dock stay");
+                    Launchpad.Toggle(); Check(Launchpad.IsOpen, "\"Light\": the Launchpad opens in a game");
+                    Launchpad.HideIfOpen();
+                    App.Settings.Gaming["desktop"] = "Hidden"; App.ApplyGameDesktop(); Check(!App.Bar.IsVisible && !App.Dock.IsVisible, "switching to \"Hidden\" during a game hides the menu bar and dock");
+                    App.Settings.Gaming["desktop"] = "Light"; App.ApplyGameDesktop(); Check(App.Bar.IsVisible && App.Dock.IsVisible, "switching back to \"Light\" brings them back");
+                },
+                () => {
+                    App.LeaveGame(); Check(Profiles.Active == "Desktop" && App.Bar.IsVisible && App.Dock.IsVisible, "leaving a \"Light\" game keeps the menu bar and dock");
+                    App.Settings.Gaming["desktop"] = gamingDesktopBefore; Profiles.Manual = null;
+                    var pkgs = Profiles.BackgroundPackages();
+                    Check(pkgs.All(p => !p.StartsWith("Microsoft.Windows.", StringComparison.OrdinalIgnoreCase)), "background apps: Windows' own parts are not listed (" + pkgs.Count + " Store apps)");
+                },
                 () => { SettingsWindow.Open(); foreach (var p in SettingsWindow.PageNames) { SettingsWindow.Current.Go(p); SettingsWindow.Current.UpdateLayout(); } Check(SettingsWindow.Current.CurrentPage == "About", "every Settings page opens"); SettingsWindow.Current.Close(); },
                 () => { Files.Open(null); var f = Files.Last; Check(f != null && Directory.Exists(f.CurrentFolder) && f.ItemCount > 0, "BAKA Files opens the home folder with items"); f.Navigate(Environment.GetFolderPath(Environment.SpecialFolder.Windows), true); Check(f.CurrentFolder.EndsWith("Windows", StringComparison.OrdinalIgnoreCase) && f.ItemCount > 10, "BAKA Files navigates to C:\\Windows"); Check(f.TestMultiSelect() == 2, "BAKA Files can select more than one file at once"); f.Navigate(Paths.Local, true); try { f.TestNewFolderAndDelete("BAKA self test folder"); Check(true, "new folder appears and is removed"); } catch (Exception e) { Fail(e.Message); } f.Close(); },
                 () => {

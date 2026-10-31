@@ -357,7 +357,35 @@ namespace Baka.Desktop
 
         void FocusGamesPage(StackPanel c)
         {
-            c.Children.Add(Ui.Heading("Focus & games", "Quiet time without pop-ups, and an FPS / CPU / GPU overlay for games."));
+            c.Children.Add(Ui.Heading("Focus & games", "What BAKA does while you play, quiet time without pop-ups, and an FPS / CPU / GPU overlay for games."));
+
+            c.Children.Add(Section("Gaming mode"));
+            bool light = App.LightGaming;
+            c.Children.Add(Ui.Row("BAKA while gaming", light
+                ? "Light: BAKA stays as it is (menu bar with your tray icons, dock, widgets, Launchpad), and the Windows key opens the Launchpad, never Windows' Start. A fullscreen game covers it. To use less, the video wallpaper and animations stop, widget numbers refresh less often, and BAKA runs at low priority. BAKA only listens to the keyboard, so the game never waits for it."
+                : "Hidden: BAKA steps aside completely. The menu bar, dock and BAKA's keyboard listener are off until the game closes, so the Windows key opens Windows' Start.",
+                Ui.Choice(new[] { "Light", "Hidden" }, light ? "Light" : "Hidden", v => { S.Gaming["desktop"] = v; Save(); App.ApplyGameDesktop(); Rebuild(); })));
+            bool pause = Profiles.PauseBackgroundApps;
+            c.Children.Add(Ui.Row("Pause background apps", "While a game runs, Windows stops Store apps from working in the background, except the ones you keep below. Desktop programs such as Discord, Steam, Salad or Honeygain are never paused.", Ui.Toggle(pause, on => { S.Gaming["pauseBackgroundApps"] = on; Save(); Profiles.BackgroundAppsChanged(); Rebuild(); })));
+            if (pause)
+            {
+                var apps = Profiles.BackgroundPackages();
+                var list = new StackPanel();
+                list.Children.Add(Ui.Text("Keep running while gaming", 13, FontWeights.SemiBold));
+                var hint = Ui.Muted("Switch an app on to let it keep working in the background during games (messages, music, sync). Takes effect at once, also in a game.", 11.5); hint.Margin = new Thickness(0, 2, 0, 8); list.Children.Add(hint);
+                if (apps.Count == 0) list.Children.Add(Ui.Muted("No Store apps use background access on this PC."));
+                foreach (var pfn in apps)
+                {
+                    string id = pfn;
+                    var g = new Grid { Margin = new Thickness(0, 3, 0, 3) };
+                    g.ColumnDefinitions.Add(new ColumnDefinition()); g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    var n = Ui.Text(Profiles.PackageName(id), 13); n.VerticalAlignment = VerticalAlignment.Center; n.ToolTip = id; g.Children.Add(n);
+                    var t = Ui.Toggle(Profiles.AllowedInBackground(id), on => Profiles.SetAllowedInBackground(id, on)); Grid.SetColumn(t, 1); g.Children.Add(t);
+                    list.Children.Add(g);
+                }
+                c.Children.Add(Ui.Card(list));
+            }
+
             c.Children.Add(Section("Focus"));
             c.Children.Add(Ui.Row("Focus", "No notification pop-ups; they still collect behind the bell. Ctrl+Alt+D turns it on or off.", Ui.Toggle(FocusMode.On, on => { FocusMode.Set(on, "settings"); Rebuild(); })));
             c.Children.Add(Ui.Row("Turn on by itself while a game runs", "And off again when the game closes. A summary shows how many notifications came in.", Ui.Toggle(Json.Bool(S.Focus, "autoInGames", true), on => { S.Focus["autoInGames"] = on; Save(); })));

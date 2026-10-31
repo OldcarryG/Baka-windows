@@ -226,6 +226,8 @@ namespace Baka.Desktop
         static bool winDown, winUsed; static int raisedVk;
         static bool altDown, shiftDown, altTabbing;
         public static volatile bool Enabled = true;
+        // While a game runs with BAKA "Light": listen with raw input only, never the low-level hook.
+        public static volatile bool RawOnly;
         public static event Action<string> Pressed;
         public static bool Installed => hook != IntPtr.Zero || rawWindow != IntPtr.Zero;
         public static string Mode => rawWindow != IntPtr.Zero ? "raw-input" : hook != IntPtr.Zero ? "hook" : "off";
@@ -261,7 +263,9 @@ namespace Baka.Desktop
             {
                 // a game started while this call waited for the lock: it must not put the hook back
                 if (!Enabled) return false;
-                bool rawOk = ShellHotkeys.ActiveForThisSession();
+                // in a game ("Light"), BAKA only ever listens: a low-level hook would make every key press of the
+                // game wait for BAKA's thread
+                bool rawOk = RawOnly || ShellHotkeys.ActiveForThisSession();
                 // raw input listens but cannot swallow; the low-level hook can. When Explorer is running (and its
                 // Win+E/S/Q are off) raw input is enough. When Explorer closes, switch back to the hook so BAKA
                 // can own Win+Tab, Alt+Tab, Win+arrows etc. again.
@@ -575,6 +579,7 @@ namespace Baka.Desktop
         // (ABN_FULLSCREENAPP), the same signal that drops the Windows taskbar behind a game. BAKA ignored it, so
         // the menu bar and dock stayed above borderless fullscreen games. Hooked into both windows.
         public static bool ShellFullscreen;
+        static DateTime lastPosChanged = DateTime.MinValue;
         public static IntPtr Hook(IntPtr h, int msg, IntPtr w, IntPtr l, ref bool handled)
         {
             if (CallbackMessage == 0 || msg != (int)CallbackMessage) return IntPtr.Zero;
@@ -584,6 +589,13 @@ namespace Baka.Desktop
                 bool full = l != IntPtr.Zero;
                 if (full != ShellFullscreen) { ShellFullscreen = full; Log.Write("shell-fullscreen-app=" + full); App.FullscreenChanged(); }
             }
+            // ABN_POSCHANGED: Explorer moved the app bars or recomputed the work area (a display mode change when
+            // a game starts, another app bar). Check the strips shortly after, instead of on the next 3 s guard.
+            else if (w.ToInt64() == 1 && (DateTime.Now - lastPosChanged).TotalSeconds > 2)
+            {
+                lastPosChanged = DateTime.Now;
+                App.EdgesChanged();
+            }
             return IntPtr.Zero;
         }
 
@@ -591,7 +603,7 @@ namespace Baka.Desktop
         // lastWork is forgotten too: Explorer changed the real work area, so the next one must be set even if
         // it equals what BAKA set before Explorer started (it was skipped, and maximized windows slid under
         // the dock when only the dock reserved space).
-        public static void Forget() { registered.Clear(); reserved.Clear(); reRegisters = 0; gaveUp = false; lastWork = default(Native.RECT); ShellFullscreen = false; }
+        public static void Forget() { registered.Clear(); reserved.Clear(); topRepairs = sideRepairs = 0; sideLogged = false; lastRepair = DateTime.MinValue; lastWork = default(Native.RECT); ShellFullscreen = false; }
 
         // BAKA is the shell: Explorer's app-bar manager is not there, so the edges are kept free by setting the
         // screen's work area directly (what that manager would do), from the same reservations.
@@ -624,26 +636,48 @@ namespace Baka.Desktop
         // again. So BAKA re-registers its app bars with Explorer instead (remove + new + set position), which
         // is the way Explorer's own manager is meant to learn about them; at most 3 times, then it stops and
         // logs, so nothing ever loops.
-        static int reRegisters; static bool gaveUp;
+        // 12.28: Explorer's app-bar manager does not only refuse a left/right dock now and then; it also drops the
+        // menu bar's strip (measured: work area 0,0-1920,1080 at 09:58, after a game had started), and then
+        // maximized apps covered the whole screen under the menu bar and dock. Until 12.28 BAKA set the work area
+        // once and then gave up for the whole session, so only turning auto-hide on and off (which registers both
+        // bars again) fixed it. Now BAKA does that repair itself whenever a strip is missing: remove + register
+        // both bars again, menu bar first, then set the work area if Explorer still has not applied it, and fit
+        // maximized windows. Each repair moves maximized windows, so it waits 15 s between tries; a missing menu
+        // bar strip is repaired every 2 minutes after 4 failed tries, a refused side dock is left alone after 4.
+        static DateTime lastRepair = DateTime.MinValue; static int topRepairs, sideRepairs; static bool sideLogged;
+        static bool Contains(Native.RECT cur, Native.RECT want) => cur.Left >= want.Left && cur.Top >= want.Top && cur.Right <= want.Right && cur.Bottom <= want.Bottom;
+        static string R(Native.RECT r) => r.Left + "," + r.Top + "-" + r.Right + "," + r.Bottom;
         public static void Verify()
         {
-            if (UseWorkArea || Paths.Preview || reserved.Count == 0 || gaveUp) return;
+            if (UseWorkArea || Paths.Preview || reserved.Count == 0) return;
             var want = Desired();
             var cur = new Native.RECT();
             if (!Native.SystemParametersInfo(0x0030 /*SPI_GETWORKAREA*/, 0, ref cur, 0)) return;
-            if (cur.Left >= want.Left && cur.Top >= want.Top && cur.Right <= want.Right && cur.Bottom <= want.Bottom) return;
-            // Next to the helper Explorer, Explorer's app-bar manager honours the top menu bar but refuses a
-            // left/right dock from a non-shell process: it recomputes the work area from its own known bars and
-            // forces the dock's edge back to zero within a few seconds (measured), so maximized windows slide
-            // under the dock. Re-registering (remove + new) only made it worse, dropping even the menu bar.
-            // BAKA sets the work area directly once; on a Windows build where that sticks the dock is reserved
-            // for good, and where Explorer overrides it BAKA stops immediately rather than flicker every
-            // maximized window by fighting. The top menu bar stays reserved either way.
-            if (reRegisters >= 1) { gaveUp = true; Log.Write("work-area-mismatch was=" + cur.Left + "," + cur.Top + "-" + cur.Right + "," + cur.Bottom + " want=" + want.Left + "," + want.Top + "-" + want.Right + "," + want.Bottom + " (Explorer overrides a left/right dock; the menu bar stays reserved)"); return; }
-            reRegisters++;
+            if (Contains(cur, want)) { topRepairs = sideRepairs = 0; sideLogged = false; return; }
+            bool topLost = want.Top > cur.Top;
+            if (!topLost && sideRepairs >= 4)
+            {
+                if (!sideLogged) { sideLogged = true; Log.Write("work-area-mismatch was=" + R(cur) + " want=" + R(want) + " (Explorer keeps refusing the side dock; the menu bar stays reserved)"); }
+                return;
+            }
+            double wait = topLost && topRepairs >= 4 ? 120 : 15;
+            if ((DateTime.Now - lastRepair).TotalSeconds < wait) return;
+            lastRepair = DateTime.Now;
+            if (topLost) topRepairs++; else sideRepairs++;
+            Log.Write("work-area-lost was=" + R(cur) + " want=" + R(want) + " repair=" + (topLost ? "menu-bar " + topRepairs : "dock " + sideRepairs));
+            App.RepairEdges();
+        }
+        // Removes both reservations (without forgetting the repair counters) so they can be made again.
+        public static void Reregister() { ReleaseAll(); registered.Clear(); reserved.Clear(); lastWork = default(Native.RECT); }
+        // After a repair: Explorer still did not apply the strips, so the work area is set directly.
+        public static void ForceWorkArea()
+        {
+            if (UseWorkArea || Paths.Preview || reserved.Count == 0) return;
+            var want = Desired(); var cur = new Native.RECT();
+            if (!Native.SystemParametersInfo(0x0030, 0, ref cur, 0) || Contains(cur, want)) return;
             var set = want;
             Native.SystemParametersInfo(0x002F /*SPI_SETWORKAREA*/, 0, ref set, 0x0002 /*SPIF_SENDCHANGE*/);
-            Log.Write("work-area-set try=" + reRegisters + " was=" + cur.Left + "," + cur.Top + "-" + cur.Right + "," + cur.Bottom + " -> " + want.Left + "," + want.Top + "-" + want.Right + "," + want.Bottom);
+            Log.Write("work-area-set was=" + R(cur) + " -> " + R(want));
         }
 
         public static void ApplyWorkArea()

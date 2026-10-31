@@ -66,7 +66,8 @@ namespace Baka.Desktop
         void AutoHideTick()
         {
             if (handle == IntPtr.Zero || !IsVisible) return;
-            if (!AutoHide || App.GameRunning) { if (slidUp) Slide(false); else if (!AutoHide) hideTimer.Stop(); return; }
+            if (!AutoHide || App.BakaHidden) { if (slidUp) Slide(false); else if (!AutoHide) hideTimer.Stop(); return; }
+            if (App.BehindFullscreen) return; // behind a fullscreen game: the pointer at the top does not bring it in
             bool wanted = islandHover || pills.Any(p => p.IsMouseOver) || CalendarFlyout.IsOpen || ControlCenter.IsOpen || NetworkFlyout.IsOpen || NotificationCenter.IsOpen;
             if (!wanted && Native.GetCursorPos(out var c)) { var b = System.Windows.Forms.Screen.PrimaryScreen.Bounds; wanted = c.Y <= b.Top + 2 && c.X >= b.Left && c.X < b.Right; }
             if (wanted) { lastWanted = DateTime.Now; if (slidUp) Slide(false); }

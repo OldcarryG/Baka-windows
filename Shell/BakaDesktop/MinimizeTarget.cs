@@ -40,7 +40,7 @@ namespace Baka.Desktop
             try
             {
                 if ((w.ToInt64() & 0x7FFF) != 5 /*HSHELL_GETMINRECT*/ || l == IntPtr.Zero) return IntPtr.Zero;
-                if (!Enabled || App.GameRunning || App.Dock == null || !Writable(l, IntPtr.Size + 16)) return IntPtr.Zero;
+                if (!Enabled || App.BakaHidden || App.Dock == null || !Writable(l, IntPtr.Size + 16)) return IntPtr.Zero;
                 IntPtr hwnd = Marshal.ReadIntPtr(l);
                 if (!App.Dock.TargetFor(hwnd, out var r)) return IntPtr.Zero;
                 int o = IntPtr.Size;

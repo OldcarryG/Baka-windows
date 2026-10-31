@@ -33,7 +33,7 @@ namespace Baka.Desktop
         static string ThemeKey() => Theme.Current?.Name + "|" + Theme.AccentHex + "|" + Theme.Motion + "|" + (App.Settings == null ? "" : Json.Write(App.Settings.Appearance));
         public static void Toggle(bool focusSearch = false)
         {
-            if (App.GameRunning) return;
+            if (App.BakaHidden) return; // "Light" gaming: the Windows key opens the Launchpad, not Start
             // Win+S / Win+Q / the search widget: an open Launchpad focuses its search box instead of closing
             if (IsOpen && focusSearch) { try { current.Activate(); Native.Activate(new WindowInteropHelper(current).Handle); current.search.Focus(); current.search.SelectAll(); } catch { } return; }
             if (IsOpen) { current.Close(); return; }
