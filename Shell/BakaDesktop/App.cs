@@ -379,7 +379,15 @@ namespace Baka.Desktop
         static void RefreshWindows()
         {
             if (GameRunning) return;
-            try { CheckFullscreen(); WindowsChanged?.Invoke(); } catch (Exception ex) { Log.Write("windows-refresh-failed error=\"" + ex.Message + "\""); }
+            try
+            {
+                CheckFullscreen();
+                // a fullscreen window came to the front: switch to the game profile now (the bars hide), not on
+                // the next 4 s game check
+                if (behindFullscreen) { CheckGame(); if (GameRunning) return; }
+                WindowsChanged?.Invoke();
+            }
+            catch (Exception ex) { Log.Write("windows-refresh-failed error=\"" + ex.Message + "\""); }
         }
         // Window shown, hidden or destroyed, foreground change, minimize / restore. Out of context: nothing
         // runs inside other apps and they never wait for BAKA. Removed while a game runs.
@@ -425,18 +433,99 @@ namespace Baka.Desktop
         // A fullscreen window (video, presentation, borderless app) covers the menu bar and dock, like it
         // covers the Windows taskbar; they come back on top when it leaves fullscreen.
         static bool behindFullscreen;
+        public static bool BehindFullscreen => behindFullscreen;
         static void CheckFullscreen()
         {
             IntPtr fg = Native.GetForegroundWindow(); bool full = false;
             if (fg != IntPtr.Zero)
             {
                 Native.GetWindowThreadProcessId(fg, out uint pid);
-                full = pid != Process.GetCurrentProcess().Id && Profiles.IsFullscreen(fg);
+                // Windows' own fullscreen signal (ABN_FULLSCREENAPP, the one that drops the taskbar behind games)
+                // counts too: it also catches borderless games that BAKA's own size check misses.
+                full = pid != Process.GetCurrentProcess().Id && (Profiles.IsFullscreen(fg) || (AppBars.ShellFullscreen && !Profiles.IsDesktop(fg)));
             }
-            if (full == behindFullscreen) return;
+            if (full == behindFullscreen) { if (full) PushBarsBehind(); return; }
             behindFullscreen = full;
-            foreach (Window w in new Window[] { Bar, Dock }) if (w != null) w.Topmost = !full;
+            if (full) PushBarsBehind();
+            else foreach (Window w in new Window[] { Bar, Dock }) if (w != null) w.Topmost = true;
             Log.Write("fullscreen-app=" + full);
+        }
+        // Topmost off alone is not enough: Windows then puts the window above every other normal window
+        // (HWND_NOTOPMOST), so the menu bar and dock stayed on top of a borderless fullscreen game. They are
+        // sent to the bottom of the z-order instead, under the fullscreen window.
+        static void PushBarsBehind()
+        {
+            foreach (Window w in new Window[] { Bar, Dock })
+            {
+                if (w == null) continue;
+                w.Topmost = false;
+                IntPtr h = new WindowInteropHelper(w).Handle;
+                if (h != IntPtr.Zero) Native.SetWindowPos(h, Native.HWND_BOTTOM, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+            }
+        }
+        // Explorer reported that a fullscreen window opened or closed (ABN_FULLSCREENAPP): check at once
+        // instead of waiting for the next window event or the 4 s game check.
+        public static void FullscreenChanged()
+        {
+            Ui?.BeginInvoke(new Action(() =>
+            {
+                if (GameRunning) return;
+                try { CheckFullscreen(); if (behindFullscreen) CheckGame(); } catch (Exception e) { Log.Write("fullscreen-check-failed error=\"" + e.Message + "\""); }
+            }));
+        }
+
+        // The menu bar or dock settings changed (auto-hide, shown or hidden): both edges are given back and
+        // reserved again, menu bar first, so the two strips never overlap at the top corner while they change
+        // (Explorer's app-bar manager then dropped one of them). Windows maximized while an edge was free are
+        // fitted back inside the work area afterwards.
+        public static void ReserveEdges()
+        {
+            if (Paths.Preview) return;
+            AppBars.ReleaseAll(); AppBars.Forget();
+            if (Bar != null && Bar.IsVisible) Bar.Reserve();
+            Dock?.Place();
+            EdgesChanged();
+        }
+        // After a reserved edge came back: check the work area really has the strips (once, see AppBars.Verify)
+        // and fit maximized windows into it. Twice, because Explorer applies app-bar changes a moment later.
+        public static void EdgesChanged()
+        {
+            if (Paths.Preview || Ui == null) return;
+            foreach (int ms in new[] { 500, 2000 })
+                new DispatcherTimer(TimeSpan.FromMilliseconds(ms), DispatcherPriority.Background, (o, e) =>
+                {
+                    ((DispatcherTimer)o).Stop();
+                    if (GameRunning) return;
+                    try { AppBars.Verify(); FitMaximizedWindows(); } catch (Exception ex) { Log.Write("fit-windows-failed error=\"" + ex.Message + "\""); }
+                }, Ui).Start();
+        }
+        // A window maximized while the menu bar or dock was hidden keeps the whole screen when the edge is
+        // reserved again (Windows does not refit it for every work-area change), so it sat under the menu bar
+        // and dock. Every maximized app window that reaches into a reserved strip is fitted to the work area
+        // again, keeping its invisible resize border outside the screen as Windows does. Fullscreen windows
+        // (games, video) are left alone.
+        static void FitMaximizedWindows()
+        {
+            uint me = (uint)Process.GetCurrentProcess().Id; int fitted = 0;
+            Native.EnumWindows((h, p) =>
+            {
+                try
+                {
+                    if (!Native.IsWindowVisible(h) || !Native.IsZoomed(h) || Native.IsIconic(h) || Native.IsCloaked(h)) return true;
+                    if ((Native.ExStyle(h) & Native.WS_EX_TOOLWINDOW) != 0) return true;
+                    Native.GetWindowThreadProcessId(h, out uint pid); if (pid == me) return true;
+                    if (Profiles.IsFullscreen(h)) return true;
+                    if (!Native.GetWindowRect(h, out var r) || Native.DwmGetWindowAttribute(h, 9 /*DWMWA_EXTENDED_FRAME_BOUNDS*/, out Native.RECT v, Marshal.SizeOf(typeof(Native.RECT))) != 0) return true;
+                    var work = Native.MonitorRect(h, true);
+                    if (v.Left >= work.Left && v.Top >= work.Top && v.Right <= work.Right && v.Bottom <= work.Bottom) return true;
+                    int x = work.Left - (v.Left - r.Left), y = work.Top - (v.Top - r.Top);
+                    int w = (work.Right + (r.Right - v.Right)) - x, hgt = (work.Bottom + (r.Bottom - v.Bottom)) - y;
+                    if (Native.SetWindowPos(h, IntPtr.Zero, x, y, w, hgt, Native.SWP_NOZORDER | Native.SWP_NOACTIVATE | 0x0200 /*NOOWNERZORDER*/)) fitted++;
+                }
+                catch { }
+                return true;
+            }, IntPtr.Zero);
+            if (fitted > 0) Log.Write("maximized-windows-fitted count=" + fitted);
         }
 
         public static bool TaskbarWanted => Json.Bool(Settings.Taskbar, "autoHideWindowsTaskbar", true);
@@ -526,9 +615,52 @@ namespace Baka.Desktop
                 if (Profiles.Manual != null) return;
                 string game = Paths.Preview ? null : Profiles.DetectForegroundGame();
                 if (game != null && !GameRunning) EnterGame(game);
-                else if (game == null && GameRunning) LeaveGame();
+                else if (game == null && GameRunning && !GameStillPlaying()) LeaveGame();
             }
             catch (Exception e) { Log.Write("game-check-failed error=\"" + e.Message + "\""); }
+        }
+        // A detected game keeps Gaming mode while it runs, not only while it is the window in front. Before, a
+        // notification, a launcher pop-up or a quick Alt+Tab took the foreground and switched everything back
+        // (VALORANT left Gaming 12 s after it started). Gaming ends when the game's process exits or its window
+        // is minimized (Alt+Tab out of an exclusive fullscreen game), and comes back when it is in front again.
+        static uint gamePid; static bool gameByFullscreen;
+        static bool GameStillPlaying()
+        {
+            if (gamePid == 0) return false;
+            // only the process list is read: anti-cheat (Vanguard, EAC) refuses to open game processes
+            try { using (Process.GetProcessById((int)gamePid)) { } } catch { Log.Write("game-process-exited pid=" + gamePid); return false; }
+            if (GameWindow != IntPtr.Zero && Native.IsWindow(GameWindow))
+            {
+                if (Native.IsIconic(GameWindow)) { Log.Write("game-minimized"); return false; }
+                if (gameByFullscreen && !Profiles.IsFullscreen(GameWindow)) return false;
+                return true;
+            }
+            if (gameByFullscreen) return false;
+            // the game made a new window (switching between fullscreen and windowed fullscreen does that): the
+            // overlay follows the new one once it is in front
+            IntPtr fg = Native.GetForegroundWindow();
+            Native.GetWindowThreadProcessId(fg, out uint pid);
+            if (pid == gamePid) GameWindow = fg;
+            return true;
+        }
+
+        // Arena, Control Center, Settings > Power and the widget pick a profile by hand. Gaming used to only
+        // write the profile's registry values: the menu bar, dock, wallpaper and keyboard listener stayed as on
+        // the desktop, so it looked like nothing happened. And the hand-picked profile turned automatic game
+        // detection off until Desktop was picked again. Gaming now does everything a detected game does, and
+        // Desktop always gives automatic detection back.
+        public static void SetProfileByHand(string profile, string reason)
+        {
+            if (profile == "CompetitiveGaming")
+            {
+                Profiles.Manual = "CompetitiveGaming";
+                if (!GameRunning) EnterGame("manual");
+                else GameExitKey(true); // a detected game is running: it now stays until Ctrl+Alt+G or Desktop
+                return;
+            }
+            Profiles.Manual = profile == "Desktop" ? null : profile;
+            if (GameRunning) LeaveGame();
+            Profiles.Set(profile, reason);
         }
         public static void EnterGame(string name)
         {
@@ -539,8 +671,10 @@ namespace Baka.Desktop
             GameRunning = true; Profiles.DetectedGame = name; KeyHook.Enabled = false;
             // the game is the window in front when it is detected (a game mode started by hand from BAKA has none)
             GameWindow = Native.GetForegroundWindow();
-            Native.GetWindowThreadProcessId(GameWindow, out uint gamePid);
-            if (gamePid == 0 || gamePid == (uint)Process.GetCurrentProcess().Id) GameWindow = IntPtr.Zero;
+            Native.GetWindowThreadProcessId(GameWindow, out gamePid);
+            if (gamePid == 0 || gamePid == (uint)Process.GetCurrentProcess().Id || name == "manual") { GameWindow = IntPtr.Zero; gamePid = 0; }
+            gameByFullscreen = gamePid != 0 && Profiles.DetectedByFullscreen;
+            Log.Write("game-start name=\"" + name + "\" pid=" + gamePid + " byFullscreen=" + gameByFullscreen);
             Notifications.Pause(true);
             if (!Paths.Preview) { KeyHook.Remove(); WatchWindows(false); try { CaptionButtons.Apply(false); } catch { } }
             Profiles.Set("CompetitiveGaming", "game " + name);
@@ -555,7 +689,7 @@ namespace Baka.Desktop
         }
         public static void LeaveGame()
         {
-            GameRunning = false; Profiles.DetectedGame = null; GameWindow = IntPtr.Zero;
+            GameRunning = false; Profiles.DetectedGame = null; GameWindow = IntPtr.Zero; gamePid = 0;
             GameExitKey(false);
             // Focus that the game turned on goes off first, so the dock and wallpaper below come back as they should
             try { FocusMode.GameEnded(); } catch (Exception e) { Log.Write("focus-failed error=\"" + e.Message + "\""); }
@@ -571,6 +705,8 @@ namespace Baka.Desktop
             Dock?.Show(); Widgets.ShowEnabled(); Wallpaper.Pause(false); CaptionButtons.HideAll(false); Surfaces.Pause(false); DesktopMenu.Apply();
             GameOverlay.Update(); // "in games" hides it, "always" keeps it
             RefreshWindows();
+            // windows maximized during the game got the whole screen (the edges were free): fit them again
+            EdgesChanged();
             Ui.BeginInvoke(new Action(() => { try { if (!GameRunning) Launchpad.Prepare(); } catch { } }), DispatcherPriority.ApplicationIdle);
         }
 
@@ -654,8 +790,8 @@ namespace Baka.Desktop
             int bar = text.IndexOf('|'); string kind = bar < 0 ? text : text.Substring(0, bar), value = bar < 0 ? "" : text.Substring(bar + 1);
             Log.Write("request kind=" + kind);
             if (kind == "open") Files.Open(value); else if (kind == "settings") SettingsWindow.Open();
-            else if (kind == "profile" && value.Equals("gaming", StringComparison.OrdinalIgnoreCase)) { Profiles.Manual = "CompetitiveGaming"; EnterGame("manual"); }
-            else if (kind == "profile" && value.Equals("desktop", StringComparison.OrdinalIgnoreCase)) { Profiles.Manual = null; LeaveGame(); }
+            else if (kind == "profile" && value.Equals("gaming", StringComparison.OrdinalIgnoreCase)) SetProfileByHand("CompetitiveGaming", "command");
+            else if (kind == "profile" && value.Equals("desktop", StringComparison.OrdinalIgnoreCase)) SetProfileByHand("Desktop", "command");
             else if (kind == "tray") PeekTray();
             else if (kind == "focus") FocusMode.Set(value == "toggle" ? !FocusMode.On : value.Equals("on", StringComparison.OrdinalIgnoreCase), "command");
             else if (kind == "overlay") GameOverlay.SetEnabled(value == "toggle" ? !GameOverlay.Enabled : value.Equals("on", StringComparison.OrdinalIgnoreCase), "command");

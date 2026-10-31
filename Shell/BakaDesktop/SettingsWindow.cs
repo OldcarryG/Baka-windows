@@ -249,7 +249,7 @@ namespace Baka.Desktop
             spacing.ValueChanged += (o, e) => { S.Dock["spacing"] = (int)spacing.Value; rebuildDock(); };
             c.Children.Add(Ui.Row("Spacing", null, spacing));
             c.Children.Add(Ui.Row("Magnify icons under the pointer", null, Ui.Toggle(Json.Bool(S.Dock, "magnification", true), on => { S.Dock["magnification"] = on; Save(); })));
-            c.Children.Add(Ui.Row("Hide the dock until the pointer reaches it", null, Ui.Toggle(Json.Bool(S.Dock, "autoHide"), on => { S.Dock["autoHide"] = on; Save(); App.Dock.Place(); })));
+            c.Children.Add(Ui.Row("Hide the dock until the pointer reaches it", null, Ui.Toggle(Json.Bool(S.Dock, "autoHide"), on => { S.Dock["autoHide"] = on; Save(); App.ReserveEdges(); })));
             c.Children.Add(Ui.Row("Show open windows of other apps", null, Ui.Toggle(Json.Bool(S.Taskbar, "showRunningApps", true), on => { S.Taskbar["showRunningApps"] = on; Save(); App.Dock.Build(); })));
             var list = new StackPanel();
             foreach (var p in S.Pinned.Select(Json.Obj).Where(p => p != null).ToList())
@@ -275,10 +275,10 @@ namespace Baka.Desktop
         void BarPage(StackPanel c)
         {
             c.Children.Add(Ui.Heading("Menu bar", "The strip at the top. Maximized windows stop below it, so their buttons are never covered."));
-            c.Children.Add(Ui.Row("Show the menu bar", null, Ui.Toggle(Json.Bool(S.TopBar, "enabled", true), on => { S.TopBar["enabled"] = on; Save(); if (on) App.Bar.Show(); else App.Bar.Hide(); App.Dock.Place(); })));
+            c.Children.Add(Ui.Row("Show the menu bar", null, Ui.Toggle(Json.Bool(S.TopBar, "enabled", true), on => { S.TopBar["enabled"] = on; Save(); if (on) App.Bar.Show(); else App.Bar.Hide(); App.ReserveEdges(); })));
             c.Children.Add(Ui.Row("Show the date", "Next to the time in the clock island. Off, the date shows when the pointer is over the clock.", Ui.Toggle(TopBar.ShowDate, on => { S.TopBar["showDate"] = on; Save(); App.Bar?.RefreshClock(); })));
             c.Children.Add(Ui.Row("Show the active profile", "DESKTOP, GAMING or BENCHMARK next to the tray.", Ui.Toggle(Json.Bool(S.TopBar, "showProfile", true), on => { S.TopBar["showProfile"] = on; Save(); Theme.Apply(Theme.Current.Name, Theme.AccentHex); })));
-            c.Children.Add(Ui.Row("Hide the menu bar until the pointer reaches the top", "The islands slide up out of sight and apps get the whole screen height; touch the top edge to bring them back.", Ui.Toggle(Json.Bool(S.TopBar, "autoHide"), on => { S.TopBar["autoHide"] = on; Save(); App.Bar.ApplyAutoHide(); App.Dock.Place(); })));
+            c.Children.Add(Ui.Row("Hide the menu bar until the pointer reaches the top", "The islands slide up out of sight and apps get the whole screen height; touch the top edge to bring them back.", Ui.Toggle(Json.Bool(S.TopBar, "autoHide"), on => { S.TopBar["autoHide"] = on; Save(); App.Bar.ApplyAutoHide(); App.ReserveEdges(); })));
         }
 
         void WidgetsPage(StackPanel c)
@@ -408,7 +408,7 @@ namespace Baka.Desktop
             c.Children.Add(Ui.Heading("Power", "Power plan and profiles. Games switch to Gaming by themselves."));
             var plans = PowerPlans.ListCached();
             if (plans.Count > 0) c.Children.Add(Ui.Row("Power plan", "BAKA Gaming: Ultimate Performance tuned for games (no core parking, no USB sleep).", Ui.Choice(plans.Select(p => p.name), plans.FirstOrDefault(p => p.active).name, n => PowerPlans.Activate(plans.First(p => p.name == n).guid))));
-            c.Children.Add(Ui.Row("Profile", null, Ui.Choice(new[] { "Desktop", "Gaming", "Benchmark" }, Profiles.Active == "CompetitiveGaming" ? "Gaming" : Profiles.Active, v => { string p = v == "Gaming" ? "CompetitiveGaming" : v; Profiles.Manual = p == "Desktop" ? null : p; Profiles.Set(p, "settings"); })));
+            c.Children.Add(Ui.Row("Profile", null, Ui.Choice(new[] { "Desktop", "Gaming", "Benchmark" }, Profiles.Active == "CompetitiveGaming" ? "Gaming" : Profiles.Active, v => App.SetProfileByHand(v == "Gaming" ? "CompetitiveGaming" : v, "settings"))));
             c.Children.Add(Ui.Row("Windows power options", null, Ui.Button("Open", () => Run("ms-settings:powersleep"))));
         }
 

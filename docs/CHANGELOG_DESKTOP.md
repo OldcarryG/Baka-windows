@@ -4,6 +4,20 @@ BAKA Desktop is the app in `C:\ProgramData\BAKA\Desktop\BakaDesktop.exe`: the me
 
 R15 (2026-10-29) shipped BAKA Desktop 12.0. Everything below came after it. This page lists the changes version by version. The complete list of every new feature, change and bug fix since R15, grouped by area, is in the README: [Changes since R15](../README.md#changes-since-r15).
 
+## 12.27.3 (2026-10-31)
+
+- **Game mode switches on by itself again and does what it says.**
+  - The Gaming buttons in Arena, Control Center, Settings > Power and the quick-toggles widget only wrote the profile's registry values: the menu bar, dock, video wallpaper and keyboard listener stayed as on the desktop. They now do everything a detected game does.
+  - Picking Gaming or Benchmark by hand switched automatic game detection off until Desktop was picked again. Desktop now always gives automatic detection back, and Gaming picked by hand ends with Ctrl+Alt+G or Desktop.
+  - A detected game lost Gaming mode as soon as another window came to the front (VALORANT left it 12 s after it started). Gaming now lasts while the game's process runs, and ends when it exits or its window is minimized. A game that makes a new window (switching to or from windowed fullscreen) keeps Gaming mode. An app found only because it was fullscreen leaves Gaming when it is no longer fullscreen.
+  - The Gaming profile's transparency and minimize-animation values took effect only at the next sign-in. Windows is now told at once (`SPI_SETANIMATION`, `WM_SETTINGCHANGE`).
+  - New log line `game-start name=... pid=... byFullscreen=...`.
+- **The menu bar and dock no longer show over windowed-fullscreen games.**
+  - A fullscreen window in front only took "always on top" off the bars, which put them above every normal window, the game included. They now go to the bottom of the z-order, and the menu bar does not come back on top when the pointer touches the top edge.
+  - Borderless games that size themselves to the work area (the screen minus the bars) were not seen as fullscreen. A window with no title bar and no sizing border that covers the work area now counts.
+  - BAKA listens to Explorer's fullscreen notice (`ABN_FULLSCREENAPP`), the signal that drops the Windows taskbar behind games, and switches to Gaming at once instead of on the next 4 s check.
+- **Apps no longer stay under the menu bar and dock after auto-hide is turned off.** Turning "Hide the dock / menu bar until the pointer reaches it" (or "Show the menu bar") on or off now gives both edges back and reserves them again, menu bar first, so the two strips never overlap while they change. Windows that were maximized while an edge was free are fitted to the work area again, also after a game closes and after Focus turns off.
+
 ## 12.27.2 (2026-10-30)
 
 - **WebP wallpapers work.** A WebP picture chosen in Settings > Wallpaper (or with `--wallpaper`) was replaced with the BAKA BlackGlass picture, and the replacement was saved over the choice. BAKA now converts the picture once to PNG with Windows' own WebP decoder (WIC, the WebP Image Extension), off the UI thread, and gives Windows the PNG. The user's file stays the setting; the converted copy is kept in `%LOCALAPPDATA%\BAKA\State\Wallpaper` (only the newest). If Windows cannot read the picture, an on-screen message says so and the BAKA picture is shown.

@@ -41,7 +41,7 @@ namespace Baka.Desktop
             if (!auto) Save(on);
             int missed = held; if (!on) held = 0;
             Log.Write("focus " + (on ? "on" : "off") + " reason=" + reason + (on ? "" : " held=" + missed));
-            try { App.Dock?.Place(); } catch (Exception e) { Log.Write("focus-dock-failed error=\"" + e.Message + "\""); }
+            try { App.Dock?.Place(); if (!on) App.EdgesChanged(); } catch (Exception e) { Log.Write("focus-dock-failed error=\"" + e.Message + "\""); }
             try { Wallpaper.Refresh(); } catch { }
             if (!auto) Osd.Show(on ? 0xE708 : 0xE7E7, on ? "Focus on  ·  no pop-ups" : missed > 0 ? "Focus off  ·  " + missed + " notification" + (missed == 1 ? "" : "s") + " came in" : "Focus off");
             else if (!on && missed > 0) Osd.Show(0xE7E7, missed + " notification" + (missed == 1 ? "" : "s") + " came in during the game");

@@ -85,9 +85,7 @@ namespace Baka.Desktop
             sp.Children.Add(Caption("Profile"));
             sp.Children.Add(Ui.Choice(new[] { "Desktop", "Gaming", "Benchmark" }, Profiles.Active == "CompetitiveGaming" ? "Gaming" : Profiles.Active, v =>
             {
-                string p = v == "Gaming" ? "CompetitiveGaming" : v;
-                Profiles.Manual = p == "Desktop" ? null : p;
-                Profiles.Set(p, "manual");
+                App.SetProfileByHand(v == "Gaming" ? "CompetitiveGaming" : v, "manual");
             }));
             var plans = PowerPlans.ListCached();
             if (plans.Count > 0)

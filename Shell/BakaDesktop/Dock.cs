@@ -30,7 +30,11 @@ namespace Baka.Desktop
             SizeChanged += (o, e) => Place();
             MouseLeave += (o, e) => { foreach (var t in tiles) Magnify(t.tile, 1); };
             MouseMove += OnMouseMove;
-            SourceInitialized += (o, e) => Native.SetWindowLongPtr(Handle, Native.GWL_EXSTYLE, new IntPtr(Native.ExStyle(Handle) | Native.WS_EX_NOACTIVATE));
+            SourceInitialized += (o, e) =>
+            {
+                Native.SetWindowLongPtr(Handle, Native.GWL_EXSTYLE, new IntPtr(Native.ExStyle(Handle) | Native.WS_EX_NOACTIVATE));
+                System.Windows.Interop.HwndSource.FromHwnd(Handle)?.AddHook(AppBars.Hook); // Explorer: a fullscreen window opened or closed
+            };
             // checks the screen edge every 120 ms, so a hidden dock is back almost as soon as the pointer arrives
             autoHideTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
             autoHideTimer.Tick += (o, e) => AutoHideTick();

@@ -571,11 +571,27 @@ namespace Baka.Desktop
         static readonly System.Collections.Generic.Dictionary<IntPtr, Native.RECT> reserved = new System.Collections.Generic.Dictionary<IntPtr, Native.RECT>();
         public static uint CallbackMessage = Native.RegisterWindowMessage("BAKA.AppBar");
 
+        // Explorer's app-bar manager tells each registered app bar when a fullscreen window opens or closes
+        // (ABN_FULLSCREENAPP), the same signal that drops the Windows taskbar behind a game. BAKA ignored it, so
+        // the menu bar and dock stayed above borderless fullscreen games. Hooked into both windows.
+        public static bool ShellFullscreen;
+        public static IntPtr Hook(IntPtr h, int msg, IntPtr w, IntPtr l, ref bool handled)
+        {
+            if (CallbackMessage == 0 || msg != (int)CallbackMessage) return IntPtr.Zero;
+            handled = true;
+            if (w.ToInt64() == 2 /*ABN_FULLSCREENAPP*/)
+            {
+                bool full = l != IntPtr.Zero;
+                if (full != ShellFullscreen) { ShellFullscreen = full; Log.Write("shell-fullscreen-app=" + full); App.FullscreenChanged(); }
+            }
+            return IntPtr.Zero;
+        }
+
         // Explorer restarted: it no longer knows BAKA's reservations, so they are made again from scratch.
         // lastWork is forgotten too: Explorer changed the real work area, so the next one must be set even if
         // it equals what BAKA set before Explorer started (it was skipped, and maximized windows slid under
         // the dock when only the dock reserved space).
-        public static void Forget() { registered.Clear(); reserved.Clear(); reRegisters = 0; gaveUp = false; lastWork = default(Native.RECT); }
+        public static void Forget() { registered.Clear(); reserved.Clear(); reRegisters = 0; gaveUp = false; lastWork = default(Native.RECT); ShellFullscreen = false; }
 
         // BAKA is the shell: Explorer's app-bar manager is not there, so the edges are kept free by setting the
         // screen's work area directly (what that manager would do), from the same reservations.
@@ -673,6 +689,8 @@ namespace Baka.Desktop
             var d = new Native.APPBARDATA { cbSize = Marshal.SizeOf(typeof(Native.APPBARDATA)), hWnd = hwnd };
             Native.SHAppBarMessage(Native.ABM_REMOVE, ref d);
             registered.Remove(hwnd); reserved.Remove(hwnd);
+            // no app bar left to receive "fullscreen closed": forget the last report so it cannot go stale
+            if (registered.Count == 0) ShellFullscreen = false;
         }
         public static void ReleaseAll() { foreach (var h in new System.Collections.Generic.List<IntPtr>(registered.Keys)) Release(h); }
     }

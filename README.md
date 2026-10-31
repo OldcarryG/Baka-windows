@@ -291,7 +291,7 @@ With BAKA as the shell and the background Explorer off, BAKA handles the shortcu
 - **AV1 4K wallpapers** need hardware AV1 decoding (see above).
 - **Game FPS, frame times, mouse latency and media keys** were not benchmarked; the test VMs have no GPU and no sound device. The game overlay's FPS counter was checked on a real PC at 60 FPS (a Direct3D 9 window and a DXGI app on a 60 Hz screen), but not yet inside a real game, and not with Vulkan or OpenGL games.
 - **Game overlay** shows over borderless and windowed games; a game in exclusive fullscreen draws above it. GPU temperature, power and video memory are read only on NVIDIA GPUs.
-- **BAKA Desktop 12.27.2** has a few known issues (Win+F1, a left or right dock next to the background Explorer): see [Known issues in 12.27.2](#known-issues-in-12272).
+- **BAKA Desktop 12.27.3** has a few known issues (Win+F1, a left or right dock next to the background Explorer): see [Known issues in 12.27.3](#known-issues-in-12273).
 - **Windows Pro telemetry**: "required" diagnostic data is still sent; BAKA does not claim zero telemetry.
 - **Apps running as administrator** and dialogs keep Windows' own window buttons.
 - The ISO is not signed by Microsoft. Check its SHA-256 against the release.
@@ -314,7 +314,8 @@ With BAKA as the shell and the background Explorer off, BAKA handles the shortcu
 
 | Release | Main changes |
 |---|---|
-| **BAKA Desktop 12.27.2** (2026-10-30, no new ISO) | Fixes WebP wallpapers (they were replaced with the BAKA picture) and Settings > Menu bar > "Show the date" (it did nothing). Contains everything from 12.27.1. [Every change and fix](#changes-since-r15), [how to install](#update-baka-desktop) |
+| **BAKA Desktop 12.27.3** (2026-10-31, no new ISO) | Game mode switches on by itself again, lasts while the game runs, and the Gaming buttons in Arena and Control Center really switch to it; the menu bar and dock no longer show over windowed-fullscreen games; apps no longer stay under the bars after auto-hide is turned off. [Changelog](docs/CHANGELOG_DESKTOP.md), [how to install](#update-baka-desktop) |
+| BAKA Desktop 12.27.2 (2026-10-30, no new ISO) | Fixes WebP wallpapers (they were replaced with the BAKA picture) and Settings > Menu bar > "Show the date" (it did nothing). Contains everything from 12.27.1. [Every change and fix](#changes-since-r15), [how to install](#update-baka-desktop) |
 | BAKA Desktop 12.27.1 (2026-10-30, no new ISO) | Update for R15 PCs: game overlay with FPS, Focus, per-app volume, BAKA notification pop-ups without Windows' duplicate banners, shortcut cheat sheet, optional BAKA-as-shell mode with its own tray and switcher, and many bug fixes. [Every change and fix](#changes-since-r15), [how to install](#update-baka-desktop) |
 | **R15** (2026-10-29, last ISO) | Fast Startup back on; BAKA Desktop starts with Explorer (desktop ready about 1.7 s sooner); no false crash at every shutdown; Windows key only listened to, not hooked; Launchpad opens in under 20 ms; native image for BAKA Desktop |
 | R14 (2026-10-29) | 4K video wallpaper decoded on the GPU; keyboard hook on its own time-critical thread (25–42 ms → 0.75 ms with BAKA busy) and removed in games; AI tuning prompt; ISO on MEGA |
@@ -325,7 +326,7 @@ All releases: [github.com/OldcarryG/Baka-windows/releases](https://github.com/Ol
 
 ## Changes since R15
 
-Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is in **BAKA Desktop 12.27.2** ([install it](#update-baka-desktop)). Windows itself, Baka Browser 1.6.2, the system tuning and the ISO build scripts are unchanged. The list comes from the code changes between R15 and 12.27.2 (48 files). Notes for each version: [docs/CHANGELOG_DESKTOP.md](docs/CHANGELOG_DESKTOP.md).
+Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is in **BAKA Desktop 12.27.3** ([install it](#update-baka-desktop)). Windows itself, Baka Browser 1.6.2, the system tuning and the ISO build scripts are unchanged. The list comes from the code changes between R15 and 12.27.2 (48 files). Notes for each version: [docs/CHANGELOG_DESKTOP.md](docs/CHANGELOG_DESKTOP.md).
 
 ### New features
 
@@ -534,9 +535,11 @@ Everything here came after the R15 ISO, which shipped BAKA Desktop 12.0, and is 
 - The power plan list is cached for 20 seconds, the brightness check runs once on desktop PCs, the sound device is looked up every 5 seconds instead of for every slider step, and each window's program is read once.
 - The overlay reads its numbers once a second off the UI thread. The frame counter runs only while the overlay is shown, and Windows filters its events down to about one per frame.
 
-### Known issues in 12.27.2
+### Known issues in 12.27.3
 
-The WebP wallpaper and "Show the date" bugs of 12.27.1 are fixed in 12.27.2. Still open:
+The game-mode, fullscreen and auto-hide bugs of 12.27.2 are fixed in 12.27.3 ([changelog](docs/CHANGELOG_DESKTOP.md)). Still open:
+
+- A game in windowed fullscreen is not minimized by Alt+Tab, so Gaming mode (no menu bar or dock) stays on while you use other apps. Ctrl+Alt+G or Arena > Desktop brings them back.
 
 - Win+F1 opens the cheat sheet only when Explorer is off (otherwise it is Windows Help). Win+/ always works.
 - With the background Explorer running, Explorer can refuse a left or right dock's screen reservation on some Windows builds. BAKA then stops trying, so maximized windows may reach under the dock; the menu bar stays reserved.

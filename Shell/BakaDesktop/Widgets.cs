@@ -250,8 +250,7 @@ namespace Baka.Desktop
             grid.Children.Add(Toggle(0xE74F, "Mute", () => { try { Audio.SetMuted(!Audio.Muted); } catch { } }));
             grid.Children.Add(Toggle(0xE7FC, "Game mode", () =>
             {
-                if (Profiles.Active == "CompetitiveGaming") { Profiles.Manual = null; App.LeaveGame(); }
-                else { Profiles.Manual = "CompetitiveGaming"; App.EnterGame("manual"); }
+                App.SetProfileByHand(Profiles.Active == "CompetitiveGaming" ? "Desktop" : "CompetitiveGaming", "widget");
             }));
             grid.Children.Add(Toggle(0xE995, "Volume up", () => Native.SendMediaKey(0xAF)));
             grid.Children.Add(Toggle(0xE993, "Volume down", () => Native.SendMediaKey(0xAE)));

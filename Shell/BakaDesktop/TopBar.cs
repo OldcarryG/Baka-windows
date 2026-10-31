@@ -40,6 +40,7 @@ namespace Baka.Desktop
                 var src = HwndSource.FromHwnd(handle);
                 if (src?.CompositionTarget != null) src.CompositionTarget.BackgroundColor = Colors.Transparent;
                 src?.AddHook(HitTest);
+                src?.AddHook(AppBars.Hook); // Explorer: a fullscreen window opened or closed
                 Place();
             };
             Build();
@@ -76,7 +77,8 @@ namespace Baka.Desktop
         // the top with SetWindowPos — without activating it (it must never steal focus from the app).
         void Raise()
         {
-            if (handle == IntPtr.Zero) return;
+            // a fullscreen window is in front: the menu bar stays behind it, even when the pointer touches the top
+            if (handle == IntPtr.Zero || App.BehindFullscreen) return;
             try { Native.SetWindowPos(handle, Native.HWND_TOPMOST, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE); } catch { }
         }
         void Slide(bool up)

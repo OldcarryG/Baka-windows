@@ -37,7 +37,7 @@ namespace Baka.Desktop
                 c.Children.Add(top); var d = Ui.Muted(text, 11.5); d.Margin = new Thickness(0, 6, 0, 0); c.Children.Add(d);
                 card.Child = c;
                 string pid = id;
-                Ui.OnClick(card, () => { Profiles.Manual = pid == "Desktop" ? null : pid; Profiles.Set(pid, "arena"); Rebuild(); });
+                Ui.OnClick(card, () => { App.SetProfileByHand(pid, "arena"); Rebuild(); });
                 profiles.Children.Add(card);
             }
             sp.Children.Add(profiles);

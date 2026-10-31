@@ -41,6 +41,7 @@ namespace Baka.Desktop
                 else if (profile == "CompetitiveGaming") Apply();
                 else if (Active == "CompetitiveGaming") Restore(); // Benchmark records conditions and leaves Windows as it is
                 Active = profile;
+                TellWindows();
                 Log.Write("profile=" + profile + " reason=" + reason);
                 try { Process.GetCurrentProcess().PriorityClass = profile == "Desktop" ? ProcessPriorityClass.Normal : ProcessPriorityClass.BelowNormal; } catch { }
             }
@@ -67,6 +68,37 @@ namespace Baka.Desktop
                 if (Json.Bool(item, "existed")) Write(p, n, Json.Get(item, "value")); else Delete(p, n);
             }
             File.Delete(StatePath);
+        }
+        // The values above were only written to the registry, which Windows reads at sign-in: switching to
+        // Gaming left transparency and the minimize animation on until the next sign-in, so the profile looked
+        // like it did nothing. Windows is told about both now, the way the Settings app does it.
+        static void TellWindows()
+        {
+            if (Paths.Preview) return;
+            // off the UI thread: the broadcast waits up to 200 ms for each slow window
+            System.Threading.Tasks.Task.Run(() => TellWindowsNow());
+        }
+        static void TellWindowsNow()
+        {
+            try
+            {
+                // minimize / restore animation (SPI_SETANIMATION with ANIMATIONINFO { cbSize, iMinAnimate })
+                bool animate = !string.Equals(Read(@"Control Panel\Desktop", "MinAnimate")?.ToString(), "0", StringComparison.Ordinal);
+                IntPtr info = System.Runtime.InteropServices.Marshal.AllocHGlobal(8);
+                try
+                {
+                    System.Runtime.InteropServices.Marshal.WriteInt32(info, 0, 8);
+                    System.Runtime.InteropServices.Marshal.WriteInt32(info, 4, animate ? 1 : 0);
+                    Native.SystemParametersInfoPtr(0x0049 /*SPI_SETANIMATION*/, 8, info, 0x0002 /*SPIF_SENDCHANGE*/);
+                }
+                finally { System.Runtime.InteropServices.Marshal.FreeHGlobal(info); }
+                // transparency: apps and the shell re-read it on this broadcast. SendMessageTimeout with
+                // ABORTIFHUNG, so a hung app cannot stall the switch.
+                IntPtr area = System.Runtime.InteropServices.Marshal.StringToHGlobalUni("ImmersiveColorSet");
+                try { Native.SendMessageTimeout(new IntPtr(0xFFFF) /*HWND_BROADCAST*/, 0x001A /*WM_SETTINGCHANGE*/, IntPtr.Zero, area, 0x0002 /*SMTO_ABORTIFHUNG*/, 200, out _); }
+                finally { System.Runtime.InteropServices.Marshal.FreeHGlobal(area); }
+            }
+            catch (Exception e) { Log.Write("profile-notify-failed error=\"" + e.Message + "\""); }
         }
         static object Read(string path, string name)
         {
@@ -124,6 +156,9 @@ namespace Baka.Desktop
             "Microsoft.Photos", "SnippingTool", "ScreenClippingHost", "mspaint", "CalculatorApp", "BakaDesktop", "msedgewebview2"
         };
 
+        // The last game was found only because its window was fullscreen (not a named title or in a library):
+        // such an app (a video player, a slideshow) leaves Gaming as soon as it leaves fullscreen.
+        public static bool DetectedByFullscreen;
         // A game is the foreground app when it is a named title, an executable inside a game library, or a
         // fullscreen / borderless window that is not a browser, player or tool.
         public static string DetectForegroundGame()
@@ -135,13 +170,14 @@ namespace Baka.Desktop
             if (pid == Process.GetCurrentProcess().Id) return null;
             string exe = Native.ProcessPath(pid); if (exe == null) return null;
             string proc = Path.GetFileNameWithoutExtension(exe);
+            DetectedByFullscreen = false;
             if (excluded.Contains(proc)) return null;
             if (named.TryGetValue(proc, out string display)) return display;
             if (nonGames.Contains(proc) || helper.IsMatch(proc)) return null;
             string lower = exe.ToLowerInvariant();
             if (library.Any(p => lower.Contains(p))) return Native.WindowText(fg) is string t && t.Length > 0 ? t : proc;
             // fullscreen: the window covers its whole monitor and is not the desktop
-            if (IsFullscreen(fg)) return Native.WindowText(fg) is string t2 && t2.Length > 0 ? t2 : proc;
+            if (IsFullscreen(fg)) { DetectedByFullscreen = true; return Native.WindowText(fg) is string t2 && t2.Length > 0 ? t2 : proc; }
             return null;
         }
         // A window that covers its whole monitor. A maximized window with a title bar is a normal app, not a
@@ -149,12 +185,26 @@ namespace Baka.Desktop
         public static bool IsFullscreen(IntPtr h)
         {
             if (h == IntPtr.Zero || !Native.GetWindowRect(h, out Native.RECT r)) return false;
-            string cls = Native.ClassName(h);
-            if (cls == "Progman" || cls == "WorkerW" || h == Native.GetShellWindow()) return false;
+            if (IsDesktop(h)) return false;
             long style = Native.GetWindowLongPtr(h, Native.GWL_STYLE).ToInt64();
-            if (Native.IsZoomed(h) && (style & 0x00C00000) == 0x00C00000) return false;
+            bool caption = (style & 0x00C00000) == 0x00C00000;
+            if (Native.IsZoomed(h) && caption) return false;
             var m = Native.MonitorRect(h, false);
-            return r.Left <= m.Left && r.Top <= m.Top && r.Right >= m.Right && r.Bottom >= m.Bottom;
+            if (r.Left <= m.Left && r.Top <= m.Top && r.Right >= m.Right && r.Bottom >= m.Bottom) return true;
+            // Borderless ("windowed fullscreen") games often size themselves to the work area, which is the
+            // screen minus BAKA's menu bar and dock strips, so they never covered the whole monitor and were not
+            // seen as fullscreen: the bars stayed on top of the game. A window with no title bar and no sizing
+            // border that covers the whole work area counts as fullscreen too. Normal apps with their own
+            // title bar (browsers, Discord, Spotify) keep a sizing border, so they are not caught by this.
+            if (caption || (style & 0x00040000 /*WS_THICKFRAME*/) != 0 || (Native.ExStyle(h) & Native.WS_EX_TOOLWINDOW) != 0) return false;
+            var w = Native.MonitorRect(h, true);
+            if (w.Right - w.Left >= m.Right - m.Left && w.Bottom - w.Top >= m.Bottom - m.Top) return false; // no strips reserved: the check above decided
+            return r.Left <= w.Left && r.Top <= w.Top && r.Right >= w.Right && r.Bottom >= w.Bottom;
+        }
+        public static bool IsDesktop(IntPtr h)
+        {
+            string cls = Native.ClassName(h);
+            return cls == "Progman" || cls == "WorkerW" || h == Native.GetShellWindow();
         }
     }
 
